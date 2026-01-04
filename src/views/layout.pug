@@ -22,17 +22,17 @@ html(lang="en")
         block link
 
         script.
-            window.Surveyor = {};
+            window.InventoryApp = {};
 
-    body(class="d-flex flex-column min-vh-100 bg-secondary" onload="window.Surveyor.init()")
+    body(class="d-flex flex-column min-vh-100 bg-secondary" onload="window.InventoryApp.init()")
 
         //── Navbar ────────────────────────────────────────────────────
         header
             nav.navbar.navbar-expand-lg.navbar-dark.bg-dark.shadow-sm
                 .container
                     a.navbar-brand.d-flex.align-items-center(href="/")
-                        img(src="/img/logo.png" alt="Surveyor" height="30" class="me-2")
-                        span.fw-semibold Surveyor
+                        img(src="/img/logo.png" alt="Inventory" height="30" class="me-2")
+                        span.fw-semibold Inventory
 
                     button.navbar-toggler(type="button", data-bs-toggle="collapse", data-bs-target="#navbarMain", aria-controls="navbarMain", aria-expanded="false", aria-label="Toggle navigation")
                         span.navbar-toggler-icon
@@ -46,60 +46,29 @@ html(lang="en")
                                     i.bi.bi-house-fill.me-1
                                     | Home
 
-                            // "New" dropdown – all creation flows in one place
-                            li.nav-item.dropdown
-                                a.nav-link.dropdown-toggle(href="#" id="navCreate" role="button" data-bs-toggle="dropdown" aria-expanded="false")
-                                    i.bi.bi-plus-circle.me-1
-                                    | New
-                                ul.dropdown-menu(aria-labelledby="navCreate")
-                                    li
-                                        h6.dropdown-header Plan & decide
-                                    li
-                                        a.dropdown-item(href="/survey/create")
-                                            i.bi.bi-bar-chart-steps.me-2
-                                            | Survey
-                                    li
-                                        a.dropdown-item(href="/activity/create")
-                                            i.bi.bi-calendar2-check.me-2
-                                            | Activity plan
-                                    li
-                                        a.dropdown-item(href="/event/create")
-                                            i.bi.bi-calendar2-event.me-2
-                                            | Event
-                                    li
-                                        hr.dropdown-divider
-                                    li
-                                        h6.dropdown-header Organize & share
-                                    li
-                                        a.dropdown-item(href="/packing/create")
-                                            i.bi.bi-bag-plus.me-2
-                                            | Packing list
-                                    li
-                                        a.dropdown-item(href="/drivers/create")
-                                            i.bi.bi-car-front.me-2
-                                            | Drivers list
+                            // Items
+                            li.nav-item
+                                a.nav-link(href="/items")
+                                    i.bi.bi-box-seam.me-1
+                                    | Items
 
-                            // "Overview" dropdown – where people see & manage things
-                            li.nav-item.dropdown
-                                a.nav-link.dropdown-toggle(href="#" id="navOverview" role="button" data-bs-toggle="dropdown" aria-expanded="false")
-                                    i.bi.bi-collection.me-1
-                                    | Overview
-                                ul.dropdown-menu(aria-labelledby="navOverview")
-                                    li
-                                        a.dropdown-item(href="/users/dashboard")
-                                            i.bi.bi-speedometer2.me-2
-                                            | Your overview
-                                    li
-                                        a.dropdown-item(href="/users/manage-dashboard")
-                                            i.bi.bi-people-fill.me-2
-                                            | Managed items
-                                    //-
-                                        li
-                                            hr.dropdown-divider
-                                        li
-                                            a.dropdown-item(href="/event")
-                                                i.bi.bi-calendar3.me-2
-                                                | Events
+                            // Locations
+                            li.nav-item
+                                a.nav-link(href="/locations")
+                                    i.bi.bi-geo-alt.me-1
+                                    | Locations
+
+                            // Lending
+                            li.nav-item
+                                a.nav-link(href="/loans")
+                                    i.bi.bi-arrow-left-right.me-1
+                                    | Lending
+
+                            // Scan
+                            li.nav-item
+                                a.nav-link(href="/scan")
+                                    i.bi.bi-upc-scan.me-1
+                                    | Scan
                             
                             // Help link
                             li.nav-item
@@ -157,7 +126,7 @@ html(lang="en")
         footer.bg-dark.text-white.text-center.py-2.mt-auto
             small
                 |  Powered by
-                a.text-white.text-decoration-none(href="https://github.com/JulianiusM/Surveyor") &nbsp;Surveyor
+                a.text-white.text-decoration-none(href="https://github.com/JulianiusM/InventoryManagement") &nbsp;Inventory Management
                 |  v#{version} • All rights reserved. •&nbsp;
                 a.text-white.text-decoration-none(href=settings.imprintUrl) Imprint
                 |  •&nbsp;
@@ -167,8 +136,5 @@ html(lang="en")
         script(src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js" integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz" crossorigin="anonymous")
         script(src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.6.0/jquery.min.js")
         script(src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js")
-        if permData !== undefined
-            script.
-                window.Surveyor.rawPermissions = !{JSON.stringify(permData)};
         block scripts
             script(type="module" src="/js/stub.gen.js")

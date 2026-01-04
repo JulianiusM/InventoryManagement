@@ -1,16 +1,24 @@
-# AI Agent Guide for Surveyor
+# AI Agent Guide for Inventory Management
 
-This document provides guidance for AI coding agents working on the Surveyor project. Whether you're using GitHub Copilot, Cursor, Claude, or another AI assistant, this guide will help you understand the project structure and conventions.
+This document provides guidance for AI coding agents working on the Inventory Management project. Whether you're using GitHub Copilot, Cursor, Claude, or another AI assistant, this guide will help you understand the project structure and conventions.
 
 ## Project Overview
 
-Surveyor is a TypeScript-based event and collaboration management application with comprehensive testing and documentation. The project uses:
+Inventory Management is a TypeScript-based item cataloging and tracking application with comprehensive testing and documentation. The project uses:
 
 - **Backend**: Express.js + TypeORM + MariaDB
-- **Frontend**: Pug templates + Bootstrap + Vanilla TypeScript
+- **Frontend**: Pug templates + Bootstrap (dark theme) + Vanilla TypeScript
 - **Testing**: Jest (unit/integration) + Playwright (E2E) + MSW (frontend mocking)
 - **Language**: TypeScript with strict type checking
 - **Testing Approach**: Data-driven and keyword-driven patterns
+
+### Core Features
+
+- **Items**: Catalog items with type, condition, tags, serial numbers, and barcodes
+- **Locations**: Hierarchical location management (rooms, shelves, boxes, bins)
+- **Barcodes**: Map barcodes/QR codes to items for quick lookup via camera scanning
+- **Lending**: Track loans with counterparties, due dates, and condition notes
+- **Scanning**: Camera-based barcode/QR code scanning using ZXing library
 
 ## Quick Start for AI Agents
 
@@ -39,12 +47,12 @@ Surveyor is a TypeScript-based event and collaboration management application wi
    - Interfaces over types
    - Always create migrations for database changes
    - Data-driven testing for all new tests
-   - NEVER commit anything included in .gitignore, especially not generated files (like __index__.ts, *.ge.js, ...)
+   - NEVER commit anything included in .gitignore, especially not generated files (like __index__.ts, *.gen.js, ...)
 
 ## Key Directories
 
 ```
-surveyor/
+inventory-management/
 ├── docs/                # Documentation
 │   ├── README.md            # Documentation index
 │   ├── ARCHITECTURE.md      # System architecture
@@ -59,7 +67,6 @@ surveyor/
 │   ├── middleware/      # Express middleware
 │   ├── migrations/      # TypeORM database migrations
 │   ├── modules/         # Application modules
-│   │   ├── activity/    # Activity plan logic
 │   │   ├── database/    # Database entities and services
 │   │   └── lib/         # Utility libraries
 │   ├── public/          # Static assets
@@ -316,8 +323,8 @@ npm run e2e
 ### Database
 
 Tests use two databases:
-- `surveyor_test` - Unit and integration tests
-- `surveyor_e2e` - E2E tests (name must contain 'e2e')
+- `inventory_test` - Unit and integration tests
+- `inventory_e2e` - E2E tests (name must contain 'e2e')
 
 Configuration:
 - `tests/.env.test` - Unit/integration test config
@@ -397,7 +404,7 @@ This file serves as the primary guide. Read it along with:
 
 ## Documentation Structure
 
-Surveyor has comprehensive, well-organized documentation:
+Inventory Management has comprehensive, well-organized documentation:
 
 ### For Developers
 - **[docs/README.md](docs/README.md)** - Documentation navigation
@@ -409,7 +416,7 @@ Surveyor has comprehensive, well-organized documentation:
 
 ### For End Users
 - **[docs/user-guide/](docs/user-guide/)** - Complete user documentation
-  - Getting started, dashboard, surveys, events, packing, activities, drivers
+  - Getting started, dashboard, items, locations, loans, scanning
 
 ### For AI Agents
 - **This file** - General AI agent guidance

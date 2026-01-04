@@ -40,7 +40,7 @@ async function sendEmail(to: string, subject: string, text: string) {
 // Funktion zum Senden einer Aktivierungs-E-Mail
 async function sendActivationEmail(userEmail: string, activationLink: string) {
     const subject = 'Activate your account';
-    const text = `Hi! Welcome to Surveyor!\n\nTo activate your account, please follow this link:\n\n${activationLink}\n\nNote: This link will expire in 1 hour.\n\nYour Surveyor Team.`;
+    const text = `Hi! Welcome to Inventory Management!\n\nTo activate your account, please follow this link:\n\n${activationLink}\n\nNote: This link will expire in 1 hour.\n\nYour Inventory Management Team.`;
 
     await sendEmail(userEmail, subject, text);
 }
@@ -48,7 +48,7 @@ async function sendActivationEmail(userEmail: string, activationLink: string) {
 // Funktion zum Senden einer E-Mail für das Passwort zurücksetzen
 async function sendPasswordResetEmail(userEmail: string, resetLink: string) {
     const subject = 'Reset your password';
-    const text = `Hi!\n\nYou requested to reset your password.\n\nTo set a new one, please follow this link:\n\n${resetLink}\n\nNote: This link will expire in 1 hour.\n\nYour Surveyor Team.`;
+    const text = `Hi!\n\nYou requested to reset your password.\n\nTo set a new one, please follow this link:\n\n${resetLink}\n\nNote: This link will expire in 1 hour.\n\nYour Inventory Management Team.`;
 
     await sendEmail(userEmail, subject, text);
 }

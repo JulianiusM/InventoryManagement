@@ -1,20 +1,120 @@
-//- views/dashboard.pug  – überarbeitetes User-Dashboard
+//- views/users/dashboard.pug – Inventory Management User Dashboard
 extends ../layout
 
 block meta
-    title My Dashboard | Surveyor
+    title Dashboard | Inventory Management
 
 block title
-    h1.card-header.text-center
-        if data.admin_flag
-            i.bi.bi-patch-check-fill.me-2
-                | Your managed entities
-        else
-            i.bi.bi-house-door-fill.me-2
-            | Welcome, #{user.name || user.username}!
+    h1.card-header.text-center.py-3
+        i.bi.bi-speedometer2.me-2
+        | Welcome, #{user.name || user.username}!
 
 block content
+    - const itemCount = (data && data.itemCount) || 0
+    - const locationCount = (data && data.locationCount) || 0
+    - const activeLoanCount = (data && data.activeLoanCount) || 0
+    - const overdueLoanCount = (data && data.overdueLoanCount) || 0
+    - const recentItems = (data && data.recentItems) || []
+    - const activeLoans = (data && data.activeLoans) || []
 
+    //- Stats cards
+    .row.row-cols-2.row-cols-md-4.g-3.mb-4
+        .col
+            .card.h-100.text-bg-dark.border-secondary
+                .card-body.text-center
+                    h2.display-4.mb-1 #{itemCount}
+                    p.text-white-50.mb-0
+                        i.bi.bi-box-seam.me-1
+                        | Items
+        .col
+            .card.h-100.text-bg-dark.border-secondary
+                .card-body.text-center
+                    h2.display-4.mb-1 #{locationCount}
+                    p.text-white-50.mb-0
+                        i.bi.bi-geo-alt.me-1
+                        | Locations
+        .col
+            .card.h-100.text-bg-dark.border-secondary
+                .card-body.text-center
+                    h2.display-4.mb-1 #{activeLoanCount}
+                    p.text-white-50.mb-0
+                        i.bi.bi-arrow-left-right.me-1
+                        | Active Loans
+        .col
+            .card.h-100.text-bg-dark.border-secondary(class=overdueLoanCount > 0 ? 'border-danger' : '')
+                .card-body.text-center
+                    h2.display-4.mb-1(class=overdueLoanCount > 0 ? 'text-danger' : '') #{overdueLoanCount}
+                    p.mb-0(class=overdueLoanCount > 0 ? 'text-danger' : 'text-white-50')
+                        i.bi.bi-exclamation-triangle.me-1
+                        | Overdue
+
+    //- Quick actions
+    .d-flex.flex-wrap.justify-content-center.gap-2.mb-4
+        a.btn.btn-primary.d-inline-flex.align-items-center.gap-2(href="/items")
+            i.bi.bi-box-seam
+            | Manage Items
+        a.btn.btn-outline-light.d-inline-flex.align-items-center.gap-2(href="/scan")
+            i.bi.bi-upc-scan
+            | Scan Barcode
+        a.btn.btn-outline-light.d-inline-flex.align-items-center.gap-2(href="/locations")
+            i.bi.bi-geo-alt
+            | Locations
+        a.btn.btn-outline-light.d-inline-flex.align-items-center.gap-2(href="/loans")
+            i.bi.bi-arrow-left-right
+            | Lending
+
+    .row.g-4
+        //- Recent items
+        .col-lg-6
+            .card.text-bg-dark.border-secondary.h-100
+                .card-header
+                    i.bi.bi-clock-history.me-2
+                    | Recent Items
+                .card-body
+                    if recentItems.length === 0
+                        p.text-white-50.mb-0 No items yet.
+                            a.text-white.text-decoration-none.ms-1(href="/items") Add your first item →
+                    else
+                        ul.list-group.list-group-flush
+                            each item in recentItems
+                                li.list-group-item.d-flex.justify-content-between.align-items-center.bg-transparent.text-white.border-secondary
+                                    div
+                                        a.text-white.text-decoration-none(href=`/items/${item.id}`) #{item.name}
+                                        span.badge.text-bg-secondary.ms-2 #{item.type}
+                                    .text-white-50.small
+                                        if item.location
+                                            | #{item.location.name}
+                                        else
+                                            | Unassigned
+                        .mt-2
+                            a.text-white.text-decoration-none(href="/items") View all items →
+
+        //- Active loans
+        .col-lg-6
+            .card.text-bg-dark.border-secondary.h-100
+                .card-header
+                    i.bi.bi-arrow-left-right.me-2
+                    | Active Loans
+                .card-body
+                    if activeLoans.length === 0
+                        p.text-white-50.mb-0 No active loans.
+                            a.text-white.text-decoration-none.ms-1(href="/loans") Create a loan →
+                    else
+                        ul.list-group.list-group-flush
+                            each loan in activeLoans
+                                li.list-group-item.d-flex.justify-content-between.align-items-center.bg-transparent.text-white.border-secondary
+                                    div
+                                        a.text-white.text-decoration-none(href=`/items/${loan.item.id}`) #{loan.item.name}
+                                        if loan.direction === 'lend'
+                                            span.badge.text-bg-primary.ms-2 Lending
+                                        else
+                                            span.badge.text-bg-secondary.ms-2 Borrowing
+                                    div.text-end
+                                        .small.text-white-50 #{loan.party.name}
+                                        if loan.dueAt
+                                            .small.text-warning Due: #{new Date(loan.dueAt).toLocaleDateString()}
+                        .mt-2
+                            a.text-white.text-decoration-none(href="/loans") View all loans →
 
 block scripts
-    script(type="module" src="/js/user-dashboard.gen.js")
+    //- No custom JS needed for dashboard

@@ -1,44 +1,247 @@
 extends ../layout
 
+block meta
+    title #{data && data.location ? data.location.name : 'Location'} | Inventory Management
+
 block content
     - const location = (data && data.location) ? data.location : null
     - const items = (data && data.items) ? data.items : []
+    - const allLocations = (data && data.locations) ? data.locations : []
+    - const locationKinds = ['room', 'shelf', 'box', 'bin', 'drawer', 'cabinet', 'other']
 
-    .d-flex.justify-content-between.align-items-center.mb-3
-        div
-            a.btn.btn-outline-secondary.btn-sm(href="/locations") Back
-            h1.h3.mt-2.mb-0 #{location.name}
-            p.text-muted.mb-0 Kind: #{location.kind}
-        a.btn.btn-outline-secondary(href="/scan") Scan
+    #liveAlerts
 
-    .card.mb-3
-        .card-body
-            h2.h5.mb-3 Details
-            dl.row.mb-0
-                dt.col-sm-3 ID
-                dd.col-sm-9 #{location.id}
-                dt.col-sm-3 Parent
-                dd.col-sm-9 #{location.parentId || '—'}
-                dt.col-sm-3 QR
-                dd.col-sm-9 #{location.qrCode || '—'}
+    if !location
+        .alert.alert-danger
+            i.bi.bi-exclamation-triangle.me-2
+            | Location not found.
+    else
+        //- Breadcrumb navigation
+        nav.mb-2(aria-label="breadcrumb")
+            ol.breadcrumb.mb-0
+                li.breadcrumb-item
+                    a.text-white(href="/") Home
+                li.breadcrumb-item
+                    a.text-white(href="/locations") Locations
+                li.breadcrumb-item.active.text-white-50(aria-current="page") #{location.name}
 
-    .card
-        .card-body
-            h2.h5.mb-3 Items here
-            if items.length === 0
-                .text-muted No items in this location.
-            else
-                .table-responsive
-                    table.table.table-hover.align-middle
-                        thead
-                            tr
-                                th Name
-                                th Type
-                                th Created
-                        tbody
-                            each it in items
-                                tr
-                                    td
-                                        a(href=`/items/${it.id}`) #{it.name}
-                                    td.text-muted #{it.type}
-                                    td.text-muted #{new Date(it.createdAt).toLocaleString()}
+        //- Header
+        .d-flex.justify-content-between.align-items-start.mb-3
+            div
+                h1.h3.mb-1.text-white
+                    //- Icon based on kind
+                    case location.kind
+                        when 'room'
+                            i.bi.bi-house.me-2
+                        when 'shelf'
+                            i.bi.bi-columns-gap.me-2
+                        when 'box'
+                            i.bi.bi-box.me-2
+                        when 'bin'
+                            i.bi.bi-archive.me-2
+                        when 'drawer'
+                            i.bi.bi-layout-sidebar.me-2
+                        when 'cabinet'
+                            i.bi.bi-grid.me-2
+                        default
+                            i.bi.bi-geo-alt.me-2
+                    | #{location.name}
+                .d-flex.flex-wrap.gap-2.align-items-center
+                    span.badge.text-bg-info #{location.kind}
+                    if location.qrCode
+                        span.badge.text-bg-dark.border.border-secondary
+                            i.bi.bi-qr-code.me-1
+                            | #{location.qrCode}
+                    span.badge.text-bg-secondary
+                        | #{items.length} item#{items.length !== 1 ? 's' : ''}
+            .btn-group
+                a.btn.btn-outline-light(href="/locations")
+                    i.bi.bi-arrow-left.me-1
+                    | Back
+                a.btn.btn-outline-light(href="/scan")
+                    i.bi.bi-upc-scan
+
+        .row.g-3
+            //- Left column: Details and items
+            .col-lg-7
+                //- Location details card
+                .card.text-bg-dark.border-secondary.mb-3
+                    .card-header.d-flex.justify-content-between.align-items-center
+                        h2.h5.mb-0
+                            i.bi.bi-info-circle.me-2
+                            | Details
+                        button.btn.btn-sm.btn-outline-light(type="button" data-bs-toggle="collapse" data-bs-target="#editLocationForm")
+                            i.bi.bi-pencil.me-1
+                            | Edit
+                    .card-body
+                        dl.row.mb-0
+                            dt.col-sm-4
+                                i.bi.bi-fingerprint.me-1
+                                | ID
+                            dd.col-sm-8.text-white-50.user-select-all.small #{location.id}
+                            
+                            dt.col-sm-4
+                                i.bi.bi-grid.me-1
+                                | Kind
+                            dd.col-sm-8 #{location.kind}
+                            
+                            dt.col-sm-4
+                                i.bi.bi-diagram-3.me-1
+                                | Parent
+                            dd.col-sm-8
+                                if location.parent
+                                    a.text-white.text-decoration-none(href=`/locations/${location.parent.id}`)
+                                        | #{location.parent.name}
+                                else
+                                    span.text-white-50 None (top-level)
+                            
+                            dt.col-sm-4
+                                i.bi.bi-qr-code.me-1
+                                | QR Code
+                            dd.col-sm-8.text-white-50 #{location.qrCode || '—'}
+
+                    //- Edit form (collapsible)
+                    #editLocationForm.collapse
+                        .card-body.border-top.border-secondary
+                            form.row.g-3(method="post" action=`/locations/${location.id}`)
+                                .col-md-6
+                                    label.form-label(for="editName") Name
+                                    input#editName.form-control.text-bg-dark(type="text" name="name" value=location.name required)
+                                .col-md-6
+                                    label.form-label(for="editKind") Kind
+                                    select#editKind.form-select.text-bg-dark(name="kind")
+                                        each k in locationKinds
+                                            option(value=k selected=(location.kind === k)) #{k.charAt(0).toUpperCase() + k.slice(1)}
+                                .col-md-6
+                                    label.form-label(for="editParentId") Parent
+                                    select#editParentId.form-select.text-bg-dark(name="parentId")
+                                        option(value="" selected=(!location.parentId)) None (top-level)
+                                        each loc in allLocations
+                                            if loc.id !== location.id
+                                                option(value=loc.id selected=(location.parentId === loc.id)) #{loc.name}
+                                .col-md-6
+                                    label.form-label(for="editQrCode") QR Code
+                                    input#editQrCode.form-control.text-bg-dark(type="text" name="qrCode" value=location.qrCode || '' placeholder="Optional")
+                                .col-12
+                                    button.btn.btn-primary(type="submit")
+                                        i.bi.bi-check-lg.me-1
+                                        | Save Changes
+
+                //- Items at this location
+                .card.text-bg-dark.border-secondary
+                    .card-header.d-flex.justify-content-between.align-items-center
+                        h2.h5.mb-0
+                            i.bi.bi-box-seam.me-2
+                            | Items Here
+                            if items.length > 0
+                                span.badge.text-bg-secondary.ms-2 #{items.length}
+                        a.btn.btn-sm.btn-outline-light(href="/items")
+                            i.bi.bi-plus.me-1
+                            | Add Item
+                    .card-body
+                        if items.length === 0
+                            .text-center.py-3
+                                i.bi.bi-inbox.display-4.text-white-50.mb-2.d-block
+                                p.text-white-50.mb-0 No items in this location.
+                        else
+                            .table-responsive
+                                table.table.table-dark.table-hover.align-middle.mb-0
+                                    thead
+                                        tr
+                                            th Name
+                                            th Type
+                                            th Condition
+                                            th.text-end Actions
+                                    tbody
+                                        each it in items
+                                            tr
+                                                td
+                                                    a.text-white.text-decoration-none(href=`/items/${it.id}`)
+                                                        i.bi.bi-box.me-2.text-white-50
+                                                        | #{it.name}
+                                                td
+                                                    span.badge.text-bg-info #{it.type}
+                                                td.text-white-50 #{it.condition ? it.condition.replace('_', ' ') : '—'}
+                                                td.text-end
+                                                    a.btn.btn-sm.btn-outline-light(href=`/items/${it.id}` title="View")
+                                                        i.bi.bi-eye
+
+            //- Right column: Actions
+            .col-lg-5
+                //- Child locations
+                if location.children && location.children.length > 0
+                    .card.text-bg-dark.border-secondary.mb-3
+                        .card-header
+                            h2.h5.mb-0
+                                i.bi.bi-diagram-3.me-2
+                                | Child Locations
+                        .list-group.list-group-flush
+                            each child in location.children
+                                a.list-group-item.list-group-item-action.d-flex.justify-content-between.align-items-center.bg-transparent.text-white.border-secondary(href=`/locations/${child.id}`)
+                                    div
+                                        //- Icon based on kind
+                                        case child.kind
+                                            when 'room'
+                                                i.bi.bi-house.me-2.text-info
+                                            when 'shelf'
+                                                i.bi.bi-columns-gap.me-2.text-info
+                                            when 'box'
+                                                i.bi.bi-box.me-2.text-info
+                                            default
+                                                i.bi.bi-geo-alt.me-2.text-info
+                                        | #{child.name}
+                                    span.badge.text-bg-secondary #{child.kind}
+
+                //- Danger zone
+                .card.text-bg-dark.border-danger
+                    .card-header.text-danger
+                        h2.h5.mb-0
+                            i.bi.bi-exclamation-triangle.me-2
+                            | Danger Zone
+                    .card-body
+                        p.text-white-50.small.mb-2 Items at this location will become unassigned. Child locations will become top-level.
+                        button#deleteLocationBtn.btn.btn-outline-danger.w-100(type="button" data-location-id=location.id data-location-name=location.name)
+                            i.bi.bi-trash.me-1
+                            | Delete Location
+
+        //- Delete confirmation modal
+        #deleteModal.modal.fade(tabindex="-1")
+            .modal-dialog
+                .modal-content.text-bg-dark
+                    .modal-header.border-secondary
+                        h5.modal-title
+                            i.bi.bi-exclamation-triangle.text-danger.me-2
+                            | Confirm Deletion
+                        button.btn-close.btn-close-white(type="button" data-bs-dismiss="modal")
+                    .modal-body
+                        p Are you sure you want to delete 
+                            strong#deleteLocationName
+                            | ?
+                        p.text-white-50.small.mb-0 Items will become unassigned. Child locations will move to top-level.
+                    .modal-footer.border-secondary
+                        button.btn.btn-outline-light(type="button" data-bs-dismiss="modal") Cancel
+                        form#deleteForm(method="post" action="" style="display: inline")
+                            input(type="hidden" name="_method" value="DELETE")
+                            button.btn.btn-danger(type="submit")
+                                i.bi.bi-trash.me-1
+                                | Delete
+
+block scripts
+    script.
+        // Delete confirmation
+        document.addEventListener('DOMContentLoaded', function() {
+            const deleteBtn = document.getElementById('deleteLocationBtn');
+            const deleteModal = new bootstrap.Modal(document.getElementById('deleteModal'));
+            const deleteForm = document.getElementById('deleteForm');
+            const deleteLocationName = document.getElementById('deleteLocationName');
+            
+            if (deleteBtn) {
+                deleteBtn.addEventListener('click', function() {
+                    const locationId = this.dataset.locationId;
+                    const locationName = this.dataset.locationName;
+                    deleteLocationName.textContent = locationName;
+                    deleteForm.action = '/locations/' + locationId + '/delete';
+                    deleteModal.show();
+                });
+            }
+        });

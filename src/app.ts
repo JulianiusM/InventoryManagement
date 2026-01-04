@@ -10,6 +10,10 @@ import indexRouter from './routes';
 import apiRouter from './routes/api';
 import usersRouter from './routes/users';
 import helpRouter from './routes/help';
+import itemsRouter from './routes/items';
+import locationsRouter from './routes/locations';
+import loansRouter from './routes/loans';
+import scanRouter from './routes/scan';
 import settings from './modules/settings';
 import {handleGenericError} from './middleware/genericErrorHandler';
 
@@ -77,6 +81,10 @@ app.use('/', indexRouter);
 app.use('/api', apiRouter);
 app.use('/users', usersRouter);
 app.use('/help', helpRouter);
+app.use('/items', itemsRouter);
+app.use('/locations', locationsRouter);
+app.use('/loans', loansRouter);
+app.use('/scan', scanRouter);
 
 app.get('/healthz', (_req, res) => res.status(200).send('ok'));
 

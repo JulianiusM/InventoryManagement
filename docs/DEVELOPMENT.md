@@ -1,6 +1,6 @@
 # Development Guide
 
-This guide covers the development workflow, tools, and best practices for contributing to Surveyor.
+This guide covers the development workflow, tools, and best practices for contributing to Inventory Management.
 
 ## Table of Contents
 
@@ -29,8 +29,8 @@ This guide covers the development workflow, tools, and best practices for contri
 
 1. **Clone the repository:**
    ```bash
-   git clone https://github.com/JulianiusM/Surveyor.git
-   cd Surveyor
+   git clone https://github.com/JulianiusM/InventoryManagement.git
+   cd InventoryManagement
    ```
 
 2. **Install dependencies:**
@@ -78,13 +78,12 @@ Install these extensions:
 ## Project Structure
 
 ```
-surveyor/
+inventory-management/
 ├── src/                        # Application source code
 │   ├── controller/             # Business logic controllers
 │   ├── middleware/             # Express middleware
 │   ├── migrations/             # Database migrations (TypeORM)
 │   ├── modules/                # Application modules
-│   │   ├── activity/           # Activity plan logic
 │   │   ├── database/           # Database services and entities
 │   │   │   ├── entities/       # TypeORM entities
 │   │   │   └── services/       # Database service layer

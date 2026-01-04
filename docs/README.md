@@ -1,6 +1,6 @@
-# Surveyor Documentation
+# Inventory Management Documentation
 
-Welcome to the Surveyor documentation. This directory contains comprehensive documentation for developers, testers, and AI agents working on the Surveyor application.
+Welcome to the Inventory Management documentation. This directory contains comprehensive documentation for developers, testers, and AI agents working on the Inventory Management application.
 
 ## Documentation Structure
 
@@ -15,7 +15,6 @@ Welcome to the Surveyor documentation. This directory contains comprehensive doc
 - **[CODING_STANDARDS.md](CODING_STANDARDS.md)** - TypeScript, code style, and best practices
 - **[DATABASE.md](DATABASE.md)** - Database entities, migrations, and patterns
 - **[FRONTEND.md](FRONTEND.md)** - Frontend architecture and modular structure
-- **[ACTIVITY_REQUIREMENTS_ALGORITHM.md](ACTIVITY_REQUIREMENTS_ALGORITHM.md)** - Shift requirement computation and coverage model
 
 #### Testing
 - **[TESTING_GUIDE.md](TESTING_GUIDE.md)** - Complete testing guide (data-driven & keyword-driven)
@@ -36,14 +35,7 @@ Welcome to the Surveyor documentation. This directory contains comprehensive doc
 
 ### 👥 For End Users
 
-- **[user-guide/](user-guide/)** - End-user documentation for app features
-  - **[GETTING_STARTED.md](user-guide/GETTING_STARTED.md)** - Registration and login
-  - **[SURVEYS.md](user-guide/SURVEYS.md)** - Creating and managing surveys
-  - **[EVENTS.md](user-guide/EVENTS.md)** - Event registration and management
-  - **[PACKING_LISTS.md](user-guide/PACKING_LISTS.md)** - Managing packing lists
-  - **[ACTIVITY_PLANS.md](user-guide/ACTIVITY_PLANS.md)** - Activity planning and scheduling
-  - **[DRIVERS_LISTS.md](user-guide/DRIVERS_LISTS.md)** - Driver coordination
-  - **[DASHBOARD.md](user-guide/DASHBOARD.md)** - Using your dashboard
+- **[user-guide/README.md](user-guide/README.md)** - Complete user guide for the inventory management app
 
 ### 📋 Reference
 
@@ -68,7 +60,7 @@ Historical and deprecated documentation:
 - **Add a new feature** → [DEVELOPMENT.md](DEVELOPMENT.md)
 - **Deploy the application** → [DEPLOYMENT.md](DEPLOYMENT.md)
 - **Use as AI agent** → [../AGENTS.md](../AGENTS.md)
-- **Learn as end user** → [user-guide/GETTING_STARTED.md](user-guide/GETTING_STARTED.md)
+- **Learn to use the app** → [user-guide/README.md](user-guide/README.md)
 
 ## Documentation Standards
 

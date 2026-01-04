@@ -1,10 +1,18 @@
 import express, {NextFunction} from 'express';
 import {handleValidationError, wrapErrorApi} from '../middleware/validationErrorHandler';
-
 import createError from "http-errors";
+
+// Domain-specific API routes
+import scanApiRouter from './api/scan';
+import itemsApiRouter from './api/items';
+import loansApiRouter from './api/loans';
 
 const router = express.Router();
 
+// Mount domain-specific API routes
+router.use('/scan', scanApiRouter);
+router.use('/items', itemsApiRouter);
+router.use('/loans', loansApiRouter);
 
 router.use(handleValidationError);
 // catch 404 and forward to error handler

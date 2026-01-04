@@ -39,5 +39,5 @@ export function init(): void {
 }
 
 // Expose to global scope
-if (!window.Surveyor) window.Surveyor = {};
-window.Surveyor.init = init;
+if (!window.InventoryApp) window.InventoryApp = {};
+window.InventoryApp.init = init;

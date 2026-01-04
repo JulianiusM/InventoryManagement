@@ -1,14 +1,14 @@
-# Surveyor
+# Inventory Management
 
-A comprehensive event and collaboration management application built with TypeScript, Express, and TypeORM.
+A comprehensive inventory management application built with TypeScript, Express, and TypeORM.
 
 ## Features
 
-- 📊 **Surveys** - Create surveys with ranked-choice voting
-- 🎉 **Events** - Manage events with registration and participant tracking
-- 📦 **Packing Lists** - Collaborate on shared packing coordination
-- 📅 **Activity Plans** - Schedule activities with role-based assignments
-- 🚗 **Drivers Lists** - Coordinate transportation and carpooling
+- 📦 **Items** - Catalog items with type, condition, tags, and serial numbers
+- 📍 **Locations** - Hierarchical location management (rooms, shelves, boxes, bins)
+- 🏷️ **Barcodes** - Map barcodes to items for quick lookup via scanning
+- 🤝 **Lending** - Track loans with counterparties, due dates, and condition notes
+- 📷 **Scan** - Camera-based barcode/QR code scanning for quick item lookup
 
 ## Documentation
 
@@ -65,9 +65,9 @@ cp tests/.env.test.example tests/.env.test
 
 The test database should be configured with:
 
-- Database name: `surveyor_test`
-- User: `surveyor`
-- Password: `surveyor`
+- Database name: `inventory_test`
+- User: `inventory`
+- Password: `inventory`
 
 #### E2E Tests
 
@@ -79,13 +79,13 @@ cp .env.e2e.example .env.e2e
 
 The E2E database should be configured with:
 
-- Database name: `surveyor_e2e` (must contain 'e2e' for safety)
-- User: `surveyor`
-- Password: `surveyor`
+- Database name: `inventory_e2e` (must contain 'e2e' for safety)
+- User: `inventory`
+- Password: `inventory`
 
 ## Running Tests
 
-The Surveyor test suite uses **data-driven** and **keyword-driven** testing approaches for maintainable, reusable, and comprehensive test coverage. 
+The Inventory Management test suite uses **data-driven** and **keyword-driven** testing approaches for maintainable, reusable, and comprehensive test coverage. 
 
 **Quick Summary:**
 - ⭐⭐⭐⭐⭐ Test quality rating: Excellent
@@ -169,10 +169,10 @@ npm run e2e                 # Run E2E tests
 The E2E tests are organized by feature area:
 
 - `auth.test.ts` - Authentication flows (login, registration, password reset, tokens)
-- `survey.test.ts` - Survey creation and management
-- `packing.test.ts` - Packing list management
-- `activity.test.ts` - Activity plan management
-- `drivers.test.ts` - Drivers list management
+- `items.test.ts` - Item management
+- `locations.test.ts` - Location management
+- `loans.test.ts` - Lending workflow
+- `scan.test.ts` - Barcode scanning
 - `navigation.test.ts` - UI navigation and accessibility
 - `error-handling.test.ts` - Frontend error handling and validation
 
@@ -198,8 +198,8 @@ The CI pipeline runs on:
 
 The CI pipeline automatically:
 
-- Creates `surveyor_test` database for unit/integration tests
-- Creates `surveyor_e2e` database for E2E tests
+- Creates `inventory_test` database for unit/integration tests
+- Creates `inventory_e2e` database for E2E tests
 - Sets up required users and permissions
 - Initializes the test database schema using `npm run typeorm -- schema:sync`
 - Creates `.env.test` and `.env.e2e` files with appropriate credentials
@@ -230,7 +230,8 @@ When adding or updating frontend code:
 - Reuse the core and shared helpers instead of re-implementing HTTP, drag-and-drop, inline editing, or permission checks.
 - Load permissions with `loadPerms()` and gate UI actions using `requireEntityPerm`/`requireItemPerm` before calling protected endpoints.
 - Keep new components documented with JSDoc comments and prefer type-safe DOM queries (`querySelector`/`closest` with element type casting) over `any`.
-- Expose initialization via `window.Surveyor.init` for consistent page bootstrapping.
+- Expose initialization via `window.InventoryApp.init` for consistent page bootstrapping.
+- Use Bootstrap dark theme classes (`text-bg-dark`, `table-dark`, `text-white`, `text-white-50` for muted text).
 
 ## Project Structure
 

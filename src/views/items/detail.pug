@@ -1,104 +1,336 @@
 extends ../layout
 
+block meta
+    title #{data && data.item ? data.item.name : 'Item'} | Inventory Management
+
 block content
     - const item = (data && data.item) ? data.item : null
     - const locations = (data && data.locations) ? data.locations : []
     - const barcodes = (data && data.barcodes) ? data.barcodes : []
     - const movements = (data && data.movements) ? data.movements : []
+    - const loans = (data && data.loans) ? data.loans : []
+    - const conditions = ['new', 'like_new', 'good', 'fair', 'poor']
+    - const itemTypes = ['book', 'tool', 'game', 'electronics', 'clothing', 'collectible', 'other']
+
+    #liveAlerts
 
     if !item
-        .alert.alert-danger Item not found.
+        .alert.alert-danger
+            i.bi.bi-exclamation-triangle.me-2
+            | Item not found.
     else
-        .d-flex.justify-content-between.align-items-center.mb-3
+        //- Breadcrumb navigation
+        nav.mb-2(aria-label="breadcrumb")
+            ol.breadcrumb.mb-0
+                li.breadcrumb-item
+                    a.text-white(href="/") Home
+                li.breadcrumb-item
+                    a.text-white(href="/items") Items
+                li.breadcrumb-item.active.text-white-50(aria-current="page") #{item.name}
+
+        //- Header
+        .d-flex.justify-content-between.align-items-start.mb-3
             div
-                a.btn.btn-outline-secondary.btn-sm(href="/items") Back
-                h1.h3.mt-2.mb-0 #{item.name}
-                p.text-muted.mb-0 Type: #{item.type}
-            a.btn.btn-outline-secondary(href="/scan") Scan
+                h1.h3.mb-1.text-white
+                    i.bi.bi-box.me-2
+                    | #{item.name}
+                .d-flex.flex-wrap.gap-2.align-items-center
+                    span.badge.text-bg-info #{item.type}
+                    if item.condition
+                        span.badge.text-bg-secondary #{item.condition.replace('_', ' ')}
+                    if item.location
+                        a.badge.text-bg-dark.border.border-secondary.text-decoration-none(href=`/locations/${item.location.id}`)
+                            i.bi.bi-geo-alt.me-1
+                            | #{item.location.name}
+                    else
+                        span.badge.text-bg-dark.border.border-secondary Unassigned
+            .btn-group
+                a.btn.btn-outline-light(href="/items")
+                    i.bi.bi-arrow-left.me-1
+                    | Back
+                a.btn.btn-outline-light(href="/scan")
+                    i.bi.bi-upc-scan
 
         .row.g-3
+            //- Left column: Details
             .col-lg-7
-                .card.mb-3
+                //- Item details card
+                .card.text-bg-dark.border-secondary.mb-3
+                    .card-header.d-flex.justify-content-between.align-items-center
+                        h2.h5.mb-0
+                            i.bi.bi-info-circle.me-2
+                            | Details
+                        button.btn.btn-sm.btn-outline-light(type="button" data-bs-toggle="collapse" data-bs-target="#editDetailsForm")
+                            i.bi.bi-pencil.me-1
+                            | Edit
                     .card-body
-                        h2.h5.mb-3 Details
                         dl.row.mb-0
-                            dt.col-sm-4 ID
-                            dd.col-sm-8 #{item.id}
-                            dt.col-sm-4 Location
+                            dt.col-sm-4
+                                i.bi.bi-fingerprint.me-1
+                                | ID
+                            dd.col-sm-8.text-white-50.user-select-all.small #{item.id}
+                            
+                            dt.col-sm-4
+                                i.bi.bi-grid.me-1
+                                | Type
+                            dd.col-sm-8 #{item.type}
+                            
+                            dt.col-sm-4
+                                i.bi.bi-geo-alt.me-1
+                                | Location
                             dd.col-sm-8
                                 if item.location
-                                    a(href=`/locations/${item.location.id}`) #{item.location.name}
+                                    a.text-white.text-decoration-none(href=`/locations/${item.location.id}`)
+                                        | #{item.location.name}
                                 else
-                                    span.text-muted Unassigned
-                            dt.col-sm-4 Serial number
-                            dd.col-sm-8 #{item.serialNumber || '—'}
-                            dt.col-sm-4 Condition
-                            dd.col-sm-8 #{item.condition || '—'}
+                                    span.text-white-50 Unassigned
+                            
+                            dt.col-sm-4
+                                i.bi.bi-heart.me-1
+                                | Condition
+                            dd.col-sm-8 #{item.condition ? item.condition.replace('_', ' ') : '—'}
+                            
+                            dt.col-sm-4
+                                i.bi.bi-hash.me-1
+                                | Serial Number
+                            dd.col-sm-8.text-white-50 #{item.serialNumber || '—'}
+                            
+                            dt.col-sm-4
+                                i.bi.bi-tags.me-1
+                                | Tags
+                            dd.col-sm-8
+                                if item.tags && item.tags.length
+                                    each tag in item.tags
+                                        span.badge.text-bg-secondary.me-1 #{tag}
+                                else
+                                    span.text-white-50 None
+
                         if item.description
-                            hr
-                            h3.h6 Description
-                            p.mb-0 #{item.description}
+                            hr.border-secondary
+                            h3.h6
+                                i.bi.bi-text-left.me-1
+                                | Description
+                            p.mb-0.text-white-50 #{item.description}
 
-                .card.mb-3
+                    //- Edit form (collapsible)
+                    #editDetailsForm.collapse
+                        .card-body.border-top.border-secondary
+                            form.row.g-3(method="post" action=`/items/${item.id}`)
+                                .col-md-6
+                                    label.form-label(for="editName") Name
+                                    input#editName.form-control.text-bg-dark(type="text" name="name" value=item.name required)
+                                .col-md-6
+                                    label.form-label(for="editType") Type
+                                    select#editType.form-select.text-bg-dark(name="type")
+                                        each t in itemTypes
+                                            option(value=t selected=(item.type === t)) #{t.charAt(0).toUpperCase() + t.slice(1).replace('_', ' ')}
+                                .col-md-6
+                                    label.form-label(for="editCondition") Condition
+                                    select#editCondition.form-select.text-bg-dark(name="condition")
+                                        option(value="" selected=(!item.condition)) Not specified
+                                        each c in conditions
+                                            option(value=c selected=(item.condition === c)) #{c.charAt(0).toUpperCase() + c.slice(1).replace('_', ' ')}
+                                .col-md-6
+                                    label.form-label(for="editSerialNumber") Serial Number
+                                    input#editSerialNumber.form-control.text-bg-dark(type="text" name="serialNumber" value=item.serialNumber || '')
+                                .col-12
+                                    label.form-label(for="editTags") Tags (comma-separated)
+                                    input#editTags.form-control.text-bg-dark(type="text" name="tags" value=(item.tags ? item.tags.join(', ') : ''))
+                                .col-12
+                                    label.form-label(for="editDescription") Description
+                                    textarea#editDescription.form-control.text-bg-dark(name="description" rows="2") #{item.description || ''}
+                                .col-12
+                                    button.btn.btn-primary(type="submit")
+                                        i.bi.bi-check-lg.me-1
+                                        | Save Changes
+
+                //- Barcodes card
+                .card.text-bg-dark.border-secondary.mb-3
+                    .card-header
+                        h2.h5.mb-0
+                            i.bi.bi-upc.me-2
+                            | Barcodes
+                            if barcodes.length > 0
+                                span.badge.text-bg-secondary.ms-2 #{barcodes.length}
                     .card-body
-                        h2.h5.mb-3 Barcodes
                         if barcodes.length === 0
-                            p.text-muted.mb-3 No barcodes assigned yet.
+                            p.text-white-50.mb-3
+                                i.bi.bi-info-circle.me-1
+                                | No barcodes assigned yet.
                         else
-                            ul.list-group.mb-3
+                            .list-group.list-group-flush.mb-3
                                 each b in barcodes
-                                    li.list-group-item.d-flex.justify-content-between.align-items-center
-                                        code #{b.code}
-                                        span.badge.text-bg-secondary #{b.symbology}
+                                    .list-group-item.d-flex.justify-content-between.align-items-center.bg-transparent.text-white.border-secondary
+                                        div
+                                            code.text-info.fs-6 #{b.code}
+                                            span.badge.text-bg-secondary.ms-2 #{b.symbology}
+                                        button.btn.btn-sm.btn-outline-danger.barcode-delete(type="button" data-barcode-id=b.id title="Remove barcode")
+                                            i.bi.bi-trash
 
-                        h3.h6.mb-2 Add / map barcode
+                        h3.h6.mb-2
+                            i.bi.bi-plus-circle.me-1
+                            | Add / map barcode
                         form#barcodeForm.row.g-2
                             .col-md-8
-                                input#barcodeInput.form-control(type="text" placeholder="Scan or enter barcode" autocomplete="off")
+                                input#barcodeInput.form-control.text-bg-dark(type="text" placeholder="Scan or enter barcode" autocomplete="off")
                             .col-md-4
-                                button#barcodeMapBtn.btn.btn-primary.w-100(type="submit") Map to this item
-                        .form-text Use a USB scanner or type the code, then map it.
+                                button#barcodeMapBtn.btn.btn-primary.w-100(type="submit")
+                                    i.bi.bi-link.me-1
+                                    | Map
+                        .form-text.text-white-50
+                            i.bi.bi-info-circle.me-1
+                            | Use a USB scanner or type the code, then map it.
                         #barcodeMsg.mt-2
 
-            .col-lg-5
-                .card.mb-3
+                //- Loan history
+                .card.text-bg-dark.border-secondary.mb-3
+                    .card-header.d-flex.justify-content-between.align-items-center
+                        h2.h5.mb-0
+                            i.bi.bi-arrow-left-right.me-2
+                            | Loan History
+                        a.btn.btn-sm.btn-outline-light(href="/loans")
+                            i.bi.bi-plus.me-1
+                            | New Loan
                     .card-body
-                        h2.h5.mb-3 Move item
+                        if loans.length === 0
+                            p.text-white-50.mb-0
+                                i.bi.bi-info-circle.me-1
+                                | No loan history for this item.
+                        else
+                            .list-group.list-group-flush
+                                each l in loans
+                                    .list-group-item.bg-transparent.text-white.border-secondary
+                                        .d-flex.justify-content-between.align-items-start
+                                            div
+                                                if l.direction === 'lend'
+                                                    span.badge.text-bg-primary.me-2 Lent
+                                                else
+                                                    span.badge.text-bg-secondary.me-2 Borrowed
+                                                strong #{l.party.name}
+                                                if l.status === 'returned'
+                                                    span.badge.text-bg-success.ms-2 Returned
+                                                else if l.status === 'overdue'
+                                                    span.badge.text-bg-danger.ms-2 Overdue
+                                                else
+                                                    span.badge.text-bg-warning.ms-2 Active
+                                            .text-white-50.small
+                                                | #{new Date(l.startAt).toLocaleDateString()}
+                                                if l.returnedAt
+                                                    |  → #{new Date(l.returnedAt).toLocaleDateString()}
+                                        if l.notes
+                                            .small.text-white-50.mt-1 #{l.notes}
+
+            //- Right column: Actions
+            .col-lg-5
+                //- Move item card
+                #move.card.text-bg-dark.border-secondary.mb-3
+                    .card-header
+                        h2.h5.mb-0
+                            i.bi.bi-arrow-right-square.me-2
+                            | Move Item
+                    .card-body
                         form(method="post" action=`/items/${item.id}/move`)
                             .mb-3
-                                label.form-label(for="locationId") New location
-                                select#locationId.form-select(name="locationId")
-                                    option(value="") Unassigned
+                                label.form-label(for="moveLocationId")
+                                    i.bi.bi-geo-alt.me-1
+                                    | New location
+                                select#moveLocationId.form-select.text-bg-dark(name="locationId")
+                                    option(value="" selected=(!item.locationId)) Unassigned
                                     each loc in locations
                                         option(value=loc.id selected=(item.locationId && item.locationId === loc.id)) #{loc.name}
                             .mb-3
-                                label.form-label(for="note") Note (optional)
-                                input#note.form-control(type="text" name="note")
-                            button.btn.btn-outline-primary(type="submit") Move
+                                label.form-label(for="note")
+                                    i.bi.bi-sticky.me-1
+                                    | Note (optional)
+                                input#note.form-control.text-bg-dark(type="text" name="note" placeholder="Reason for moving")
+                            button.btn.btn-outline-light.w-100(type="submit")
+                                i.bi.bi-arrow-right.me-1
+                                | Move
 
-                .card
+                //- Movement history
+                .card.text-bg-dark.border-secondary.mb-3
+                    .card-header
+                        h2.h5.mb-0
+                            i.bi.bi-clock-history.me-2
+                            | Movement History
                     .card-body
-                        h2.h5.mb-3 Movement history
                         if movements.length === 0
-                            p.text-muted No movements recorded yet.
+                            p.text-white-50.mb-0
+                                i.bi.bi-info-circle.me-1
+                                | No movements recorded yet.
                         else
-                            ul.list-group
+                            .list-group.list-group-flush
                                 each m in movements
-                                    li.list-group-item
-                                        .d-flex.justify-content-between
-                                            span
+                                    .list-group-item.bg-transparent.text-white.border-secondary
+                                        .d-flex.justify-content-between.align-items-start
+                                            div
+                                                i.bi.bi-arrow-right.me-2.text-white-50
                                                 if m.fromLocation
                                                     | #{m.fromLocation.name}
                                                 else
-                                                    | Unassigned
-                                                |  →
+                                                    span.text-white-50 Unassigned
+                                                i.bi.bi-arrow-right.mx-2
                                                 if m.toLocation
-                                                    |  #{m.toLocation.name}
+                                                    | #{m.toLocation.name}
                                                 else
-                                                    |  Unassigned
-                                            span.text-muted.small #{new Date(m.movedAt).toLocaleString()}
+                                                    span.text-white-50 Unassigned
+                                            .text-white-50.small #{new Date(m.movedAt).toLocaleDateString()}
                                         if m.note
-                                            div.small.text-muted.mt-1 #{m.note}
+                                            .small.text-white-50.mt-1
+                                                i.bi.bi-sticky.me-1
+                                                | #{m.note}
+
+                //- Danger zone
+                .card.text-bg-dark.border-danger
+                    .card-header.text-danger
+                        h2.h5.mb-0
+                            i.bi.bi-exclamation-triangle.me-2
+                            | Danger Zone
+                    .card-body
+                        p.text-white-50.small.mb-2 Deleting this item will also remove all associated barcodes and movement history.
+                        button#deleteItemBtn.btn.btn-outline-danger.w-100(type="button" data-item-id=item.id data-item-name=item.name)
+                            i.bi.bi-trash.me-1
+                            | Delete Item
+
+        //- Delete confirmation modal
+        #deleteModal.modal.fade(tabindex="-1")
+            .modal-dialog
+                .modal-content.text-bg-dark
+                    .modal-header.border-secondary
+                        h5.modal-title
+                            i.bi.bi-exclamation-triangle.text-danger.me-2
+                            | Confirm Deletion
+                        button.btn-close.btn-close-white(type="button" data-bs-dismiss="modal")
+                    .modal-body
+                        p Are you sure you want to delete 
+                            strong#deleteItemName
+                            | ?
+                        p.text-white-50.small.mb-0 This action cannot be undone.
+                    .modal-footer.border-secondary
+                        button.btn.btn-outline-light(type="button" data-bs-dismiss="modal") Cancel
+                        form#deleteForm(method="post" action="" style="display: inline")
+                            input(type="hidden" name="_method" value="DELETE")
+                            button.btn.btn-danger(type="submit")
+                                i.bi.bi-trash.me-1
+                                | Delete
 
 block scripts
-    script(type="module" src="/public/js/items/detail.gen.js")
+    script(type="module" src="/js/items/detail.gen.js")
+    script.
+        // Delete confirmation
+        document.addEventListener('DOMContentLoaded', function() {
+            const deleteBtn = document.getElementById('deleteItemBtn');
+            const deleteModal = new bootstrap.Modal(document.getElementById('deleteModal'));
+            const deleteForm = document.getElementById('deleteForm');
+            const deleteItemName = document.getElementById('deleteItemName');
+            
+            if (deleteBtn) {
+                deleteBtn.addEventListener('click', function() {
+                    const itemId = this.dataset.itemId;
+                    const itemName = this.dataset.itemName;
+                    deleteItemName.textContent = itemName;
+                    deleteForm.action = '/items/' + itemId + '/delete';
+                    deleteModal.show();
+                });
+            }
+        });

@@ -1,6 +1,6 @@
 {
-  "name": "surveyor",
-  "version": "0.2.0-rc.1",
+  "name": "inventory-management",
+  "version": "0.1.0",
   "private": true,
   "scripts": {
     "pretest": "npm run generate",

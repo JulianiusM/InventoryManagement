@@ -1,6 +1,6 @@
-# Surveyor Architecture
+# Inventory Management Architecture
 
-This document describes the overall architecture, design patterns, and technical decisions in the Surveyor application.
+This document describes the overall architecture, design patterns, and technical decisions in the Inventory Management application.
 
 ## Table of Contents
 
@@ -17,12 +17,12 @@ This document describes the overall architecture, design patterns, and technical
 
 ## System Overview
 
-Surveyor is a **monolithic web application** for survey and event management with the following characteristics:
+Inventory Management is a **monolithic web application** for item cataloging and tracking with the following characteristics:
 
 - **Backend**: Node.js + Express.js + TypeScript
 - **Database**: MariaDB with TypeORM
-- **Frontend**: Server-rendered Pug templates + vanilla JavaScript/TypeScript
-- **Authentication**: OIDC (OpenID Connect)
+- **Frontend**: Server-rendered Pug templates + vanilla JavaScript/TypeScript (Bootstrap dark theme)
+- **Authentication**: OIDC (OpenID Connect) + local login
 - **Testing**: Jest + Playwright
 
 ### High-Level Architecture
@@ -160,12 +160,12 @@ export default {
 
 ```typescript
 // Service pattern
-export class SurveyService {
-    private surveyRepo: Repository<Survey>;
+export class ItemService {
+    private itemRepo: Repository<Item>;
     
-    async createSurvey(data: CreateSurveyDto): Promise<Survey> {
+    async createItem(data: CreateItemDto): Promise<Item> {
         // Database operations
-        return await this.surveyRepo.save(survey);
+        return await this.itemRepo.save(item);
     }
 }
 ```
@@ -184,12 +184,12 @@ export class SurveyService {
 
 ```typescript
 @Entity()
-export class Survey {
+export class Item {
     @PrimaryGeneratedColumn('uuid')
     id: string;
     
     @Column()
-    title: string;
+    name: string;
     
     @ManyToOne(() => User)
     owner: User;
@@ -333,14 +333,14 @@ export function init(): void {
 // Expose via window
 declare global {
     interface Window {
-        Surveyor: {
+        InventoryApp: {
             init: () => void;
         };
     }
 }
 
-window.Surveyor = window.Surveyor || {};
-window.Surveyor.init = init;
+window.InventoryApp = window.InventoryApp || {};
+window.InventoryApp.init = init;
 ```
 
 ### Client-Side Principles
