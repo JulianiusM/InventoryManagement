@@ -9,10 +9,18 @@ const router = express.Router();
 // Apply auth middleware to all location routes
 router.use(requireAuth);
 
-// List all locations (only user's locations)
+// List all locations (only user's locations) with pagination
 router.get('/', asyncHandler(async (req: Request, res: Response) => {
     const ownerId = req.session.user!.id;
-    const data = await locationController.listLocations(ownerId);
+    const page = parseInt(req.query.page as string) || 1;
+    const perPage = parseInt(req.query.perPage as string) || 50;
+    const search = (req.query.search as string) || '';
+    
+    const data = await locationController.listLocations(ownerId, {
+        page,
+        perPage,
+        search
+    });
     renderer.renderWithData(res, 'locations/list', data);
 }));
 

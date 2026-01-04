@@ -5,11 +5,49 @@ import {checkOwnership, requireAuthenticatedUser} from '../middleware/authMiddle
 import {Location} from '../modules/database/entities/location/Location';
 import {LocationKind} from '../types/InventoryEnums';
 
-export async function listLocations(ownerId: number) {
+export async function listLocations(ownerId: number, options?: {
+    page?: number;
+    perPage?: number;
+    search?: string;
+}) {
     requireAuthenticatedUser(ownerId);
-    const locations = await locationService.getAllLocations(ownerId);
+    let locations = await locationService.getAllLocations(ownerId);
     const tree = await locationService.getLocationTree(ownerId);
-    return {locations, tree};
+    
+    const page = options?.page || 1;
+    const perPage = Math.min(options?.perPage || 50, 100); // Max 100 locations per page
+    
+    // Apply search filter
+    if (options?.search) {
+        const searchLower = options.search.toLowerCase();
+        locations = locations.filter(loc =>
+            loc.name.toLowerCase().includes(searchLower) ||
+            (loc.qrCode && loc.qrCode.toLowerCase().includes(searchLower)) ||
+            loc.kind.toLowerCase().includes(searchLower)
+        );
+    }
+    
+    // Calculate pagination
+    const totalLocations = locations.length;
+    const totalPages = Math.ceil(totalLocations / perPage);
+    const skip = (page - 1) * perPage;
+    const paginatedLocations = locations.slice(skip, skip + perPage);
+    
+    return {
+        locations: paginatedLocations,
+        tree, // Keep full tree for visualization
+        pagination: {
+            page,
+            perPage,
+            totalItems: totalLocations,
+            totalPages,
+            hasNext: page < totalPages,
+            hasPrev: page > 1
+        },
+        filters: {
+            search: options?.search || ''
+        }
+    };
 }
 
 export async function getLocationDetail(id: string, userId: number) {
