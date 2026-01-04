@@ -2,7 +2,7 @@
  * Tests for loanController
  */
 
-import {createLoanData, createLoanErrorData, returnLoanData, returnLoanErrorData} from '../data/controller/loanData';
+import {createLoanData, createLoanErrorData, returnLoanData, returnLoanErrorData, TEST_USER_ID} from '../data/controller/loanData';
 import {setupMock, verifyThrowsError} from '../keywords/common/controllerKeywords';
 
 // Mock the services
@@ -24,17 +24,17 @@ describe('loanController', () => {
         test.each(createLoanData)('$description', async ({input, ownerId, existingItem, existingActiveLoan, expected}) => {
             setupMock(itemService.getItemById as jest.Mock, existingItem);
             setupMock(loanService.getActiveLoanByItemId as jest.Mock, existingActiveLoan);
-            setupMock(partyService.findOrCreateParty as jest.Mock, {id: 1, name: input.partyName});
-            setupMock(loanService.createLoan as jest.Mock, {id: 1, ...expected});
+            setupMock(partyService.findOrCreateParty as jest.Mock, {id: 'uuid-p1', name: input.partyName});
+            setupMock(loanService.createLoan as jest.Mock, {id: 'uuid-l1', ...expected});
 
             const result = await loanController.createLoan(input, ownerId);
 
             expect(result).toBeDefined();
-            expect(result.id).toBe(1);
+            expect(result.id).toBe('uuid-l1');
             expect(loanService.createLoan).toHaveBeenCalled();
         });
 
-        test.each(createLoanErrorData)('$description', async ({input, existingItem, existingActiveLoan, errorMessage}) => {
+        test.each(createLoanErrorData)('$description', async ({input, ownerId, existingItem, existingActiveLoan, errorMessage}) => {
             if (existingItem !== undefined) {
                 setupMock(itemService.getItemById as jest.Mock, existingItem);
             }
@@ -43,18 +43,18 @@ describe('loanController', () => {
             }
 
             await verifyThrowsError(
-                () => loanController.createLoan(input as Parameters<typeof loanController.createLoan>[0]),
+                () => loanController.createLoan(input as Parameters<typeof loanController.createLoan>[0], ownerId),
                 errorMessage
             );
         });
     });
 
     describe('returnLoan', () => {
-        test.each(returnLoanData)('$description', async ({loanId, existingLoan, input}) => {
+        test.each(returnLoanData)('$description', async ({loanId, existingLoan, input, userId}) => {
             setupMock(loanService.getLoanById as jest.Mock, existingLoan);
             setupMock(loanService.returnLoan as jest.Mock, undefined);
 
-            await loanController.returnLoan(loanId, input);
+            await loanController.returnLoan(loanId, input, userId);
 
             expect(loanService.returnLoan).toHaveBeenCalledWith(
                 loanId,
@@ -62,11 +62,11 @@ describe('loanController', () => {
             );
         });
 
-        test.each(returnLoanErrorData)('$description', async ({loanId, existingLoan, errorMessage}) => {
+        test.each(returnLoanErrorData)('$description', async ({loanId, existingLoan, userId, errorMessage}) => {
             setupMock(loanService.getLoanById as jest.Mock, existingLoan);
 
             await verifyThrowsError(
-                () => loanController.returnLoan(loanId),
+                () => loanController.returnLoan(loanId, undefined, userId),
                 errorMessage
             );
         });
@@ -74,12 +74,12 @@ describe('loanController', () => {
 
     describe('listLoans', () => {
         test('returns active loans and items', async () => {
-            const mockLoans = [{id: 1, itemId: 1, status: 'active'}];
-            const mockItems = [{id: 1, name: 'Item 1'}];
+            const mockLoans = [{id: 'uuid-l1', itemId: 'uuid-1', status: 'active'}];
+            const mockItems = [{id: 'uuid-1', name: 'Item 1'}];
             setupMock(loanService.getActiveLoans as jest.Mock, mockLoans);
             setupMock(itemService.getAllItems as jest.Mock, mockItems);
 
-            const result = await loanController.listLoans();
+            const result = await loanController.listLoans(TEST_USER_ID);
 
             expect(result.loans).toEqual(mockLoans);
             expect(result.items).toEqual(mockItems);
@@ -98,10 +98,10 @@ describe('loanController', () => {
 
     describe('getLoanDetail', () => {
         test('returns loan details', async () => {
-            const mockLoan = {id: 1, itemId: 1, partyId: 1, status: 'active'};
+            const mockLoan = {id: 'uuid-l1', itemId: 'uuid-1', partyId: 'uuid-p1', status: 'active', ownerId: TEST_USER_ID};
             setupMock(loanService.getLoanById as jest.Mock, mockLoan);
 
-            const result = await loanController.getLoanDetail(1);
+            const result = await loanController.getLoanDetail('uuid-l1', TEST_USER_ID);
 
             expect(result.loan).toEqual(mockLoan);
         });
@@ -110,7 +110,7 @@ describe('loanController', () => {
             setupMock(loanService.getLoanById as jest.Mock, null);
 
             await verifyThrowsError(
-                () => loanController.getLoanDetail(999),
+                () => loanController.getLoanDetail('uuid-999', TEST_USER_ID),
                 'Loan not found'
             );
         });
@@ -119,11 +119,11 @@ describe('loanController', () => {
     describe('getOverdueLoans', () => {
         test('returns overdue loans', async () => {
             const mockOverdueLoans = [
-                {id: 1, itemId: 1, dueAt: '2024-01-01', status: 'active'},
+                {id: 'uuid-l1', itemId: 'uuid-1', dueAt: '2024-01-01', status: 'active'},
             ];
             setupMock(loanService.getOverdueLoans as jest.Mock, mockOverdueLoans);
 
-            const result = await loanController.getOverdueLoans();
+            const result = await loanController.getOverdueLoans(TEST_USER_ID);
 
             expect(result).toEqual(mockOverdueLoans);
         });

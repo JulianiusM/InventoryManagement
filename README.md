@@ -1,14 +1,14 @@
-# Surveyor
+# Inventory Management
 
-A comprehensive event and collaboration management application built with TypeScript, Express, and TypeORM.
+A comprehensive inventory management application built with TypeScript, Express, and TypeORM.
 
 ## Features
 
-- 📊 **Surveys** - Create surveys with ranked-choice voting
-- 🎉 **Events** - Manage events with registration and participant tracking
-- 📦 **Packing Lists** - Collaborate on shared packing coordination
-- 📅 **Activity Plans** - Schedule activities with role-based assignments
-- 🚗 **Drivers Lists** - Coordinate transportation and carpooling
+- 📦 **Items** - Catalog items with type, condition, tags, and serial numbers
+- 📍 **Locations** - Hierarchical location management (rooms, shelves, boxes, bins)
+- 🏷️ **Barcodes** - Map barcodes to items for quick lookup via scanning
+- 🤝 **Lending** - Track loans with counterparties, due dates, and condition notes
+- 📷 **Scan** - Camera-based barcode/QR code scanning for quick item lookup
 
 ## Documentation
 
@@ -65,9 +65,9 @@ cp tests/.env.test.example tests/.env.test
 
 The test database should be configured with:
 
-- Database name: `surveyor_test`
-- User: `surveyor`
-- Password: `surveyor`
+- Database name: `inventory_test`
+- User: `inventory`
+- Password: `inventory`
 
 #### E2E Tests
 
@@ -79,9 +79,9 @@ cp .env.e2e.example .env.e2e
 
 The E2E database should be configured with:
 
-- Database name: `surveyor_e2e` (must contain 'e2e' for safety)
-- User: `surveyor`
-- Password: `surveyor`
+- Database name: `inventory_e2e` (must contain 'e2e' for safety)
+- User: `inventory`
+- Password: `inventory`
 
 ## Running Tests
 
@@ -198,8 +198,8 @@ The CI pipeline runs on:
 
 The CI pipeline automatically:
 
-- Creates `surveyor_test` database for unit/integration tests
-- Creates `surveyor_e2e` database for E2E tests
+- Creates `inventory_test` database for unit/integration tests
+- Creates `inventory_e2e` database for E2E tests
 - Sets up required users and permissions
 - Initializes the test database schema using `npm run typeorm -- schema:sync`
 - Creates `.env.test` and `.env.e2e` files with appropriate credentials

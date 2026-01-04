@@ -8,43 +8,39 @@ export async function createItem(data: Partial<Item>): Promise<Item> {
     return await repo.save(item);
 }
 
-export async function getItemById(id: number): Promise<Item | null> {
+export async function getItemById(id: string): Promise<Item | null> {
     const repo = AppDataSource.getRepository(Item);
     return await repo.findOne({
         where: {id},
-        relations: ['location'],
+        relations: ['location', 'owner'],
     });
 }
 
-export async function getAllItems(ownerId?: number): Promise<Item[]> {
+export async function getAllItems(ownerId: number): Promise<Item[]> {
     const repo = AppDataSource.getRepository(Item);
-    const where: FindOptionsWhere<Item> = {};
-    if (ownerId !== undefined) {
-        where.ownerId = ownerId;
-    }
     return await repo.find({
-        where,
+        where: {ownerId},
         relations: ['location'],
         order: {createdAt: 'DESC'},
     });
 }
 
-export async function updateItem(id: number, data: Partial<Omit<Item, 'location'>>): Promise<void> {
+export async function updateItem(id: string, data: Partial<Omit<Item, 'location' | 'owner'>>): Promise<void> {
     const repo = AppDataSource.getRepository(Item);
     await repo.update({id}, data as Record<string, unknown>);
 }
 
-export async function deleteItem(id: number): Promise<void> {
+export async function deleteItem(id: string): Promise<void> {
     const repo = AppDataSource.getRepository(Item);
     await repo.delete({id});
 }
 
-export async function updateItemLocation(id: number, locationId: number | null): Promise<void> {
+export async function updateItemLocation(id: string, locationId: string | null): Promise<void> {
     const repo = AppDataSource.getRepository(Item);
-    await repo.update({id}, {locationId});
+    await repo.update({id}, {locationId} as Record<string, unknown>);
 }
 
-export async function getItemsByLocation(locationId: number): Promise<Item[]> {
+export async function getItemsByLocation(locationId: string): Promise<Item[]> {
     const repo = AppDataSource.getRepository(Item);
     return await repo.find({
         where: {locationId},

@@ -5,27 +5,33 @@ import {
     ManyToOne,
     PrimaryGeneratedColumn,
     JoinColumn,
+    RelationId,
 } from "typeorm";
 import {Item} from "../item/Item";
+import {BarcodeSymbology} from "../../../../types/InventoryEnums";
 
 @Index("barcode_code", ["code"], {unique: true})
-@Entity("barcodes", {schema: "surveyor"})
+@Entity("barcodes")
 export class Barcode {
-    @PrimaryGeneratedColumn({type: "int", name: "id"})
-    id!: number;
+    @PrimaryGeneratedColumn("uuid")
+    id!: string;
 
     @Column("varchar", {name: "code", unique: true, length: 255})
     code!: string;
 
-    @Column("varchar", {name: "symbology", length: 50, default: "unknown"})
-    symbology!: string; // EAN13, UPC, QR, Code128, unknown
+    @Column({
+        type: "enum",
+        enum: BarcodeSymbology,
+        default: BarcodeSymbology.UNKNOWN,
+    })
+    symbology!: BarcodeSymbology;
 
-    @Column("int", {name: "item_id", nullable: true})
-    itemId?: number | null;
-
-    @ManyToOne(() => Item, {onDelete: "SET NULL"})
+    @ManyToOne(() => Item, {onDelete: "SET NULL", nullable: true})
     @JoinColumn({name: "item_id"})
     item?: Item | null;
+
+    @RelationId((barcode: Barcode) => barcode.item)
+    itemId?: string | null;
 
     @Column("timestamp", {
         name: "created_at",

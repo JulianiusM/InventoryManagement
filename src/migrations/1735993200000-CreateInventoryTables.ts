@@ -7,48 +7,52 @@ export class CreateInventoryTables1735993200000 implements MigrationInterface {
         // Create locations table
         await queryRunner.query(`
             CREATE TABLE IF NOT EXISTS locations (
-                id INT NOT NULL AUTO_INCREMENT,
+                id VARCHAR(36) NOT NULL,
                 name VARCHAR(100) NOT NULL,
-                kind VARCHAR(50) NOT NULL DEFAULT 'other',
-                parent_id INT NULL,
+                kind ENUM('room', 'shelf', 'box', 'bin', 'drawer', 'cabinet', 'other') NOT NULL DEFAULT 'other',
+                parent_id VARCHAR(36) NULL,
                 qr_code VARCHAR(255) NULL,
+                owner_id INT NOT NULL,
                 created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
                 updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
                 PRIMARY KEY (id),
                 UNIQUE INDEX location_qr_code (qr_code),
                 INDEX FK_location_parent (parent_id),
-                CONSTRAINT FK_location_parent FOREIGN KEY (parent_id) REFERENCES locations(id) ON DELETE SET NULL
+                INDEX FK_location_owner (owner_id),
+                CONSTRAINT FK_location_parent FOREIGN KEY (parent_id) REFERENCES locations(id) ON DELETE SET NULL,
+                CONSTRAINT FK_location_owner FOREIGN KEY (owner_id) REFERENCES users(id) ON DELETE CASCADE
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
         `);
 
         // Create items table
         await queryRunner.query(`
             CREATE TABLE IF NOT EXISTS items (
-                id INT NOT NULL AUTO_INCREMENT,
+                id VARCHAR(36) NOT NULL,
                 name VARCHAR(255) NOT NULL,
-                type VARCHAR(50) NOT NULL DEFAULT 'other',
+                type ENUM('book', 'tool', 'game', 'electronics', 'clothing', 'collectible', 'other') NOT NULL DEFAULT 'other',
                 description TEXT NULL,
-                \`condition\` VARCHAR(50) NULL,
+                \`condition\` ENUM('new', 'like_new', 'good', 'fair', 'poor') NULL,
                 serial_number VARCHAR(255) NULL,
-                custom_fields JSON NULL,
-                location_id INT NULL,
-                owner_id INT NULL,
+                tags JSON NULL,
+                location_id VARCHAR(36) NULL,
+                owner_id INT NOT NULL,
                 created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
                 updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
                 PRIMARY KEY (id),
                 INDEX FK_item_location (location_id),
                 INDEX FK_item_owner (owner_id),
-                CONSTRAINT FK_item_location FOREIGN KEY (location_id) REFERENCES locations(id) ON DELETE SET NULL
+                CONSTRAINT FK_item_location FOREIGN KEY (location_id) REFERENCES locations(id) ON DELETE SET NULL,
+                CONSTRAINT FK_item_owner FOREIGN KEY (owner_id) REFERENCES users(id) ON DELETE CASCADE
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
         `);
 
         // Create barcodes table
         await queryRunner.query(`
             CREATE TABLE IF NOT EXISTS barcodes (
-                id INT NOT NULL AUTO_INCREMENT,
+                id VARCHAR(36) NOT NULL,
                 code VARCHAR(255) NOT NULL,
-                symbology VARCHAR(50) NOT NULL DEFAULT 'unknown',
-                item_id INT NULL,
+                symbology ENUM('EAN13', 'EAN8', 'UPC_A', 'UPC_E', 'QR', 'CODE128', 'CODE39', 'UNKNOWN') NOT NULL DEFAULT 'UNKNOWN',
+                item_id VARCHAR(36) NULL,
                 created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
                 PRIMARY KEY (id),
                 UNIQUE INDEX barcode_code (code),
@@ -60,50 +64,52 @@ export class CreateInventoryTables1735993200000 implements MigrationInterface {
         // Create parties table
         await queryRunner.query(`
             CREATE TABLE IF NOT EXISTS parties (
-                id INT NOT NULL AUTO_INCREMENT,
+                id VARCHAR(36) NOT NULL,
                 name VARCHAR(100) NOT NULL,
                 email VARCHAR(255) NULL,
                 phone VARCHAR(50) NULL,
                 notes TEXT NULL,
-                owner_id INT NULL,
+                owner_id INT NOT NULL,
                 created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
                 PRIMARY KEY (id),
-                INDEX FK_party_owner (owner_id)
+                INDEX FK_party_owner (owner_id),
+                CONSTRAINT FK_party_owner FOREIGN KEY (owner_id) REFERENCES users(id) ON DELETE CASCADE
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
         `);
 
         // Create loans table
         await queryRunner.query(`
             CREATE TABLE IF NOT EXISTS loans (
-                id INT NOT NULL AUTO_INCREMENT,
-                item_id INT NOT NULL,
-                party_id INT NOT NULL,
-                direction VARCHAR(20) NOT NULL,
-                status VARCHAR(20) NOT NULL DEFAULT 'active',
+                id VARCHAR(36) NOT NULL,
+                item_id VARCHAR(36) NOT NULL,
+                party_id VARCHAR(36) NOT NULL,
+                direction ENUM('lend', 'borrow') NOT NULL,
+                status ENUM('active', 'returned', 'overdue') NOT NULL DEFAULT 'active',
                 start_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
                 due_at DATE NULL,
                 returned_at TIMESTAMP NULL,
                 condition_out TEXT NULL,
                 condition_in TEXT NULL,
                 notes TEXT NULL,
-                owner_id INT NULL,
+                owner_id INT NOT NULL,
                 created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
                 PRIMARY KEY (id),
                 INDEX FK_loan_item (item_id),
                 INDEX FK_loan_party (party_id),
                 INDEX FK_loan_owner (owner_id),
                 CONSTRAINT FK_loan_item FOREIGN KEY (item_id) REFERENCES items(id) ON DELETE CASCADE,
-                CONSTRAINT FK_loan_party FOREIGN KEY (party_id) REFERENCES parties(id) ON DELETE CASCADE
+                CONSTRAINT FK_loan_party FOREIGN KEY (party_id) REFERENCES parties(id) ON DELETE CASCADE,
+                CONSTRAINT FK_loan_owner FOREIGN KEY (owner_id) REFERENCES users(id) ON DELETE CASCADE
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
         `);
 
         // Create item_movements table (audit log)
         await queryRunner.query(`
             CREATE TABLE IF NOT EXISTS item_movements (
-                id INT NOT NULL AUTO_INCREMENT,
-                item_id INT NOT NULL,
-                from_location_id INT NULL,
-                to_location_id INT NULL,
+                id VARCHAR(36) NOT NULL,
+                item_id VARCHAR(36) NOT NULL,
+                from_location_id VARCHAR(36) NULL,
+                to_location_id VARCHAR(36) NULL,
                 note TEXT NULL,
                 moved_by_user_id INT NULL,
                 moved_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -111,9 +117,11 @@ export class CreateInventoryTables1735993200000 implements MigrationInterface {
                 INDEX FK_movement_item (item_id),
                 INDEX FK_movement_from_location (from_location_id),
                 INDEX FK_movement_to_location (to_location_id),
+                INDEX FK_movement_user (moved_by_user_id),
                 CONSTRAINT FK_movement_item FOREIGN KEY (item_id) REFERENCES items(id) ON DELETE CASCADE,
                 CONSTRAINT FK_movement_from_location FOREIGN KEY (from_location_id) REFERENCES locations(id) ON DELETE SET NULL,
-                CONSTRAINT FK_movement_to_location FOREIGN KEY (to_location_id) REFERENCES locations(id) ON DELETE SET NULL
+                CONSTRAINT FK_movement_to_location FOREIGN KEY (to_location_id) REFERENCES locations(id) ON DELETE SET NULL,
+                CONSTRAINT FK_movement_user FOREIGN KEY (moved_by_user_id) REFERENCES users(id) ON DELETE SET NULL
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
         `);
     }

@@ -2,7 +2,7 @@
  * Tests for itemController
  */
 
-import {createItemData, createItemErrorData, moveItemData, mapBarcodeData, mapBarcodeErrorData} from '../data/controller/itemData';
+import {createItemData, createItemErrorData, moveItemData, mapBarcodeData, mapBarcodeErrorData, TEST_USER_ID} from '../data/controller/itemData';
 import {setupMock, verifyResultContains, verifyThrowsError} from '../keywords/common/controllerKeywords';
 
 // Mock the services
@@ -24,32 +24,32 @@ describe('itemController', () => {
 
     describe('createItem', () => {
         test.each(createItemData)('$description', async ({input, ownerId, expected}) => {
-            const mockCreatedItem = {id: 1, ...expected};
+            const mockCreatedItem = {id: 'uuid-1', ...expected};
             setupMock(itemService.createItem as jest.Mock, mockCreatedItem);
-            setupMock(itemMovementService.recordMovement as jest.Mock, {id: 1});
+            setupMock(itemMovementService.recordMovement as jest.Mock, {id: 'uuid-m1'});
 
             const result = await itemController.createItem(input, ownerId);
 
             expect(result).toBeDefined();
-            expect(result.id).toBe(1);
+            expect(result.id).toBe('uuid-1');
             expect(itemService.createItem).toHaveBeenCalled();
         });
 
-        test.each(createItemErrorData)('$description', async ({input, errorMessage}) => {
+        test.each(createItemErrorData)('$description', async ({input, ownerId, errorMessage}) => {
             await verifyThrowsError(
-                () => itemController.createItem(input),
+                () => itemController.createItem(input, ownerId),
                 errorMessage
             );
         });
     });
 
     describe('moveItem', () => {
-        test.each(moveItemData)('$description', async ({itemId, existingItem, input, expectedLocationId, expectedNote}) => {
+        test.each(moveItemData)('$description', async ({itemId, existingItem, input, userId, expectedLocationId, expectedNote}) => {
             setupMock(itemService.getItemById as jest.Mock, existingItem);
             setupMock(itemService.updateItemLocation as jest.Mock, undefined);
-            setupMock(itemMovementService.recordMovement as jest.Mock, {id: 1});
+            setupMock(itemMovementService.recordMovement as jest.Mock, {id: 'uuid-m1'});
 
-            await itemController.moveItem(itemId, input, 1);
+            await itemController.moveItem(itemId, input, userId);
 
             expect(itemService.updateItemLocation).toHaveBeenCalledWith(itemId, expectedLocationId);
             expect(itemMovementService.recordMovement).toHaveBeenCalledWith(
@@ -57,7 +57,7 @@ describe('itemController', () => {
                 existingItem.locationId,
                 expectedLocationId,
                 expectedNote,
-                1
+                userId
             );
         });
 
@@ -65,16 +65,16 @@ describe('itemController', () => {
             setupMock(itemService.getItemById as jest.Mock, null);
 
             await verifyThrowsError(
-                () => itemController.moveItem(999, {locationId: '1'}),
+                () => itemController.moveItem('uuid-999', {locationId: 'uuid-1'}, TEST_USER_ID),
                 'Item not found'
             );
         });
 
         test('does nothing when location unchanged', async () => {
-            const existingItem = {id: 1, name: 'Test', locationId: 5};
+            const existingItem = {id: 'uuid-1', name: 'Test', locationId: 'uuid-5', ownerId: TEST_USER_ID};
             setupMock(itemService.getItemById as jest.Mock, existingItem);
 
-            await itemController.moveItem(1, {locationId: '5'});
+            await itemController.moveItem('uuid-1', {locationId: 'uuid-5'}, TEST_USER_ID);
 
             expect(itemService.updateItemLocation).not.toHaveBeenCalled();
             expect(itemMovementService.recordMovement).not.toHaveBeenCalled();
@@ -82,34 +82,34 @@ describe('itemController', () => {
     });
 
     describe('mapBarcodeToItem', () => {
-        test.each(mapBarcodeData)('$description', async ({itemId, code, existingItem, existingBarcode, expected}) => {
+        test.each(mapBarcodeData)('$description', async ({itemId, code, userId, existingItem, existingBarcode, expected}) => {
             setupMock(itemService.getItemById as jest.Mock, existingItem);
             setupMock(barcodeService.getBarcodeByCode as jest.Mock, existingBarcode);
-            setupMock(barcodeService.mapBarcodeToItem as jest.Mock, {id: 1, code, itemId});
+            setupMock(barcodeService.mapBarcodeToItem as jest.Mock, {id: 'uuid-b1', code, itemId});
 
-            const result = await itemController.mapBarcodeToItem(itemId, code);
+            const result = await itemController.mapBarcodeToItem(itemId, code, 'unknown', userId);
 
             verifyResultContains(result, expected);
         });
 
-        test.each(mapBarcodeErrorData)('$description', async ({itemId, code, errorMessage}) => {
+        test.each(mapBarcodeErrorData)('$description', async ({itemId, code, userId, errorMessage}) => {
             await verifyThrowsError(
-                () => itemController.mapBarcodeToItem(itemId, code),
+                () => itemController.mapBarcodeToItem(itemId, code, 'unknown', userId),
                 errorMessage
             );
         });
 
         test('returns failure when barcode mapped to different item', async () => {
-            const existingItem = {id: 1, name: 'Item 1'};
+            const existingItem = {id: 'uuid-1', name: 'Item 1', ownerId: TEST_USER_ID};
             const existingBarcode = {
                 code: '123',
-                itemId: 2,
-                item: {id: 2, name: 'Item 2'},
+                itemId: 'uuid-2',
+                item: {id: 'uuid-2', name: 'Item 2'},
             };
             setupMock(itemService.getItemById as jest.Mock, existingItem);
             setupMock(barcodeService.getBarcodeByCode as jest.Mock, existingBarcode);
 
-            const result = await itemController.mapBarcodeToItem(1, '123');
+            const result = await itemController.mapBarcodeToItem('uuid-1', '123', 'unknown', TEST_USER_ID);
 
             expect(result.success).toBe(false);
             expect(result.message).toContain('already mapped');
@@ -118,12 +118,12 @@ describe('itemController', () => {
 
     describe('listItems', () => {
         test('returns items and locations', async () => {
-            const mockItems = [{id: 1, name: 'Item 1'}, {id: 2, name: 'Item 2'}];
-            const mockLocations = [{id: 1, name: 'Location 1'}];
+            const mockItems = [{id: 'uuid-1', name: 'Item 1'}, {id: 'uuid-2', name: 'Item 2'}];
+            const mockLocations = [{id: 'uuid-l1', name: 'Location 1'}];
             setupMock(itemService.getAllItems as jest.Mock, mockItems);
             setupMock(locationService.getAllLocations as jest.Mock, mockLocations);
 
-            const result = await itemController.listItems();
+            const result = await itemController.listItems(TEST_USER_ID);
 
             expect(result.items).toEqual(mockItems);
             expect(result.locations).toEqual(mockLocations);
@@ -132,17 +132,17 @@ describe('itemController', () => {
 
     describe('getItemDetail', () => {
         test('returns item with related data', async () => {
-            const mockItem = {id: 1, name: 'Test Item'};
-            const mockLocations = [{id: 1, name: 'Location 1'}];
-            const mockBarcodes = [{id: 1, code: '123'}];
-            const mockMovements = [{id: 1, fromLocationId: null, toLocationId: 1}];
+            const mockItem = {id: 'uuid-1', name: 'Test Item', ownerId: TEST_USER_ID};
+            const mockLocations = [{id: 'uuid-l1', name: 'Location 1'}];
+            const mockBarcodes = [{id: 'uuid-b1', code: '123'}];
+            const mockMovements = [{id: 'uuid-m1', fromLocationId: null, toLocationId: 'uuid-l1'}];
 
             setupMock(itemService.getItemById as jest.Mock, mockItem);
             setupMock(locationService.getAllLocations as jest.Mock, mockLocations);
             setupMock(barcodeService.getBarcodesByItemId as jest.Mock, mockBarcodes);
             setupMock(itemMovementService.getMovementsByItemId as jest.Mock, mockMovements);
 
-            const result = await itemController.getItemDetail(1);
+            const result = await itemController.getItemDetail('uuid-1', TEST_USER_ID);
 
             expect(result.item).toEqual(mockItem);
             expect(result.locations).toEqual(mockLocations);
@@ -154,7 +154,7 @@ describe('itemController', () => {
             setupMock(itemService.getItemById as jest.Mock, null);
 
             await verifyThrowsError(
-                () => itemController.getItemDetail(999),
+                () => itemController.getItemDetail('uuid-999', TEST_USER_ID),
                 'Item not found'
             );
         });

@@ -2,36 +2,41 @@
  * Test data for scan controller tests
  */
 
+export const TEST_USER_ID = 1;
+
 export const resolveCodeData = [
     {
         description: 'resolves known barcode to item',
         code: '1234567890123',
+        userId: TEST_USER_ID,
         barcodeResult: {
             code: '1234567890123',
-            itemId: 1,
-            item: {id: 1, name: 'Test Book', type: 'book'},
+            itemId: 'uuid-1',
+            item: {id: 'uuid-1', name: 'Test Book', type: 'book', ownerId: TEST_USER_ID},
         },
         locationResult: null,
         expected: {
             type: 'item',
             code: '1234567890123',
-            item: {id: 1, name: 'Test Book', type: 'book'},
+            item: {id: 'uuid-1', name: 'Test Book', type: 'book', ownerId: TEST_USER_ID},
         },
     },
     {
         description: 'resolves location QR code',
         code: 'LOC:shelf-1',
+        userId: TEST_USER_ID,
         barcodeResult: null,
-        locationResult: {id: 5, name: 'Shelf 1', kind: 'shelf'},
+        locationResult: {id: 'uuid-l5', name: 'Shelf 1', kind: 'shelf', ownerId: TEST_USER_ID},
         expected: {
             type: 'location',
             code: 'LOC:shelf-1',
-            location: {id: 5, name: 'Shelf 1', kind: 'shelf'},
+            location: {id: 'uuid-l5', name: 'Shelf 1', kind: 'shelf', ownerId: TEST_USER_ID},
         },
     },
     {
         description: 'returns unknown for unmapped barcode',
         code: '9999999999999',
+        userId: TEST_USER_ID,
         barcodeResult: {code: '9999999999999', itemId: null, item: null},
         locationResult: null,
         expected: {
@@ -43,6 +48,7 @@ export const resolveCodeData = [
     {
         description: 'returns unknown for new code',
         code: 'NEWCODE123',
+        userId: TEST_USER_ID,
         barcodeResult: null,
         locationResult: null,
         expected: {
@@ -57,6 +63,7 @@ export const resolveCodeEdgeCaseData = [
     {
         description: 'handles empty code',
         code: '',
+        userId: TEST_USER_ID,
         expected: {
             type: 'unknown',
             code: '',
@@ -66,6 +73,7 @@ export const resolveCodeEdgeCaseData = [
     {
         description: 'handles whitespace code',
         code: '   ',
+        userId: TEST_USER_ID,
         expected: {
             type: 'unknown',
             code: '',
@@ -93,13 +101,13 @@ export const registerBarcodeErrorData = [
     {
         description: 'rejects already registered barcode',
         code: 'EXISTING123',
-        existingBarcode: {id: 1, code: 'EXISTING123', itemId: null},
+        existingBarcode: {id: 'uuid-b1', code: 'EXISTING123', itemId: null},
         expected: {success: false, message: 'Barcode already registered'},
     },
     {
         description: 'rejects barcode already mapped to item',
         code: 'MAPPED123',
-        existingBarcode: {id: 2, code: 'MAPPED123', itemId: 5},
+        existingBarcode: {id: 'uuid-b2', code: 'MAPPED123', itemId: 'uuid-5'},
         expected: {success: false, message: 'Barcode already mapped to an item'},
     },
 ];

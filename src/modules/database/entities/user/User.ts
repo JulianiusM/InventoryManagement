@@ -2,7 +2,7 @@ import {BeforeInsert, BeforeUpdate, Column, Entity, Index, OneToMany, PrimaryGen
 
 @Index("email", ["email"], {unique: true})
 @Index("username", ["username"], {unique: true})
-@Entity("users", {schema: "surveyor"})
+@Entity("users")
 export class User {
     @PrimaryGeneratedColumn({type: "int", name: "id"})
     id!: number;

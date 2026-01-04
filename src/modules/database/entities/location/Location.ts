@@ -6,32 +6,46 @@ import {
     OneToMany,
     PrimaryGeneratedColumn,
     JoinColumn,
+    RelationId,
 } from "typeorm";
+import {LocationKind} from "../../../../types/InventoryEnums";
+import {User} from "../user/User";
 
 @Index("location_qr_code", ["qrCode"], {unique: true})
-@Entity("locations", {schema: "surveyor"})
+@Entity("locations")
 export class Location {
-    @PrimaryGeneratedColumn({type: "int", name: "id"})
-    id!: number;
+    @PrimaryGeneratedColumn("uuid")
+    id!: string;
 
     @Column("varchar", {name: "name", length: 100})
     name!: string;
 
-    @Column("varchar", {name: "kind", length: 50, default: "other"})
-    kind!: string; // room, shelf, box, bin, other
+    @Column({
+        type: "enum",
+        enum: LocationKind,
+        default: LocationKind.OTHER,
+    })
+    kind!: LocationKind;
 
-    @Column("int", {name: "parent_id", nullable: true})
-    parentId?: number | null;
-
-    @ManyToOne(() => Location, (location) => location.children, {onDelete: "SET NULL"})
+    @ManyToOne(() => Location, (location) => location.children, {onDelete: "SET NULL", nullable: true})
     @JoinColumn({name: "parent_id"})
     parent?: Location | null;
+
+    @RelationId((location: Location) => location.parent)
+    parentId?: string | null;
 
     @OneToMany(() => Location, (location) => location.parent)
     children?: Location[];
 
     @Column("varchar", {name: "qr_code", unique: true, nullable: true, length: 255})
     qrCode?: string | null;
+
+    @ManyToOne(() => User, {onDelete: "CASCADE"})
+    @JoinColumn({name: "owner_id"})
+    owner!: User;
+
+    @RelationId((location: Location) => location.owner)
+    ownerId!: number;
 
     @Column("timestamp", {
         name: "created_at",

@@ -1,46 +1,59 @@
 import {
     Column,
     Entity,
-    Index,
     ManyToOne,
-    OneToMany,
     PrimaryGeneratedColumn,
     JoinColumn,
+    RelationId,
 } from "typeorm";
 import {Location} from "../location/Location";
+import {User} from "../user/User";
+import {ItemType, ItemCondition} from "../../../../types/InventoryEnums";
 
-@Entity("items", {schema: "surveyor"})
+@Entity("items")
 export class Item {
-    @PrimaryGeneratedColumn({type: "int", name: "id"})
-    id!: number;
+    @PrimaryGeneratedColumn("uuid")
+    id!: string;
 
     @Column("varchar", {name: "name", length: 255})
     name!: string;
 
-    @Column("varchar", {name: "type", length: 50, default: "other"})
-    type!: string; // book, tool, game, other
+    @Column({
+        type: "enum",
+        enum: ItemType,
+        default: ItemType.OTHER,
+    })
+    type!: ItemType;
 
     @Column("text", {name: "description", nullable: true})
     description?: string | null;
 
-    @Column("varchar", {name: "condition", length: 50, nullable: true})
-    condition?: string | null; // new, good, fair, poor
+    @Column({
+        type: "enum",
+        enum: ItemCondition,
+        nullable: true,
+    })
+    condition?: ItemCondition | null;
 
     @Column("varchar", {name: "serial_number", length: 255, nullable: true})
     serialNumber?: string | null;
 
-    @Column("json", {name: "custom_fields", nullable: true})
-    customFields?: Record<string, unknown> | null;
+    @Column("simple-json", {name: "tags", nullable: true})
+    tags?: string[] | null;
 
-    @Column("int", {name: "location_id", nullable: true})
-    locationId?: number | null;
-
-    @ManyToOne(() => Location, {onDelete: "SET NULL"})
+    @ManyToOne(() => Location, {onDelete: "SET NULL", nullable: true})
     @JoinColumn({name: "location_id"})
     location?: Location | null;
 
-    @Column("int", {name: "owner_id", nullable: true})
-    ownerId?: number | null;
+    @RelationId((item: Item) => item.location)
+    locationId?: string | null;
+
+    @ManyToOne(() => User, {onDelete: "CASCADE"})
+    @JoinColumn({name: "owner_id"})
+    owner!: User;
+
+    @RelationId((item: Item) => item.owner)
+    ownerId!: number;
 
     @Column("timestamp", {
         name: "created_at",

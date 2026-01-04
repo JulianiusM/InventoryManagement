@@ -4,34 +4,44 @@ import {
     ManyToOne,
     PrimaryGeneratedColumn,
     JoinColumn,
+    RelationId,
 } from "typeorm";
 import {Item} from "../item/Item";
 import {Party} from "../party/Party";
+import {User} from "../user/User";
+import {LoanDirection, LoanStatus} from "../../../../types/InventoryEnums";
 
-@Entity("loans", {schema: "surveyor"})
+@Entity("loans")
 export class Loan {
-    @PrimaryGeneratedColumn({type: "int", name: "id"})
-    id!: number;
-
-    @Column("int", {name: "item_id"})
-    itemId!: number;
+    @PrimaryGeneratedColumn("uuid")
+    id!: string;
 
     @ManyToOne(() => Item, {onDelete: "CASCADE"})
     @JoinColumn({name: "item_id"})
     item!: Item;
 
-    @Column("int", {name: "party_id"})
-    partyId!: number;
+    @RelationId((loan: Loan) => loan.item)
+    itemId!: string;
 
     @ManyToOne(() => Party, {onDelete: "CASCADE"})
     @JoinColumn({name: "party_id"})
     party!: Party;
 
-    @Column("varchar", {name: "direction", length: 20})
-    direction!: string; // 'lend' (you lent to someone) or 'borrow' (you borrowed from someone)
+    @RelationId((loan: Loan) => loan.party)
+    partyId!: string;
 
-    @Column("varchar", {name: "status", length: 20, default: "active"})
-    status!: string; // active, returned
+    @Column({
+        type: "enum",
+        enum: LoanDirection,
+    })
+    direction!: LoanDirection;
+
+    @Column({
+        type: "enum",
+        enum: LoanStatus,
+        default: LoanStatus.ACTIVE,
+    })
+    status!: LoanStatus;
 
     @Column("timestamp", {
         name: "start_at",
@@ -40,7 +50,7 @@ export class Loan {
     startAt!: Date;
 
     @Column("date", {name: "due_at", nullable: true})
-    dueAt?: string | null; // stored as string for date type
+    dueAt?: string | null;
 
     @Column("timestamp", {name: "returned_at", nullable: true})
     returnedAt?: Date | null;
@@ -54,8 +64,12 @@ export class Loan {
     @Column("text", {name: "notes", nullable: true})
     notes?: string | null;
 
-    @Column("int", {name: "owner_id", nullable: true})
-    ownerId?: number | null;
+    @ManyToOne(() => User, {onDelete: "CASCADE"})
+    @JoinColumn({name: "owner_id"})
+    owner!: User;
+
+    @RelationId((loan: Loan) => loan.owner)
+    ownerId!: number;
 
     @Column("timestamp", {
         name: "created_at",

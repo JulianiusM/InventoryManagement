@@ -7,28 +7,20 @@ export async function createParty(data: Partial<Party>): Promise<Party> {
     return await repo.save(party);
 }
 
-export async function getPartyById(id: number): Promise<Party | null> {
+export async function getPartyById(id: string): Promise<Party | null> {
     const repo = AppDataSource.getRepository(Party);
     return await repo.findOne({where: {id}});
 }
 
-export async function getPartyByName(name: string, ownerId?: number): Promise<Party | null> {
+export async function getPartyByName(name: string, ownerId: number): Promise<Party | null> {
     const repo = AppDataSource.getRepository(Party);
-    const where: { name: string; ownerId?: number } = {name};
-    if (ownerId !== undefined) {
-        where.ownerId = ownerId;
-    }
-    return await repo.findOne({where});
+    return await repo.findOne({where: {name, ownerId}});
 }
 
-export async function getAllParties(ownerId?: number): Promise<Party[]> {
+export async function getAllParties(ownerId: number): Promise<Party[]> {
     const repo = AppDataSource.getRepository(Party);
-    const where: { ownerId?: number } = {};
-    if (ownerId !== undefined) {
-        where.ownerId = ownerId;
-    }
     return await repo.find({
-        where,
+        where: {ownerId},
         order: {name: 'ASC'},
     });
 }
@@ -41,6 +33,9 @@ export async function findOrCreateParty(
     email?: string | null,
     ownerId?: number
 ): Promise<Party> {
+    if (!ownerId) {
+        throw new Error('Owner ID is required');
+    }
     const existing = await getPartyByName(name, ownerId);
     if (existing) {
         // Update email if provided and different
@@ -54,12 +49,12 @@ export async function findOrCreateParty(
     return await createParty({name, email, ownerId});
 }
 
-export async function updateParty(id: number, data: Partial<Party>): Promise<void> {
+export async function updateParty(id: string, data: Partial<Omit<Party, 'owner'>>): Promise<void> {
     const repo = AppDataSource.getRepository(Party);
-    await repo.update({id}, data);
+    await repo.update({id}, data as Record<string, unknown>);
 }
 
-export async function deleteParty(id: number): Promise<void> {
+export async function deleteParty(id: string): Promise<void> {
     const repo = AppDataSource.getRepository(Party);
     await repo.delete({id});
 }

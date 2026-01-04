@@ -4,40 +4,46 @@ import {
     ManyToOne,
     PrimaryGeneratedColumn,
     JoinColumn,
+    RelationId,
 } from "typeorm";
 import {Item} from "../item/Item";
 import {Location} from "../location/Location";
+import {User} from "../user/User";
 
-@Entity("item_movements", {schema: "surveyor"})
+@Entity("item_movements")
 export class ItemMovement {
-    @PrimaryGeneratedColumn({type: "int", name: "id"})
-    id!: number;
-
-    @Column("int", {name: "item_id"})
-    itemId!: number;
+    @PrimaryGeneratedColumn("uuid")
+    id!: string;
 
     @ManyToOne(() => Item, {onDelete: "CASCADE"})
     @JoinColumn({name: "item_id"})
     item!: Item;
 
-    @Column("int", {name: "from_location_id", nullable: true})
-    fromLocationId?: number | null;
+    @RelationId((movement: ItemMovement) => movement.item)
+    itemId!: string;
 
-    @ManyToOne(() => Location, {onDelete: "SET NULL"})
+    @ManyToOne(() => Location, {onDelete: "SET NULL", nullable: true})
     @JoinColumn({name: "from_location_id"})
     fromLocation?: Location | null;
 
-    @Column("int", {name: "to_location_id", nullable: true})
-    toLocationId?: number | null;
+    @RelationId((movement: ItemMovement) => movement.fromLocation)
+    fromLocationId?: string | null;
 
-    @ManyToOne(() => Location, {onDelete: "SET NULL"})
+    @ManyToOne(() => Location, {onDelete: "SET NULL", nullable: true})
     @JoinColumn({name: "to_location_id"})
     toLocation?: Location | null;
+
+    @RelationId((movement: ItemMovement) => movement.toLocation)
+    toLocationId?: string | null;
 
     @Column("text", {name: "note", nullable: true})
     note?: string | null;
 
-    @Column("int", {name: "moved_by_user_id", nullable: true})
+    @ManyToOne(() => User, {onDelete: "SET NULL", nullable: true})
+    @JoinColumn({name: "moved_by_user_id"})
+    movedByUser?: User | null;
+
+    @RelationId((movement: ItemMovement) => movement.movedByUser)
     movedByUserId?: number | null;
 
     @Column("timestamp", {

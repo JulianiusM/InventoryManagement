@@ -1,5 +1,6 @@
 import {AppDataSource} from '../dataSource';
 import {Loan} from '../entities/loan/Loan';
+import {LoanStatus} from '../../../types/InventoryEnums';
 
 export async function createLoan(data: Partial<Loan>): Promise<Loan> {
     const repo = AppDataSource.getRepository(Loan);
@@ -7,41 +8,33 @@ export async function createLoan(data: Partial<Loan>): Promise<Loan> {
     return await repo.save(loan);
 }
 
-export async function getLoanById(id: number): Promise<Loan | null> {
+export async function getLoanById(id: string): Promise<Loan | null> {
     const repo = AppDataSource.getRepository(Loan);
     return await repo.findOne({
         where: {id},
-        relations: ['item', 'party'],
+        relations: ['item', 'party', 'owner'],
     });
 }
 
-export async function getActiveLoans(ownerId?: number): Promise<Loan[]> {
+export async function getActiveLoans(ownerId: number): Promise<Loan[]> {
     const repo = AppDataSource.getRepository(Loan);
-    const where: { status: string; ownerId?: number } = {status: 'active'};
-    if (ownerId !== undefined) {
-        where.ownerId = ownerId;
-    }
     return await repo.find({
-        where,
+        where: {status: LoanStatus.ACTIVE, ownerId},
         relations: ['item', 'party'],
         order: {startAt: 'DESC'},
     });
 }
 
-export async function getAllLoans(ownerId?: number): Promise<Loan[]> {
+export async function getAllLoans(ownerId: number): Promise<Loan[]> {
     const repo = AppDataSource.getRepository(Loan);
-    const where: { ownerId?: number } = {};
-    if (ownerId !== undefined) {
-        where.ownerId = ownerId;
-    }
     return await repo.find({
-        where,
+        where: {ownerId},
         relations: ['item', 'party'],
         order: {createdAt: 'DESC'},
     });
 }
 
-export async function getLoansByItemId(itemId: number): Promise<Loan[]> {
+export async function getLoansByItemId(itemId: string): Promise<Loan[]> {
     const repo = AppDataSource.getRepository(Loan);
     return await repo.find({
         where: {itemId},
@@ -50,29 +43,29 @@ export async function getLoansByItemId(itemId: number): Promise<Loan[]> {
     });
 }
 
-export async function getActiveLoanByItemId(itemId: number): Promise<Loan | null> {
+export async function getActiveLoanByItemId(itemId: string): Promise<Loan | null> {
     const repo = AppDataSource.getRepository(Loan);
     return await repo.findOne({
-        where: {itemId, status: 'active'},
+        where: {itemId, status: LoanStatus.ACTIVE},
         relations: ['item', 'party'],
     });
 }
 
-export async function returnLoan(id: number, conditionIn?: string | null): Promise<void> {
+export async function returnLoan(id: string, conditionIn?: string | null): Promise<void> {
     const repo = AppDataSource.getRepository(Loan);
     await repo.update({id}, {
-        status: 'returned',
+        status: LoanStatus.RETURNED,
         returnedAt: new Date(),
         conditionIn,
-    });
+    } as Record<string, unknown>);
 }
 
-export async function updateLoan(id: number, data: Partial<Omit<Loan, 'item' | 'party'>>): Promise<void> {
+export async function updateLoan(id: string, data: Partial<Omit<Loan, 'item' | 'party' | 'owner'>>): Promise<void> {
     const repo = AppDataSource.getRepository(Loan);
     await repo.update({id}, data as Record<string, unknown>);
 }
 
-export async function deleteLoan(id: number): Promise<void> {
+export async function deleteLoan(id: string): Promise<void> {
     const repo = AppDataSource.getRepository(Loan);
     await repo.delete({id});
 }
@@ -80,20 +73,17 @@ export async function deleteLoan(id: number): Promise<void> {
 /**
  * Get overdue loans (active loans past their due date)
  */
-export async function getOverdueLoans(ownerId?: number): Promise<Loan[]> {
+export async function getOverdueLoans(ownerId: number): Promise<Loan[]> {
     const repo = AppDataSource.getRepository(Loan);
     const today = new Date().toISOString().split('T')[0];
     
     const query = repo.createQueryBuilder('loan')
         .leftJoinAndSelect('loan.item', 'item')
         .leftJoinAndSelect('loan.party', 'party')
-        .where('loan.status = :status', {status: 'active'})
+        .where('loan.status = :status', {status: LoanStatus.ACTIVE})
         .andWhere('loan.due_at IS NOT NULL')
-        .andWhere('loan.due_at < :today', {today});
-    
-    if (ownerId !== undefined) {
-        query.andWhere('loan.owner_id = :ownerId', {ownerId});
-    }
+        .andWhere('loan.due_at < :today', {today})
+        .andWhere('loan.owner_id = :ownerId', {ownerId});
     
     return await query.orderBy('loan.due_at', 'ASC').getMany();
 }

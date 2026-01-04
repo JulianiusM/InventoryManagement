@@ -2,7 +2,7 @@
  * Tests for locationController
  */
 
-import {createLocationData, createLocationErrorData, updateLocationData, updateLocationErrorData} from '../data/controller/locationData';
+import {createLocationData, createLocationErrorData, updateLocationData, updateLocationErrorData, TEST_USER_ID} from '../data/controller/locationData';
 import {setupMock, verifyThrowsError} from '../keywords/common/controllerKeywords';
 
 // Mock the services
@@ -19,53 +19,53 @@ describe('locationController', () => {
     });
 
     describe('createLocation', () => {
-        test.each(createLocationData)('$description', async ({input, expected, parentExists}) => {
+        test.each(createLocationData)('$description', async ({input, ownerId, expected, parentExists}) => {
             if (input.parentId && parentExists) {
-                setupMock(locationService.getLocationById as jest.Mock, {id: Number(input.parentId), name: 'Parent'});
+                setupMock(locationService.getLocationById as jest.Mock, {id: input.parentId, name: 'Parent', ownerId});
             } else if (input.parentId) {
                 setupMock(locationService.getLocationById as jest.Mock, null);
             }
             setupMock(locationService.getLocationByQrCode as jest.Mock, null);
-            setupMock(locationService.createLocation as jest.Mock, {id: 1, ...expected});
+            setupMock(locationService.createLocation as jest.Mock, {id: 'uuid-1', ...expected});
 
-            const result = await locationController.createLocation(input);
+            const result = await locationController.createLocation(input, ownerId);
 
             expect(result).toBeDefined();
-            expect(result.id).toBe(1);
+            expect(result.id).toBe('uuid-1');
             expect(locationService.createLocation).toHaveBeenCalled();
         });
 
-        test.each(createLocationErrorData)('$description', async ({input, errorMessage, parentExists}) => {
+        test.each(createLocationErrorData)('$description', async ({input, ownerId, errorMessage, parentExists}) => {
             if (input.parentId !== undefined) {
                 if (parentExists) {
-                    setupMock(locationService.getLocationById as jest.Mock, {id: Number(input.parentId), name: 'Parent'});
+                    setupMock(locationService.getLocationById as jest.Mock, {id: input.parentId, name: 'Parent', ownerId});
                 } else {
                     setupMock(locationService.getLocationById as jest.Mock, null);
                 }
             }
 
             await verifyThrowsError(
-                () => locationController.createLocation(input),
+                () => locationController.createLocation(input, ownerId),
                 errorMessage
             );
         });
 
         test('throws error for duplicate QR code', async () => {
-            setupMock(locationService.getLocationByQrCode as jest.Mock, {id: 2, qrCode: 'LOC:existing'});
+            setupMock(locationService.getLocationByQrCode as jest.Mock, {id: 'uuid-2', qrCode: 'LOC:existing'});
 
             await verifyThrowsError(
-                () => locationController.createLocation({name: 'Test', qrCode: 'LOC:existing'}),
+                () => locationController.createLocation({name: 'Test', qrCode: 'LOC:existing'}, TEST_USER_ID),
                 'QR code already in use'
             );
         });
     });
 
     describe('updateLocation', () => {
-        test.each(updateLocationData)('$description', async ({locationId, existingLocation, input, expected}) => {
+        test.each(updateLocationData)('$description', async ({locationId, existingLocation, input, userId, expected}) => {
             setupMock(locationService.getLocationById as jest.Mock, existingLocation);
             setupMock(locationService.updateLocation as jest.Mock, undefined);
 
-            await locationController.updateLocation(locationId, input);
+            await locationController.updateLocation(locationId, input, userId);
 
             expect(locationService.updateLocation).toHaveBeenCalledWith(
                 locationId,
@@ -73,11 +73,11 @@ describe('locationController', () => {
             );
         });
 
-        test.each(updateLocationErrorData)('$description', async ({locationId, existingLocation, input, errorMessage}) => {
+        test.each(updateLocationErrorData)('$description', async ({locationId, existingLocation, input, userId, errorMessage}) => {
             setupMock(locationService.getLocationById as jest.Mock, existingLocation);
 
             await verifyThrowsError(
-                () => locationController.updateLocation(locationId, input),
+                () => locationController.updateLocation(locationId, input, userId),
                 errorMessage
             );
         });
@@ -85,12 +85,12 @@ describe('locationController', () => {
 
     describe('listLocations', () => {
         test('returns locations and tree', async () => {
-            const mockLocations = [{id: 1, name: 'Room 1'}, {id: 2, name: 'Shelf 1'}];
-            const mockTree = [{id: 1, name: 'Room 1', childrenNodes: [{id: 2, name: 'Shelf 1'}]}];
+            const mockLocations = [{id: 'uuid-1', name: 'Room 1'}, {id: 'uuid-2', name: 'Shelf 1'}];
+            const mockTree = [{id: 'uuid-1', name: 'Room 1', childrenNodes: [{id: 'uuid-2', name: 'Shelf 1'}]}];
             setupMock(locationService.getAllLocations as jest.Mock, mockLocations);
             setupMock(locationService.getLocationTree as jest.Mock, mockTree);
 
-            const result = await locationController.listLocations();
+            const result = await locationController.listLocations(TEST_USER_ID);
 
             expect(result.locations).toEqual(mockLocations);
             expect(result.tree).toEqual(mockTree);
@@ -99,15 +99,15 @@ describe('locationController', () => {
 
     describe('getLocationDetail', () => {
         test('returns location with items', async () => {
-            const mockLocation = {id: 1, name: 'Test Location'};
-            const mockItems = [{id: 1, name: 'Item 1', locationId: 1}];
-            const mockAllLocations = [{id: 1, name: 'Test Location'}];
+            const mockLocation = {id: 'uuid-1', name: 'Test Location', ownerId: TEST_USER_ID};
+            const mockItems = [{id: 'uuid-i1', name: 'Item 1', locationId: 'uuid-1'}];
+            const mockAllLocations = [{id: 'uuid-1', name: 'Test Location'}];
 
             setupMock(locationService.getLocationById as jest.Mock, mockLocation);
             setupMock(itemService.getItemsByLocation as jest.Mock, mockItems);
             setupMock(locationService.getAllLocations as jest.Mock, mockAllLocations);
 
-            const result = await locationController.getLocationDetail(1);
+            const result = await locationController.getLocationDetail('uuid-1', TEST_USER_ID);
 
             expect(result.location).toEqual(mockLocation);
             expect(result.items).toEqual(mockItems);
@@ -118,7 +118,7 @@ describe('locationController', () => {
             setupMock(locationService.getLocationById as jest.Mock, null);
 
             await verifyThrowsError(
-                () => locationController.getLocationDetail(999),
+                () => locationController.getLocationDetail('uuid-999', TEST_USER_ID),
                 'Location not found'
             );
         });

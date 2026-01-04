@@ -3,20 +3,26 @@ import * as locationService from '../modules/database/services/LocationService';
 import * as barcodeService from '../modules/database/services/BarcodeService';
 import * as itemMovementService from '../modules/database/services/ItemMovementService';
 import {ExpectedError} from '../modules/lib/errors';
+import {checkOwnership, requireAuthenticatedUser} from '../middleware/authMiddleware';
 import {Item} from '../modules/database/entities/item/Item';
+import {ItemType} from '../types/InventoryEnums';
 
-export async function listItems(ownerId?: number) {
+export async function listItems(ownerId: number) {
+    requireAuthenticatedUser(ownerId);
     const items = await itemService.getAllItems(ownerId);
-    const locations = await locationService.getAllLocations();
+    const locations = await locationService.getAllLocations(ownerId);
     return {items, locations};
 }
 
-export async function getItemDetail(id: number) {
+export async function getItemDetail(id: string, userId: number) {
+    requireAuthenticatedUser(userId);
     const item = await itemService.getItemById(id);
     if (!item) {
         throw new ExpectedError('Item not found', 'error', 404);
     }
-    const locations = await locationService.getAllLocations();
+    checkOwnership(item, userId);
+    
+    const locations = await locationService.getAllLocations(userId);
     const barcodes = await barcodeService.getBarcodesByItemId(id);
     const movements = await itemMovementService.getMovementsByItemId(id);
     return {item, locations, barcodes, movements};
@@ -26,8 +32,9 @@ export async function createItem(body: {
     name: string;
     type?: string;
     description?: string;
-    locationId?: string | number;
-}, ownerId?: number): Promise<Item> {
+    locationId?: string;
+}, ownerId: number): Promise<Item> {
+    requireAuthenticatedUser(ownerId);
     const {name, type = 'other', description, locationId} = body;
     
     if (!name || name.trim() === '') {
@@ -36,9 +43,9 @@ export async function createItem(body: {
     
     const item = await itemService.createItem({
         name: name.trim(),
-        type,
+        type: type as ItemType,
         description: description?.trim() || null,
-        locationId: locationId ? Number(locationId) : null,
+        locationId: locationId || null,
         ownerId,
     });
     
@@ -57,17 +64,19 @@ export async function createItem(body: {
 }
 
 export async function moveItem(
-    id: number,
-    body: {locationId?: string | number; note?: string},
-    userId?: number
+    id: string,
+    body: {locationId?: string; note?: string},
+    userId: number
 ): Promise<void> {
+    requireAuthenticatedUser(userId);
     const item = await itemService.getItemById(id);
     if (!item) {
         throw new ExpectedError('Item not found', 'error', 404);
     }
+    checkOwnership(item, userId);
     
     const oldLocationId = item.locationId || null;
-    const newLocationId = body.locationId ? Number(body.locationId) : null;
+    const newLocationId = body.locationId || null;
     
     if (oldLocationId === newLocationId) {
         return; // No change
@@ -87,10 +96,12 @@ export async function moveItem(
 }
 
 export async function mapBarcodeToItem(
-    itemId: number,
+    itemId: string,
     code: string,
-    symbology = 'unknown'
+    symbology = 'unknown',
+    userId: number
 ): Promise<{success: boolean; message: string}> {
+    requireAuthenticatedUser(userId);
     if (!code || code.trim() === '') {
         throw new ExpectedError('Barcode is required', 'error', 400);
     }
@@ -99,6 +110,7 @@ export async function mapBarcodeToItem(
     if (!item) {
         throw new ExpectedError('Item not found', 'error', 404);
     }
+    checkOwnership(item, userId);
     
     // Check if barcode is already mapped to another item
     const existingBarcode = await barcodeService.getBarcodeByCode(code.trim());

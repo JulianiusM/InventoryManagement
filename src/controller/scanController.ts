@@ -1,8 +1,10 @@
 import * as barcodeService from '../modules/database/services/BarcodeService';
 import * as locationService from '../modules/database/services/LocationService';
 import * as itemService from '../modules/database/services/ItemService';
+import {requireAuthenticatedUser} from '../middleware/authMiddleware';
 import {Item} from '../modules/database/entities/item/Item';
 import {Location} from '../modules/database/entities/location/Location';
+import {BarcodeSymbology} from '../types/InventoryEnums';
 
 export interface ScanResult {
     type: 'item' | 'location' | 'unknown';
@@ -12,15 +14,19 @@ export interface ScanResult {
     message?: string;
 }
 
-export async function listScanData(ownerId?: number) {
+export async function listScanData(ownerId: number) {
+    requireAuthenticatedUser(ownerId);
     const items = await itemService.getAllItems(ownerId);
     return {items};
 }
 
 /**
  * Resolve a barcode or QR code to an item or location
+ * Only returns results that belong to the user
  */
-export async function resolveCode(code: string): Promise<ScanResult> {
+export async function resolveCode(code: string, userId: number): Promise<ScanResult> {
+    requireAuthenticatedUser(userId);
+    
     if (!code || code.trim() === '') {
         return {
             type: 'unknown',
@@ -34,25 +40,31 @@ export async function resolveCode(code: string): Promise<ScanResult> {
     // First, check if it's a known barcode mapped to an item
     const barcode = await barcodeService.getBarcodeByCode(trimmedCode);
     if (barcode && barcode.item) {
-        return {
-            type: 'item',
-            code: trimmedCode,
-            item: barcode.item,
-        };
+        // Only return if user owns the item
+        if (barcode.item.ownerId === userId) {
+            return {
+                type: 'item',
+                code: trimmedCode,
+                item: barcode.item,
+            };
+        }
     }
     
     // Next, check if it's a location QR code
     const location = await locationService.getLocationByQrCode(trimmedCode);
     if (location) {
-        return {
-            type: 'location',
-            code: trimmedCode,
-            location,
-        };
+        // Only return if user owns the location
+        if (location.ownerId === userId) {
+            return {
+                type: 'location',
+                code: trimmedCode,
+                location,
+            };
+        }
     }
     
     // If barcode exists but not mapped
-    if (barcode) {
+    if (barcode && !barcode.item) {
         return {
             type: 'unknown',
             code: trimmedCode,
@@ -73,8 +85,8 @@ export async function resolveCode(code: string): Promise<ScanResult> {
  */
 export async function registerUnmappedBarcode(
     code: string,
-    symbology = 'unknown'
-): Promise<{success: boolean; message: string; barcodeId?: number}> {
+    symbology = 'UNKNOWN'
+): Promise<{success: boolean; message: string; barcodeId?: string}> {
     if (!code || code.trim() === '') {
         return {success: false, message: 'Barcode is required'};
     }
@@ -92,8 +104,7 @@ export async function registerUnmappedBarcode(
     
     const barcode = await barcodeService.createBarcode({
         code: code.trim(),
-        symbology,
-        itemId: null,
+        symbology: symbology as BarcodeSymbology,
     });
     
     return {

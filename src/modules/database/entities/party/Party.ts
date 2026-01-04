@@ -1,13 +1,17 @@
 import {
     Column,
     Entity,
+    ManyToOne,
     PrimaryGeneratedColumn,
+    JoinColumn,
+    RelationId,
 } from "typeorm";
+import {User} from "../user/User";
 
-@Entity("parties", {schema: "surveyor"})
+@Entity("parties")
 export class Party {
-    @PrimaryGeneratedColumn({type: "int", name: "id"})
-    id!: number;
+    @PrimaryGeneratedColumn("uuid")
+    id!: string;
 
     @Column("varchar", {name: "name", length: 100})
     name!: string;
@@ -21,8 +25,12 @@ export class Party {
     @Column("text", {name: "notes", nullable: true})
     notes?: string | null;
 
-    @Column("int", {name: "owner_id", nullable: true})
-    ownerId?: number | null;
+    @ManyToOne(() => User, {onDelete: "CASCADE"})
+    @JoinColumn({name: "owner_id"})
+    owner!: User;
+
+    @RelationId((party: Party) => party.owner)
+    ownerId!: number;
 
     @Column("timestamp", {
         name: "created_at",

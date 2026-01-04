@@ -8,17 +8,18 @@ export async function createLocation(data: Partial<Location>): Promise<Location>
     return await repo.save(location);
 }
 
-export async function getLocationById(id: number): Promise<Location | null> {
+export async function getLocationById(id: string): Promise<Location | null> {
     const repo = AppDataSource.getRepository(Location);
     return await repo.findOne({
         where: {id},
-        relations: ['parent', 'children'],
+        relations: ['parent', 'children', 'owner'],
     });
 }
 
-export async function getAllLocations(): Promise<Location[]> {
+export async function getAllLocations(ownerId: number): Promise<Location[]> {
     const repo = AppDataSource.getRepository(Location);
     return await repo.find({
+        where: {ownerId},
         order: {name: 'ASC'},
     });
 }
@@ -27,15 +28,16 @@ export async function getLocationByQrCode(qrCode: string): Promise<Location | nu
     const repo = AppDataSource.getRepository(Location);
     return await repo.findOne({
         where: {qrCode},
+        relations: ['owner'],
     });
 }
 
-export async function updateLocation(id: number, data: Partial<Location>): Promise<void> {
+export async function updateLocation(id: string, data: Partial<Omit<Location, 'parent' | 'children' | 'owner'>>): Promise<void> {
     const repo = AppDataSource.getRepository(Location);
-    await repo.update({id}, data);
+    await repo.update({id}, data as Record<string, unknown>);
 }
 
-export async function deleteLocation(id: number): Promise<void> {
+export async function deleteLocation(id: string): Promise<void> {
     const repo = AppDataSource.getRepository(Location);
     await repo.delete({id});
 }
@@ -43,13 +45,14 @@ export async function deleteLocation(id: number): Promise<void> {
 /**
  * Build a hierarchical tree structure from flat location list
  */
-export async function getLocationTree(): Promise<Location[]> {
+export async function getLocationTree(ownerId: number): Promise<Location[]> {
     const repo = AppDataSource.getRepository(Location);
     const allLocations = await repo.find({
+        where: {ownerId},
         order: {name: 'ASC'},
     });
 
-    const locationMap = new Map<number, Location>();
+    const locationMap = new Map<string, Location>();
     for (const loc of allLocations) {
         loc.childrenNodes = [];
         locationMap.set(loc.id, loc);
@@ -72,9 +75,9 @@ export async function getLocationTree(): Promise<Location[]> {
 /**
  * Get all descendant location IDs for a given location
  */
-export async function getDescendantIds(locationId: number): Promise<number[]> {
-    const tree = await getLocationTree();
-    const result: number[] = [];
+export async function getDescendantIds(locationId: string, ownerId: number): Promise<string[]> {
+    const tree = await getLocationTree(ownerId);
+    const result: string[] = [];
 
     function collectDescendants(nodes: Location[], collecting: boolean): void {
         for (const node of nodes) {
