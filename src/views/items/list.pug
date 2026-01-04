@@ -6,49 +6,75 @@ block meta
 block content
     - const items = (data && data.items) ? data.items : []
     - const locations = (data && data.locations) ? data.locations : []
+    - const pagination = (data && data.pagination) ? data.pagination : {page: 1, totalPages: 1, totalItems: items.length, perPage: 30}
+    - const filters = (data && data.filters) ? data.filters : {search: '', type: '', location: ''}
     - const itemTypes = ['book', 'tool', 'game', 'electronics', 'clothing', 'collectible', 'other']
     - const conditions = ['new', 'like_new', 'good', 'fair', 'poor']
 
+    include ../modules/module_pagination
+
     #liveAlerts
 
-    //- Header with breadcrumb
+    //- Breadcrumb
     nav.mb-2(aria-label="breadcrumb")
         ol.breadcrumb.mb-0
             li.breadcrumb-item
                 a.text-white(href="/") Home
             li.breadcrumb-item.active.text-white-50(aria-current="page") Items
 
-    .d-flex.justify-content-between.align-items-center.mb-3
+    .d-flex.justify-content-between.align-items-center.mb-3.flex-wrap.gap-2
         h1.h3.mb-0.text-white
             i.bi.bi-box-seam.me-2
             | Items
-            if items.length > 0
-                span.badge.text-bg-secondary.ms-2.fs-6 #{items.length}
+            if pagination.totalItems > 0
+                span.badge.text-bg-secondary.ms-2.fs-6 #{pagination.totalItems}
+        
+        //- Items per page selector on desktop
+        .d-none.d-md-block
+            +itemsPerPageSelector(pagination.perPage, '/items')
 
-    //- Search and filter row
+    //- Enhanced search and filter row
     .card.text-bg-dark.border-secondary.mb-3
         .card-body.py-2
-            .row.g-2.align-items-center
-                .col-md-4
-                    .input-group
-                        span.input-group-text.text-bg-dark.border-secondary
-                            i.bi.bi-search
-                        input#itemSearch.form-control.text-bg-dark.border-secondary(type="text" placeholder="Search items..." autocomplete="off")
-                .col-md-3
-                    select#filterType.form-select.text-bg-dark.border-secondary
-                        option(value="") All types
-                        each t in itemTypes
-                            option(value=t) #{t.charAt(0).toUpperCase() + t.slice(1)}
-                .col-md-3
-                    select#filterLocation.form-select.text-bg-dark.border-secondary
-                        option(value="") All locations
-                        option(value="unassigned") Unassigned
-                        each loc in locations
-                            option(value=loc.id) #{loc.name}
-                .col-md-2
-                    button#clearFilters.btn.btn-outline-secondary.w-100(type="button")
-                        i.bi.bi-x-lg.me-1
-                        | Clear
+            form(method="get" action="/items")
+                .row.g-2.align-items-center
+                    .col-md-4
+                        .input-group
+                            span.input-group-text.text-bg-dark.border-secondary
+                                i.bi.bi-search
+                            input#itemSearch.form-control.text-bg-dark.border-secondary(
+                                type="text" 
+                                name="search" 
+                                placeholder="Search by name, description, tags..." 
+                                value=filters.search
+                                autocomplete="off"
+                            )
+                            button.btn.btn-outline-secondary(type="button" data-search-clear style=filters.search ? '' : 'display:none')
+                                i.bi.bi-x-lg
+                    .col-md-3
+                        select#filterType.form-select.text-bg-dark.border-secondary(name="type")
+                            option(value="" selected=!filters.type) All types
+                            each t in itemTypes
+                                option(value=t selected=filters.type === t) #{t.charAt(0).toUpperCase() + t.slice(1)}
+                    .col-md-3
+                        select#filterLocation.form-select.text-bg-dark.border-secondary(name="location")
+                            option(value="" selected=!filters.location) All locations
+                            option(value="unassigned" selected=filters.location === 'unassigned') Unassigned
+                            each loc in locations
+                                option(value=loc.id selected=filters.location === loc.id) #{loc.name}
+                    .col-md-2
+                        .d-flex.gap-1
+                            button.btn.btn-primary.flex-grow-1(type="submit")
+                                i.bi.bi-funnel.me-1
+                                span.d-none.d-lg-inline Filter
+                                span.d-lg-none
+                                    i.bi.bi-check
+                            a.btn.btn-outline-secondary(href="/items" title="Clear filters")
+                                i.bi.bi-x-lg
+
+    //- Items per page selector on mobile
+    .d-md-none.mb-3
+        +itemsPerPageSelector(pagination.perPage, '/items')
 
     //- Add item form (collapsible)
     .card.text-bg-dark.border-secondary.mb-4
@@ -57,7 +83,7 @@ block content
                 i.bi.bi-plus-circle.me-2
                 | Add New Item
             i.bi.bi-chevron-down
-        #addItemForm.collapse.show
+        #addItemForm.collapse
             .card-body
                 form.row.g-3(method="post" action="/items")
                     .col-md-5
@@ -109,22 +135,24 @@ block content
                             | Create Item
 
     //- Items list
-    if items.length === 0
+    if pagination.totalItems === 0
         .card.text-bg-dark.border-secondary
             .card-body.text-center.py-5
                 i.bi.bi-inbox.display-1.text-white-50.mb-3.d-block
-                p.text-white-50.mb-3 No items yet. Add your first item above!
-                a.btn.btn-outline-light(href="/scan")
-                    i.bi.bi-upc-scan.me-1
-                    | Or scan a barcode
+                if filters.search || filters.type || filters.location
+                    p.text-white-50.mb-3 No items match your filters.
+                    a.btn.btn-outline-light(href="/items") Clear filters
+                else
+                    p.text-white-50.mb-3 No items yet. Add your first item above!
+                    a.btn.btn-outline-light(href="/scan")
+                        i.bi.bi-upc-scan.me-1
+                        | Or scan a barcode
     else
         .card.text-bg-dark.border-secondary
             .card-body
-                h2.h5.mb-3
-                    i.bi.bi-list-ul.me-2
-                    | All Items
-                .table-responsive
-                    table#itemsTable.table.table-dark.table-hover.align-middle
+                //- Desktop table view
+                .table-responsive.d-none.d-md-block
+                    table.table.table-dark.table-hover.align-middle.mb-0
                         thead
                             tr
                                 th(style="width: 30%") Name
@@ -135,16 +163,17 @@ block content
                                 th.text-end(style="width: 100px") Actions
                         tbody
                             each it in items
-                                tr.item-row(data-type=it.type data-location=it.locationId || 'unassigned' data-name=it.name.toLowerCase())
+                                tr
                                     td
                                         a.text-white.text-decoration-none(href=`/items/${it.id}`)
                                             i.bi.bi-box.me-2.text-white-50
                                             | #{it.name}
                                         if it.tags && it.tags.length
+                                            br
                                             each tag in it.tags.slice(0, 2)
-                                                span.badge.text-bg-secondary.ms-1.small #{tag}
+                                                span.badge.text-bg-secondary.me-1.small #{tag}
                                             if it.tags.length > 2
-                                                span.badge.text-bg-secondary.ms-1.small +#{it.tags.length - 2}
+                                                span.badge.text-bg-secondary.small +#{it.tags.length - 2}
                                     td
                                         span.badge.text-bg-info #{it.type}
                                     td.text-white-50 #{it.condition ? it.condition.replace('_', ' ') : '—'}
@@ -162,54 +191,62 @@ block content
                                                 i.bi.bi-eye
                                             a.btn.btn-outline-primary(href=`/items/${it.id}#move` title="Move item")
                                                 i.bi.bi-arrow-right-square
-                p#noResultsMessage.text-white-50.text-center.mt-3.d-none No items match your filters.
+                
+                //- Mobile card view
+                .d-md-none
+                    each it in items
+                        .card.text-bg-dark.border-secondary.mb-3
+                            .card-body
+                                .d-flex.justify-content-between.align-items-start.mb-2
+                                    div
+                                        a.text-white.text-decoration-none.h6(href=`/items/${it.id}`)
+                                            i.bi.bi-box.me-2
+                                            | #{it.name}
+                                        div.mt-1
+                                            span.badge.text-bg-info.me-1 #{it.type}
+                                            if it.condition
+                                                span.badge.text-bg-secondary #{it.condition.replace('_', ' ')}
+                                    a.btn.btn-sm.btn-outline-light(href=`/items/${it.id}`)
+                                        i.bi.bi-eye
+                                hr.border-secondary
+                                .row.g-2.small
+                                    .col-6
+                                        .text-white-50 Location:
+                                        if it.location
+                                            a.text-white.text-decoration-none(href=`/locations/${it.location.id}`)
+                                                i.bi.bi-geo-alt.me-1
+                                                | #{it.location.name}
+                                        else
+                                            span.text-white-50 Unassigned
+                                    .col-6
+                                        .text-white-50 Created:
+                                        .text-white #{new Date(it.createdAt).toLocaleDateString()}
+                                    if it.tags && it.tags.length
+                                        .col-12.mt-2
+                                            each tag in it.tags
+                                                span.badge.text-bg-secondary.me-1.small #{tag}
+                
+                //- Pagination
+                +pagination(pagination.page, pagination.totalPages, '/items')
 
 block scripts
+    script(src="/js/enhanced-search.js")
     script.
-        // Item filtering
+        // Enhanced search with query preservation
         document.addEventListener('DOMContentLoaded', function() {
             const searchInput = document.getElementById('itemSearch');
-            const filterType = document.getElementById('filterType');
-            const filterLocation = document.getElementById('filterLocation');
-            const clearBtn = document.getElementById('clearFilters');
-            const rows = document.querySelectorAll('.item-row');
-            const noResults = document.getElementById('noResultsMessage');
-
-            function filterItems() {
-                const search = searchInput.value.toLowerCase();
-                const type = filterType.value;
-                const location = filterLocation.value;
-                let visibleCount = 0;
-
-                rows.forEach(row => {
-                    const name = row.dataset.name;
-                    const rowType = row.dataset.type;
-                    const rowLocation = row.dataset.location;
-
-                    const matchesSearch = !search || name.includes(search);
-                    const matchesType = !type || rowType === type;
-                    const matchesLocation = !location || rowLocation === location;
-
-                    if (matchesSearch && matchesType && matchesLocation) {
-                        row.classList.remove('d-none');
-                        visibleCount++;
-                    } else {
-                        row.classList.add('d-none');
-                    }
+            const clearBtn = document.querySelector('[data-search-clear]');
+            
+            // Show/hide clear button
+            if (searchInput && clearBtn) {
+                searchInput.addEventListener('input', function() {
+                    clearBtn.style.display = this.value ? '' : 'none';
                 });
-
-                noResults.classList.toggle('d-none', visibleCount > 0);
-            }
-
-            if (searchInput) searchInput.addEventListener('input', filterItems);
-            if (filterType) filterType.addEventListener('change', filterItems);
-            if (filterLocation) filterLocation.addEventListener('change', filterItems);
-            if (clearBtn) {
+                
                 clearBtn.addEventListener('click', function() {
                     searchInput.value = '';
-                    filterType.value = '';
-                    filterLocation.value = '';
-                    filterItems();
+                    this.style.display = 'none';
+                    searchInput.focus();
                 });
             }
         });
