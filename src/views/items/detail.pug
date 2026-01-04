@@ -1,7 +1,7 @@
 extends ../layout
 
 block meta
-    title #{item ? item.name : 'Item'} | Inventory Management
+    title #{data && data.item ? data.item.name : 'Item'} | Inventory Management
 
 block content
     - const item = (data && data.item) ? data.item : null

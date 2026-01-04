@@ -35,14 +35,7 @@ Welcome to the Inventory Management documentation. This directory contains compr
 
 ### 👥 For End Users
 
-- **[USER_GUIDE.md](USER_GUIDE.md)** - Complete user guide for the inventory management app
-- **[user-guide/](user-guide/)** - Detailed end-user documentation by feature
-  - **[GETTING_STARTED.md](user-guide/GETTING_STARTED.md)** - Registration and login
-  - **[ITEMS.md](user-guide/ITEMS.md)** - Managing items and barcodes
-  - **[LOCATIONS.md](user-guide/LOCATIONS.md)** - Hierarchical location management
-  - **[LOANS.md](user-guide/LOANS.md)** - Lending and borrowing workflow
-  - **[SCANNING.md](user-guide/SCANNING.md)** - Barcode and QR code scanning
-  - **[DASHBOARD.md](user-guide/DASHBOARD.md)** - Using your dashboard
+- **[user-guide/README.md](user-guide/README.md)** - Complete user guide for the inventory management app
 
 ### 📋 Reference
 
@@ -67,7 +60,7 @@ Historical and deprecated documentation:
 - **Add a new feature** → [DEVELOPMENT.md](DEVELOPMENT.md)
 - **Deploy the application** → [DEPLOYMENT.md](DEPLOYMENT.md)
 - **Use as AI agent** → [../AGENTS.md](../AGENTS.md)
-- **Learn to use the app** → [USER_GUIDE.md](USER_GUIDE.md)
+- **Learn to use the app** → [user-guide/README.md](user-guide/README.md)
 
 ## Documentation Standards
 
