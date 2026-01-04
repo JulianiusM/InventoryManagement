@@ -1,0 +1,65 @@
+extends ../layout
+
+block content
+    - const items = (data && data.items) ? data.items : []
+    - const locations = (data && data.locations) ? data.locations : []
+
+    .d-flex.justify-content-between.align-items-center.mb-3
+        h1.mb-0 Items
+        .btn-group
+            a.btn.btn-outline-secondary(href="/scan") Scan
+            a.btn.btn-outline-secondary(href="/locations") Locations
+            a.btn.btn-outline-secondary(href="/loans") Lending
+
+    .card.mb-4
+        .card-body
+            h2.h5.mb-3 Add item
+            form.row.g-3(method="post" action="/items")
+                .col-md-4
+                    label.form-label(for="name") Name
+                    input#name.form-control(type="text" name="name" required)
+                .col-md-2
+                    label.form-label(for="type") Type
+                    select#type.form-select(name="type")
+                        option(value="book") Book
+                        option(value="tool") Tool
+                        option(value="game") Game
+                        option(value="other" selected) Other
+                .col-md-4
+                    label.form-label(for="locationId") Location
+                    select#locationId.form-select(name="locationId")
+                        option(value="") Unassigned
+                        each loc in locations
+                            option(value=loc.id) #{loc.name}
+                .col-md-2.d-flex.align-items-end
+                    button.btn.btn-primary.w-100(type="submit") Create
+                .col-12
+                    label.form-label(for="description") Description
+                    textarea#description.form-control(name="description" rows="2")
+
+    if items.length === 0
+        .alert.alert-info No items yet.
+    else
+        .card
+            .card-body
+                h2.h5.mb-3 Overview
+                .table-responsive
+                    table.table.table-hover.align-middle
+                        thead
+                            tr
+                                th Name
+                                th Type
+                                th Location
+                                th Created
+                        tbody
+                            each it in items
+                                tr
+                                    td
+                                        a(href=`/items/${it.id}`) #{it.name}
+                                    td.text-muted #{it.type}
+                                    td
+                                        if it.location
+                                            a(href=`/locations/${it.location.id}`) #{it.location.name}
+                                        else
+                                            span.text-muted Unassigned
+                                    td.text-muted #{new Date(it.createdAt).toLocaleString()}

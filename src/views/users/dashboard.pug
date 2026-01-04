@@ -1,0 +1,20 @@
+//- views/dashboard.pug  – überarbeitetes User-Dashboard
+extends ../layout
+
+block meta
+    title My Dashboard | Surveyor
+
+block title
+    h1.card-header.text-center
+        if data.admin_flag
+            i.bi.bi-patch-check-fill.me-2
+                | Your managed entities
+        else
+            i.bi.bi-house-door-fill.me-2
+            | Welcome, #{user.name || user.username}!
+
+block content
+
+
+block scripts
+    script(type="module" src="/js/user-dashboard.gen.js")

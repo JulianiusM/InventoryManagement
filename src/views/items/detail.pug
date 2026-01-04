@@ -1,0 +1,104 @@
+extends ../layout
+
+block content
+    - const item = (data && data.item) ? data.item : null
+    - const locations = (data && data.locations) ? data.locations : []
+    - const barcodes = (data && data.barcodes) ? data.barcodes : []
+    - const movements = (data && data.movements) ? data.movements : []
+
+    if !item
+        .alert.alert-danger Item not found.
+    else
+        .d-flex.justify-content-between.align-items-center.mb-3
+            div
+                a.btn.btn-outline-secondary.btn-sm(href="/items") Back
+                h1.h3.mt-2.mb-0 #{item.name}
+                p.text-muted.mb-0 Type: #{item.type}
+            a.btn.btn-outline-secondary(href="/scan") Scan
+
+        .row.g-3
+            .col-lg-7
+                .card.mb-3
+                    .card-body
+                        h2.h5.mb-3 Details
+                        dl.row.mb-0
+                            dt.col-sm-4 ID
+                            dd.col-sm-8 #{item.id}
+                            dt.col-sm-4 Location
+                            dd.col-sm-8
+                                if item.location
+                                    a(href=`/locations/${item.location.id}`) #{item.location.name}
+                                else
+                                    span.text-muted Unassigned
+                            dt.col-sm-4 Serial number
+                            dd.col-sm-8 #{item.serialNumber || '—'}
+                            dt.col-sm-4 Condition
+                            dd.col-sm-8 #{item.condition || '—'}
+                        if item.description
+                            hr
+                            h3.h6 Description
+                            p.mb-0 #{item.description}
+
+                .card.mb-3
+                    .card-body
+                        h2.h5.mb-3 Barcodes
+                        if barcodes.length === 0
+                            p.text-muted.mb-3 No barcodes assigned yet.
+                        else
+                            ul.list-group.mb-3
+                                each b in barcodes
+                                    li.list-group-item.d-flex.justify-content-between.align-items-center
+                                        code #{b.code}
+                                        span.badge.text-bg-secondary #{b.symbology}
+
+                        h3.h6.mb-2 Add / map barcode
+                        form#barcodeForm.row.g-2
+                            .col-md-8
+                                input#barcodeInput.form-control(type="text" placeholder="Scan or enter barcode" autocomplete="off")
+                            .col-md-4
+                                button#barcodeMapBtn.btn.btn-primary.w-100(type="submit") Map to this item
+                        .form-text Use a USB scanner or type the code, then map it.
+                        #barcodeMsg.mt-2
+
+            .col-lg-5
+                .card.mb-3
+                    .card-body
+                        h2.h5.mb-3 Move item
+                        form(method="post" action=`/items/${item.id}/move`)
+                            .mb-3
+                                label.form-label(for="locationId") New location
+                                select#locationId.form-select(name="locationId")
+                                    option(value="") Unassigned
+                                    each loc in locations
+                                        option(value=loc.id selected=(item.locationId && item.locationId === loc.id)) #{loc.name}
+                            .mb-3
+                                label.form-label(for="note") Note (optional)
+                                input#note.form-control(type="text" name="note")
+                            button.btn.btn-outline-primary(type="submit") Move
+
+                .card
+                    .card-body
+                        h2.h5.mb-3 Movement history
+                        if movements.length === 0
+                            p.text-muted No movements recorded yet.
+                        else
+                            ul.list-group
+                                each m in movements
+                                    li.list-group-item
+                                        .d-flex.justify-content-between
+                                            span
+                                                if m.fromLocation
+                                                    | #{m.fromLocation.name}
+                                                else
+                                                    | Unassigned
+                                                |  →
+                                                if m.toLocation
+                                                    |  #{m.toLocation.name}
+                                                else
+                                                    |  Unassigned
+                                            span.text-muted.small #{new Date(m.movedAt).toLocaleString()}
+                                        if m.note
+                                            div.small.text-muted.mt-1 #{m.note}
+
+block scripts
+    script(type="module" src="/public/js/items/detail.gen.js")

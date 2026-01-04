@@ -1,0 +1,44 @@
+extends ../layout
+
+block content
+    - const location = (data && data.location) ? data.location : null
+    - const items = (data && data.items) ? data.items : []
+
+    .d-flex.justify-content-between.align-items-center.mb-3
+        div
+            a.btn.btn-outline-secondary.btn-sm(href="/locations") Back
+            h1.h3.mt-2.mb-0 #{location.name}
+            p.text-muted.mb-0 Kind: #{location.kind}
+        a.btn.btn-outline-secondary(href="/scan") Scan
+
+    .card.mb-3
+        .card-body
+            h2.h5.mb-3 Details
+            dl.row.mb-0
+                dt.col-sm-3 ID
+                dd.col-sm-9 #{location.id}
+                dt.col-sm-3 Parent
+                dd.col-sm-9 #{location.parentId || '—'}
+                dt.col-sm-3 QR
+                dd.col-sm-9 #{location.qrCode || '—'}
+
+    .card
+        .card-body
+            h2.h5.mb-3 Items here
+            if items.length === 0
+                .text-muted No items in this location.
+            else
+                .table-responsive
+                    table.table.table-hover.align-middle
+                        thead
+                            tr
+                                th Name
+                                th Type
+                                th Created
+                        tbody
+                            each it in items
+                                tr
+                                    td
+                                        a(href=`/items/${it.id}`) #{it.name}
+                                    td.text-muted #{it.type}
+                                    td.text-muted #{new Date(it.createdAt).toLocaleString()}

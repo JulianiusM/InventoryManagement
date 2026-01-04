@@ -1,0 +1,17 @@
+extends ../layout
+
+block content
+  h1.mb-3 Profile
+
+  if !user
+    .alert.alert-warning Not logged in.
+  else
+    .card
+      .card-body
+        dl.row.mb-0
+          dt.col-sm-3 ID
+          dd.col-sm-9 #{user.id}
+          dt.col-sm-3 Email
+          dd.col-sm-9 #{user.email}
+          dt.col-sm-3 Name
+          dd.col-sm-9 #{user.displayName}

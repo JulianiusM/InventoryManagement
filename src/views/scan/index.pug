@@ -1,0 +1,42 @@
+extends ../layout
+
+block content
+    - const items = (data && data.items) ? data.items : []
+
+    .d-flex.justify-content-between.align-items-center.mb-3
+        div
+            a.btn.btn-outline-secondary.btn-sm(href="/items") Back
+            h1.h3.mt-2.mb-0 Scan
+            p.text-muted.mb-0 Use your camera to scan a barcode or location QR code.
+        a.btn.btn-outline-secondary(href="/items") Items
+
+    .row.g-3
+        .col-lg-7
+            .card
+                .card-body
+                    h2.h5.mb-3 Camera scanner
+                    video#scanVideo.w-100(style="max-height: 360px; background: #111" playsinline)
+                    .d-flex.gap-2.mt-3
+                        button#scanStart.btn.btn-primary(type="button") Start
+                        button#scanStop.btn.btn-outline-secondary(type="button" disabled) Stop
+                    #scanStatus.mt-3
+
+        .col-lg-5
+            .card
+                .card-body
+                    h2.h5.mb-3 Manual entry
+                    form#manualForm
+                        .input-group
+                            input#manualCode.form-control(type="text" placeholder="Enter code" autocomplete="off")
+                            button.btn.btn-outline-primary(type="submit") Resolve
+                    #manualMsg.mt-3
+
+    .card.mt-3
+        .card-body
+            h2.h5.mb-3 Result
+            #scanResult.text-muted Scan a code to see details.
+
+block scripts
+    script(type="module" src="/public/js/scan/index.gen.js")
+    script.
+        window.__SCAN_ITEMS__ = !{JSON.stringify(items.map(i => ({id: i.id, name: i.name, type: i.type})))}

@@ -1,0 +1,60 @@
+extends ../layout
+
+mixin treeNode(node)
+    li
+        .d-flex.justify-content-between.align-items-center
+            a(href=`/locations/${node.id}`) #{node.name}
+            span.badge.text-bg-secondary #{node.kind}
+        if node.qrCode
+            div.small.text-muted QR: #{node.qrCode}
+        if node.childrenNodes && node.childrenNodes.length
+            ul.mt-2
+                each child in node.childrenNodes
+                    +treeNode(child)
+
+block content
+    - const locations = (data && data.locations) ? data.locations : []
+    - const tree = (data && data.tree) ? data.tree : []
+
+    .d-flex.justify-content-between.align-items-center.mb-3
+        div
+            a.btn.btn-outline-secondary.btn-sm(href="/items") Back
+            h1.h3.mt-2.mb-0 Locations
+        a.btn.btn-outline-secondary(href="/scan") Scan
+
+    .card.mb-4
+        .card-body
+            h2.h5.mb-3 Add location
+            form.row.g-3(method="post" action="/locations")
+                .col-md-6
+                    label.form-label(for="name") Name
+                    input#name.form-control(type="text" name="name" required)
+                .col-md-3
+                    label.form-label(for="kind") Kind
+                    select#kind.form-select(name="kind")
+                        option(value="room") Room
+                        option(value="shelf") Shelf
+                        option(value="box") Box
+                        option(value="bin") Bin
+                        option(value="other" selected) Other
+                .col-md-3
+                    label.form-label(for="parentId") Parent
+                    select#parentId.form-select(name="parentId")
+                        option(value="") None
+                        each loc in locations
+                            option(value=loc.id) #{loc.name}
+                .col-12
+                    label.form-label(for="qrCode") QR code (optional)
+                    input#qrCode.form-control(type="text" name="qrCode" placeholder="e.g. LOC:garage-shelf-1")
+                .col-12
+                    button.btn.btn-primary(type="submit") Create
+
+    .card
+        .card-body
+            h2.h5.mb-3 Tree
+            if tree.length === 0
+                .text-muted No locations yet.
+            else
+                ul
+                    each root in tree
+                        +treeNode(root)
