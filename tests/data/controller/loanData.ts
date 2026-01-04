@@ -82,7 +82,7 @@ export const returnLoanData = [
         description: 'returns loan successfully',
         loanId: 'uuid-l1',
         existingLoan: {id: 'uuid-l1', status: 'active', itemId: 'uuid-1', ownerId: TEST_USER_ID},
-        input: {conditionIn: 'Good condition'},
+        input: {conditionIn: 'good'},
         userId: TEST_USER_ID,
     },
     {

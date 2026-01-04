@@ -1,9 +1,11 @@
 /**
  * Scan page - Barcode scanning and resolution functionality
+ * Uses ZXing library for client-side barcode detection
  */
 
 import {setCurrentNavLocation} from '../core/navigation';
 import {post} from '../core/http';
+import {showInlineAlert} from '../shared/alerts';
 
 interface ScanResult {
     type: 'item' | 'location' | 'unknown';
@@ -14,35 +16,110 @@ interface ScanResult {
 }
 
 let videoStream: MediaStream | null = null;
+let scannerInterval: number | null = null;
+
+// ZXing browser library types
+declare global {
+    interface Window {
+        ZXing?: {
+            BrowserMultiFormatReader: new () => BrowserMultiFormatReader;
+        };
+    }
+}
+
+interface BrowserMultiFormatReader {
+    decodeFromVideoDevice(
+        deviceId: string | null,
+        videoElement: HTMLVideoElement,
+        callback: (result: { getText(): string } | null, error?: Error) => void
+    ): Promise<void>;
+    reset(): void;
+}
+
+let codeReader: BrowserMultiFormatReader | null = null;
 
 /**
- * Initialize camera scanner
+ * Load ZXing library dynamically
  */
-function initCamera(): void {
+async function loadZXing(): Promise<void> {
+    if (window.ZXing) return;
+    
+    return new Promise((resolve, reject) => {
+        const script = document.createElement('script');
+        script.src = 'https://unpkg.com/@zxing/library@0.19.1/umd/index.min.js';
+        script.onload = () => resolve();
+        script.onerror = () => reject(new Error('Failed to load ZXing library'));
+        document.head.appendChild(script);
+    });
+}
+
+/**
+ * Initialize camera scanner with ZXing
+ */
+async function initCamera(): Promise<void> {
     const video = document.getElementById('scanVideo') as HTMLVideoElement | null;
     const startBtn = document.getElementById('scanStart') as HTMLButtonElement | null;
     const stopBtn = document.getElementById('scanStop') as HTMLButtonElement | null;
     const statusDiv = document.getElementById('scanStatus') as HTMLElement | null;
+    const resultDiv = document.getElementById('scanResult') as HTMLElement | null;
+    const msgDiv = document.getElementById('manualMsg') as HTMLElement | null;
 
     if (!video || !startBtn || !stopBtn || !statusDiv) return;
 
     startBtn.addEventListener('click', async () => {
         try {
-            videoStream = await navigator.mediaDevices.getUserMedia({
-                video: { facingMode: 'environment' }
-            });
-            video.srcObject = videoStream;
-            await video.play();
-
+            // Load ZXing library
+            await loadZXing();
+            
+            if (!window.ZXing) {
+                showInlineAlert('error', 'Could not load barcode scanner library', statusDiv);
+                return;
+            }
+            
+            codeReader = new window.ZXing.BrowserMultiFormatReader();
+            
             startBtn.disabled = true;
             stopBtn.disabled = false;
-            statusDiv.innerHTML = '<div class="alert alert-info">Camera active. Point at a barcode.</div>';
+            showInlineAlert('info', 'Camera active. Point at a barcode.', statusDiv);
+
+            // Start continuous scanning
+            await codeReader.decodeFromVideoDevice(null, video, async (result, error) => {
+                if (result) {
+                    const code = result.getText();
+                    // Stop scanning temporarily to process
+                    if (codeReader) {
+                        codeReader.reset();
+                    }
+                    
+                    showInlineAlert('info', `Detected: ${code}`, statusDiv);
+                    
+                    // Resolve the code
+                    if (resultDiv && msgDiv) {
+                        await resolveCode(code, msgDiv, resultDiv);
+                    }
+                    
+                    // Resume scanning after a delay
+                    setTimeout(async () => {
+                        if (startBtn.disabled && codeReader && window.ZXing) {
+                            codeReader = new window.ZXing.BrowserMultiFormatReader();
+                            await codeReader.decodeFromVideoDevice(null, video, () => {});
+                        }
+                    }, 3000);
+                }
+            });
+            
         } catch (err) {
-            statusDiv.innerHTML = '<div class="alert alert-danger">Could not access camera. Please allow camera permissions.</div>';
+            showInlineAlert('error', 'Could not access camera. Please allow camera permissions.', statusDiv);
+            startBtn.disabled = false;
+            stopBtn.disabled = true;
         }
     });
 
     stopBtn.addEventListener('click', () => {
+        if (codeReader) {
+            codeReader.reset();
+            codeReader = null;
+        }
         if (videoStream) {
             videoStream.getTracks().forEach(track => track.stop());
             videoStream = null;
@@ -69,7 +146,7 @@ function initManualForm(): void {
         e.preventDefault();
         const code = input.value.trim();
         if (!code) {
-            msgDiv.innerHTML = '<div class="alert alert-warning">Please enter a code</div>';
+            showInlineAlert('info', 'Please enter a code', msgDiv);
             return;
         }
 
@@ -87,7 +164,7 @@ async function resolveCode(code: string, msgDiv: HTMLElement, resultDiv: HTMLEle
         const response = await post('/api/scan/resolve', { code });
         
         if (response.status !== 'success') {
-            msgDiv.innerHTML = `<div class="alert alert-danger">${response.message || 'Error resolving code'}</div>`;
+            showInlineAlert('error', response.message || 'Error resolving code', msgDiv);
             return;
         }
 
@@ -121,7 +198,7 @@ async function resolveCode(code: string, msgDiv: HTMLElement, resultDiv: HTMLEle
             `;
         }
     } catch (err) {
-        msgDiv.innerHTML = '<div class="alert alert-danger">Error resolving code</div>';
+        showInlineAlert('error', 'Error resolving code', msgDiv);
     }
 }
 

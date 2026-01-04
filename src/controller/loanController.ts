@@ -4,7 +4,9 @@ import * as partyService from '../modules/database/services/PartyService';
 import {ExpectedError} from '../modules/lib/errors';
 import {checkOwnership, requireAuthenticatedUser} from '../middleware/authMiddleware';
 import {Loan} from '../modules/database/entities/loan/Loan';
-import {LoanDirection, LoanStatus} from '../types/InventoryEnums';
+import {ItemCondition, LoanDirection, LoanStatus} from '../types/InventoryEnums';
+
+const validConditions = Object.values(ItemCondition) as string[];
 
 export async function listLoans(ownerId: number) {
     requireAuthenticatedUser(ownerId);
@@ -18,12 +20,13 @@ export async function createLoan(body: {
     direction: string;
     partyName: string;
     partyEmail?: string;
+    partyPhone?: string;
     dueAt?: string;
     conditionOut?: string;
     notes?: string;
 }, ownerId: number): Promise<Loan> {
     requireAuthenticatedUser(ownerId);
-    const {itemId, direction, partyName, partyEmail, dueAt, conditionOut, notes} = body;
+    const {itemId, direction, partyName, partyEmail, partyPhone, dueAt, conditionOut, notes} = body;
     
     if (!itemId) {
         throw new ExpectedError('Item is required', 'error', 400);
@@ -35,6 +38,15 @@ export async function createLoan(body: {
     
     if (!partyName || partyName.trim() === '') {
         throw new ExpectedError('Counterparty name is required', 'error', 400);
+    }
+    
+    // Validate condition if provided
+    let validatedConditionOut: ItemCondition | null = null;
+    if (conditionOut && conditionOut.trim() !== '') {
+        if (!validConditions.includes(conditionOut)) {
+            throw new ExpectedError('Invalid condition value', 'error', 400);
+        }
+        validatedConditionOut = conditionOut as ItemCondition;
     }
     
     // Check item exists and belongs to user
@@ -54,6 +66,7 @@ export async function createLoan(body: {
     const party = await partyService.findOrCreateParty(
         partyName.trim(),
         partyEmail?.trim() || null,
+        partyPhone?.trim() || null,
         ownerId
     );
     
@@ -63,7 +76,7 @@ export async function createLoan(body: {
         direction: direction as LoanDirection,
         status: LoanStatus.ACTIVE,
         dueAt: dueAt || null,
-        conditionOut: conditionOut?.trim() || null,
+        conditionOut: validatedConditionOut,
         notes: notes?.trim() || null,
         ownerId,
     });
@@ -85,7 +98,16 @@ export async function returnLoan(
         throw new ExpectedError('Loan is already returned', 'error', 400);
     }
     
-    await loanService.returnLoan(id, body?.conditionIn?.trim() || null);
+    // Validate condition if provided
+    let validatedConditionIn: ItemCondition | null = null;
+    if (body?.conditionIn && body.conditionIn.trim() !== '') {
+        if (!validConditions.includes(body.conditionIn)) {
+            throw new ExpectedError('Invalid condition value', 'error', 400);
+        }
+        validatedConditionIn = body.conditionIn as ItemCondition;
+    }
+    
+    await loanService.returnLoan(id, validatedConditionIn);
 }
 
 export async function getLoanDetail(id: string, userId: number) {

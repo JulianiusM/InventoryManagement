@@ -1,6 +1,6 @@
 import {AppDataSource} from '../dataSource';
 import {Loan} from '../entities/loan/Loan';
-import {LoanStatus} from '../../../types/InventoryEnums';
+import {ItemCondition, LoanStatus} from '../../../types/InventoryEnums';
 
 export async function createLoan(data: Partial<Loan>): Promise<Loan> {
     const repo = AppDataSource.getRepository(Loan);
@@ -51,7 +51,7 @@ export async function getActiveLoanByItemId(itemId: string): Promise<Loan | null
     });
 }
 
-export async function returnLoan(id: string, conditionIn?: string | null): Promise<void> {
+export async function returnLoan(id: string, conditionIn?: ItemCondition | null): Promise<void> {
     const repo = AppDataSource.getRepository(Loan);
     await repo.update({id}, {
         status: LoanStatus.RETURNED,

@@ -24,7 +24,7 @@ function initBarcodeForm(): void {
         e.preventDefault();
         const code = input.value.trim();
         if (!code) {
-            showMessage(msgDiv, 'Please enter a barcode', 'warning');
+            showInlineAlert('info', 'Please enter a barcode', msgDiv);
             return;
         }
 
@@ -35,24 +35,17 @@ function initBarcodeForm(): void {
             });
 
             if (response.status === 'success') {
-                showMessage(msgDiv, response.message || 'Barcode mapped successfully', 'success');
+                showInlineAlert('success', response.message || 'Barcode mapped successfully', msgDiv);
                 input.value = '';
                 // Reload page to show updated barcode list
                 setTimeout(() => window.location.reload(), 1000);
             } else {
-                showMessage(msgDiv, response.message || 'Failed to map barcode', 'danger');
+                showInlineAlert('error', response.message || 'Failed to map barcode', msgDiv);
             }
         } catch (err) {
-            showMessage(msgDiv, 'Error mapping barcode', 'danger');
+            showInlineAlert('error', 'Error mapping barcode', msgDiv);
         }
     });
-}
-
-/**
- * Show message in element
- */
-function showMessage(el: HTMLElement, message: string, type: 'success' | 'danger' | 'warning'): void {
-    el.innerHTML = `<div class="alert alert-${type} mb-0">${message}</div>`;
 }
 
 /**

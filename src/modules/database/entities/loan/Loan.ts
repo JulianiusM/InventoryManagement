@@ -9,7 +9,7 @@ import {
 import {Item} from "../item/Item";
 import {Party} from "../party/Party";
 import {User} from "../user/User";
-import {LoanDirection, LoanStatus} from "../../../../types/InventoryEnums";
+import {ItemCondition, LoanDirection, LoanStatus} from "../../../../types/InventoryEnums";
 
 @Entity("loans")
 export class Loan {
@@ -55,11 +55,21 @@ export class Loan {
     @Column("timestamp", {name: "returned_at", nullable: true})
     returnedAt?: Date | null;
 
-    @Column("text", {name: "condition_out", nullable: true})
-    conditionOut?: string | null;
+    @Column({
+        type: "enum",
+        enum: ItemCondition,
+        name: "condition_out",
+        nullable: true,
+    })
+    conditionOut?: ItemCondition | null;
 
-    @Column("text", {name: "condition_in", nullable: true})
-    conditionIn?: string | null;
+    @Column({
+        type: "enum",
+        enum: ItemCondition,
+        name: "condition_in",
+        nullable: true,
+    })
+    conditionIn?: ItemCondition | null;
 
     @Column("text", {name: "notes", nullable: true})
     notes?: string | null;

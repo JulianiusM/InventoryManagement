@@ -3,6 +3,9 @@ extends ../layout
 block content
     - const items = (data && data.items) ? data.items : []
     - const loans = (data && data.loans) ? data.loans : []
+    - const conditions = ['new', 'like_new', 'good', 'fair', 'poor']
+
+    #liveAlerts
 
     .d-flex.justify-content-between.align-items-center.mb-3
         div
@@ -14,9 +17,10 @@ block content
         .card-body
             h2.h5.mb-3 New loan
             form.row.g-3(method="post" action="/loans")
-                .col-md-5
+                .col-md-4
                     label.form-label(for="itemId") Item
                     select#itemId.form-select(name="itemId" required)
+                        option(value="" disabled selected) Select an item...
                         each it in items
                             option(value=it.id) #{it.name}
                 .col-md-3
@@ -24,15 +28,27 @@ block content
                     select#direction.form-select(name="direction")
                         option(value="lend" selected) Lending out
                         option(value="borrow") Borrowing
-                .col-md-4
+                .col-md-2
+                    label.form-label(for="conditionOut") Condition
+                    select#conditionOut.form-select(name="conditionOut")
+                        option(value="") Not specified
+                        each c in conditions
+                            option(value=c) #{c.replace('_', ' ')}
+                .col-md-3
                     label.form-label(for="partyName") Counterparty (name)
                     input#partyName.form-control(type="text" name="partyName" required)
                 .col-md-4
                     label.form-label(for="partyEmail") Email (optional)
                     input#partyEmail.form-control(type="email" name="partyEmail")
                 .col-md-4
+                    label.form-label(for="partyPhone") Phone (optional)
+                    input#partyPhone.form-control(type="tel" name="partyPhone")
+                .col-md-4
                     label.form-label(for="dueAt") Due date (optional)
                     input#dueAt.form-control(type="date" name="dueAt")
+                .col-12
+                    label.form-label(for="notes") Notes (optional)
+                    textarea#notes.form-control(name="notes" rows="2" placeholder="Any additional notes about this loan...")
                 .col-12
                     button.btn.btn-primary(type="submit") Create loan
 
@@ -49,6 +65,7 @@ block content
                                 th Item
                                 th Type
                                 th Counterparty
+                                th Condition
                                 th Started
                                 th Due
                                 th
@@ -66,6 +83,7 @@ block content
                                         | #{l.party.name}
                                         if l.party.email
                                             span.text-muted.small  (#{l.party.email})
+                                    td.text-muted #{l.conditionOut ? l.conditionOut.replace('_', ' ') : '—'}
                                     td.text-muted #{new Date(l.startAt).toLocaleString()}
                                     td.text-muted #{l.dueAt ? new Date(l.dueAt).toLocaleDateString() : '—'}
                                     td.text-end
@@ -73,4 +91,4 @@ block content
             p.text-muted.small.mt-3 Returned loans are kept for audit purposes.
 
 block scripts
-    script(type="module" src="/public/js/loans/list.gen.js")
+    script(type="module" src="/js/loans/list.gen.js")

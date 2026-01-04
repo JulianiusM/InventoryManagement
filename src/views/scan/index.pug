@@ -37,6 +37,6 @@ block content
             #scanResult.text-muted Scan a code to see details.
 
 block scripts
-    script(type="module" src="/public/js/scan/index.gen.js")
+    script(type="module" src="/js/scan/index.gen.js")
     script.
         window.__SCAN_ITEMS__ = !{JSON.stringify(items.map(i => ({id: i.id, name: i.name, type: i.type})))}

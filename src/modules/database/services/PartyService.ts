@@ -31,6 +31,7 @@ export async function getAllParties(ownerId: number): Promise<Party[]> {
 export async function findOrCreateParty(
     name: string,
     email?: string | null,
+    phone?: string | null,
     ownerId?: number
 ): Promise<Party> {
     if (!ownerId) {
@@ -38,15 +39,23 @@ export async function findOrCreateParty(
     }
     const existing = await getPartyByName(name, ownerId);
     if (existing) {
-        // Update email if provided and different
+        // Update email and phone if provided and different
+        let updated = false;
         if (email && email !== existing.email) {
             existing.email = email;
+            updated = true;
+        }
+        if (phone && phone !== existing.phone) {
+            existing.phone = phone;
+            updated = true;
+        }
+        if (updated) {
             const repo = AppDataSource.getRepository(Party);
             return await repo.save(existing);
         }
         return existing;
     }
-    return await createParty({name, email, ownerId});
+    return await createParty({name, email, phone, ownerId});
 }
 
 export async function updateParty(id: string, data: Partial<Omit<Party, 'owner'>>): Promise<void> {
