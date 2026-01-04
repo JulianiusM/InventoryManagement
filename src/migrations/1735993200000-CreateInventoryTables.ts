@@ -1,0 +1,130 @@
+import {MigrationInterface, QueryRunner} from "typeorm";
+
+export class CreateInventoryTables1735993200000 implements MigrationInterface {
+    name = 'CreateInventoryTables1735993200000';
+
+    public async up(queryRunner: QueryRunner): Promise<void> {
+        // Create locations table
+        await queryRunner.query(`
+            CREATE TABLE IF NOT EXISTS locations (
+                id INT NOT NULL AUTO_INCREMENT,
+                name VARCHAR(100) NOT NULL,
+                kind VARCHAR(50) NOT NULL DEFAULT 'other',
+                parent_id INT NULL,
+                qr_code VARCHAR(255) NULL,
+                created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                PRIMARY KEY (id),
+                UNIQUE INDEX location_qr_code (qr_code),
+                INDEX FK_location_parent (parent_id),
+                CONSTRAINT FK_location_parent FOREIGN KEY (parent_id) REFERENCES locations(id) ON DELETE SET NULL
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+        `);
+
+        // Create items table
+        await queryRunner.query(`
+            CREATE TABLE IF NOT EXISTS items (
+                id INT NOT NULL AUTO_INCREMENT,
+                name VARCHAR(255) NOT NULL,
+                type VARCHAR(50) NOT NULL DEFAULT 'other',
+                description TEXT NULL,
+                \`condition\` VARCHAR(50) NULL,
+                serial_number VARCHAR(255) NULL,
+                custom_fields JSON NULL,
+                location_id INT NULL,
+                owner_id INT NULL,
+                created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                PRIMARY KEY (id),
+                INDEX FK_item_location (location_id),
+                INDEX FK_item_owner (owner_id),
+                CONSTRAINT FK_item_location FOREIGN KEY (location_id) REFERENCES locations(id) ON DELETE SET NULL
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+        `);
+
+        // Create barcodes table
+        await queryRunner.query(`
+            CREATE TABLE IF NOT EXISTS barcodes (
+                id INT NOT NULL AUTO_INCREMENT,
+                code VARCHAR(255) NOT NULL,
+                symbology VARCHAR(50) NOT NULL DEFAULT 'unknown',
+                item_id INT NULL,
+                created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                PRIMARY KEY (id),
+                UNIQUE INDEX barcode_code (code),
+                INDEX FK_barcode_item (item_id),
+                CONSTRAINT FK_barcode_item FOREIGN KEY (item_id) REFERENCES items(id) ON DELETE SET NULL
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+        `);
+
+        // Create parties table
+        await queryRunner.query(`
+            CREATE TABLE IF NOT EXISTS parties (
+                id INT NOT NULL AUTO_INCREMENT,
+                name VARCHAR(100) NOT NULL,
+                email VARCHAR(255) NULL,
+                phone VARCHAR(50) NULL,
+                notes TEXT NULL,
+                owner_id INT NULL,
+                created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                PRIMARY KEY (id),
+                INDEX FK_party_owner (owner_id)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+        `);
+
+        // Create loans table
+        await queryRunner.query(`
+            CREATE TABLE IF NOT EXISTS loans (
+                id INT NOT NULL AUTO_INCREMENT,
+                item_id INT NOT NULL,
+                party_id INT NOT NULL,
+                direction VARCHAR(20) NOT NULL,
+                status VARCHAR(20) NOT NULL DEFAULT 'active',
+                start_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                due_at DATE NULL,
+                returned_at TIMESTAMP NULL,
+                condition_out TEXT NULL,
+                condition_in TEXT NULL,
+                notes TEXT NULL,
+                owner_id INT NULL,
+                created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                PRIMARY KEY (id),
+                INDEX FK_loan_item (item_id),
+                INDEX FK_loan_party (party_id),
+                INDEX FK_loan_owner (owner_id),
+                CONSTRAINT FK_loan_item FOREIGN KEY (item_id) REFERENCES items(id) ON DELETE CASCADE,
+                CONSTRAINT FK_loan_party FOREIGN KEY (party_id) REFERENCES parties(id) ON DELETE CASCADE
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+        `);
+
+        // Create item_movements table (audit log)
+        await queryRunner.query(`
+            CREATE TABLE IF NOT EXISTS item_movements (
+                id INT NOT NULL AUTO_INCREMENT,
+                item_id INT NOT NULL,
+                from_location_id INT NULL,
+                to_location_id INT NULL,
+                note TEXT NULL,
+                moved_by_user_id INT NULL,
+                moved_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                PRIMARY KEY (id),
+                INDEX FK_movement_item (item_id),
+                INDEX FK_movement_from_location (from_location_id),
+                INDEX FK_movement_to_location (to_location_id),
+                CONSTRAINT FK_movement_item FOREIGN KEY (item_id) REFERENCES items(id) ON DELETE CASCADE,
+                CONSTRAINT FK_movement_from_location FOREIGN KEY (from_location_id) REFERENCES locations(id) ON DELETE SET NULL,
+                CONSTRAINT FK_movement_to_location FOREIGN KEY (to_location_id) REFERENCES locations(id) ON DELETE SET NULL
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+        `);
+    }
+
+    public async down(queryRunner: QueryRunner): Promise<void> {
+        // Drop tables in reverse order of creation (to respect foreign key constraints)
+        await queryRunner.query(`DROP TABLE IF EXISTS item_movements`);
+        await queryRunner.query(`DROP TABLE IF EXISTS loans`);
+        await queryRunner.query(`DROP TABLE IF EXISTS parties`);
+        await queryRunner.query(`DROP TABLE IF EXISTS barcodes`);
+        await queryRunner.query(`DROP TABLE IF EXISTS items`);
+        await queryRunner.query(`DROP TABLE IF EXISTS locations`);
+    }
+}
