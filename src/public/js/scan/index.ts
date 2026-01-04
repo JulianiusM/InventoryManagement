@@ -16,7 +16,7 @@ interface ScanResult {
 }
 
 let videoStream: MediaStream | null = null;
-let scannerInterval: number | null = null;
+let isScanning = false;
 
 // ZXing browser library types
 declare global {
@@ -66,6 +66,34 @@ async function initCamera(): Promise<void> {
 
     if (!video || !startBtn || !stopBtn || !statusDiv) return;
 
+    /**
+     * Handle barcode detection result
+     */
+    const handleScanResult = async (result: { getText(): string } | null): Promise<void> => {
+        if (!result || !isScanning) return;
+        
+        const code = result.getText();
+        // Stop scanning temporarily to process
+        if (codeReader) {
+            codeReader.reset();
+        }
+        
+        showInlineAlert('info', `Detected: ${code}`, statusDiv);
+        
+        // Resolve the code
+        if (resultDiv && msgDiv) {
+            await resolveCode(code, msgDiv, resultDiv);
+        }
+        
+        // Resume scanning after a delay
+        setTimeout(async () => {
+            if (isScanning && window.ZXing) {
+                codeReader = new window.ZXing.BrowserMultiFormatReader();
+                await codeReader.decodeFromVideoDevice(null, video, handleScanResult);
+            }
+        }, 3000);
+    };
+
     startBtn.addEventListener('click', async () => {
         try {
             // Load ZXing library
@@ -77,45 +105,25 @@ async function initCamera(): Promise<void> {
             }
             
             codeReader = new window.ZXing.BrowserMultiFormatReader();
+            isScanning = true;
             
             startBtn.disabled = true;
             stopBtn.disabled = false;
             showInlineAlert('info', 'Camera active. Point at a barcode.', statusDiv);
 
             // Start continuous scanning
-            await codeReader.decodeFromVideoDevice(null, video, async (result, error) => {
-                if (result) {
-                    const code = result.getText();
-                    // Stop scanning temporarily to process
-                    if (codeReader) {
-                        codeReader.reset();
-                    }
-                    
-                    showInlineAlert('info', `Detected: ${code}`, statusDiv);
-                    
-                    // Resolve the code
-                    if (resultDiv && msgDiv) {
-                        await resolveCode(code, msgDiv, resultDiv);
-                    }
-                    
-                    // Resume scanning after a delay
-                    setTimeout(async () => {
-                        if (startBtn.disabled && codeReader && window.ZXing) {
-                            codeReader = new window.ZXing.BrowserMultiFormatReader();
-                            await codeReader.decodeFromVideoDevice(null, video, () => {});
-                        }
-                    }, 3000);
-                }
-            });
+            await codeReader.decodeFromVideoDevice(null, video, handleScanResult);
             
         } catch (err) {
             showInlineAlert('error', 'Could not access camera. Please allow camera permissions.', statusDiv);
+            isScanning = false;
             startBtn.disabled = false;
             stopBtn.disabled = true;
         }
     });
 
     stopBtn.addEventListener('click', () => {
+        isScanning = false;
         if (codeReader) {
             codeReader.reset();
             codeReader = null;
