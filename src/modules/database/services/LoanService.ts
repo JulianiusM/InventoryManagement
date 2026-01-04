@@ -1,10 +1,30 @@
 import {AppDataSource} from '../dataSource';
 import {Loan} from '../entities/loan/Loan';
-import {ItemCondition, LoanStatus} from '../../../types/InventoryEnums';
+import {Item} from '../entities/item/Item';
+import {Party} from '../entities/party/Party';
+import {User} from '../entities/user/User';
+import {ItemCondition, LoanDirection, LoanStatus} from '../../../types/InventoryEnums';
 
-export async function createLoan(data: Partial<Loan>): Promise<Loan> {
+export async function createLoan(data: {
+    itemId: string;
+    partyId: string;
+    direction: LoanDirection;
+    status?: LoanStatus;
+    dueAt?: string | null;
+    conditionOut?: ItemCondition | null;
+    notes?: string | null;
+    ownerId: number;
+}): Promise<Loan> {
     const repo = AppDataSource.getRepository(Loan);
-    const loan = repo.create(data);
+    const loan = new Loan();
+    loan.item = {id: data.itemId} as Item;
+    loan.party = {id: data.partyId} as Party;
+    loan.direction = data.direction;
+    loan.status = data.status || LoanStatus.ACTIVE;
+    loan.dueAt = data.dueAt ?? null;
+    loan.conditionOut = data.conditionOut ?? null;
+    loan.notes = data.notes ?? null;
+    loan.owner = {id: data.ownerId} as User;
     return await repo.save(loan);
 }
 
@@ -19,7 +39,7 @@ export async function getLoanById(id: string): Promise<Loan | null> {
 export async function getActiveLoans(ownerId: number): Promise<Loan[]> {
     const repo = AppDataSource.getRepository(Loan);
     return await repo.find({
-        where: {status: LoanStatus.ACTIVE, ownerId},
+        where: {status: LoanStatus.ACTIVE, owner: {id: ownerId}},
         relations: ['item', 'party'],
         order: {startAt: 'DESC'},
     });
@@ -28,7 +48,7 @@ export async function getActiveLoans(ownerId: number): Promise<Loan[]> {
 export async function getAllLoans(ownerId: number): Promise<Loan[]> {
     const repo = AppDataSource.getRepository(Loan);
     return await repo.find({
-        where: {ownerId},
+        where: {owner: {id: ownerId}},
         relations: ['item', 'party'],
         order: {createdAt: 'DESC'},
     });
@@ -37,7 +57,7 @@ export async function getAllLoans(ownerId: number): Promise<Loan[]> {
 export async function getLoansByItemId(itemId: string): Promise<Loan[]> {
     const repo = AppDataSource.getRepository(Loan);
     return await repo.find({
-        where: {itemId},
+        where: {item: {id: itemId}},
         relations: ['item', 'party'],
         order: {startAt: 'DESC'},
     });
@@ -46,7 +66,7 @@ export async function getLoansByItemId(itemId: string): Promise<Loan[]> {
 export async function getActiveLoanByItemId(itemId: string): Promise<Loan | null> {
     const repo = AppDataSource.getRepository(Loan);
     return await repo.findOne({
-        where: {itemId, status: LoanStatus.ACTIVE},
+        where: {item: {id: itemId}, status: LoanStatus.ACTIVE},
         relations: ['item', 'party'],
     });
 }

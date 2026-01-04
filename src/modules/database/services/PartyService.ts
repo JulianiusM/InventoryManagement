@@ -1,9 +1,19 @@
 import {AppDataSource} from '../dataSource';
 import {Party} from '../entities/party/Party';
+import {User} from '../entities/user/User';
 
-export async function createParty(data: Partial<Party>): Promise<Party> {
+export async function createParty(data: {
+    name: string;
+    email?: string | null;
+    phone?: string | null;
+    ownerId: number;
+}): Promise<Party> {
     const repo = AppDataSource.getRepository(Party);
-    const party = repo.create(data);
+    const party = new Party();
+    party.name = data.name;
+    party.email = data.email ?? null;
+    party.phone = data.phone ?? null;
+    party.owner = {id: data.ownerId} as User;
     return await repo.save(party);
 }
 
@@ -14,13 +24,13 @@ export async function getPartyById(id: string): Promise<Party | null> {
 
 export async function getPartyByName(name: string, ownerId: number): Promise<Party | null> {
     const repo = AppDataSource.getRepository(Party);
-    return await repo.findOne({where: {name, ownerId}});
+    return await repo.findOne({where: {name, owner: {id: ownerId}}});
 }
 
 export async function getAllParties(ownerId: number): Promise<Party[]> {
     const repo = AppDataSource.getRepository(Party);
     return await repo.find({
-        where: {ownerId},
+        where: {owner: {id: ownerId}},
         order: {name: 'ASC'},
     });
 }

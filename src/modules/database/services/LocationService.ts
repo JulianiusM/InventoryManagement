@@ -1,10 +1,24 @@
 import {AppDataSource} from '../dataSource';
 import {Location} from '../entities/location/Location';
-import {IsNull} from 'typeorm';
+import {User} from '../entities/user/User';
+import {LocationKind} from '../../../types/InventoryEnums';
 
-export async function createLocation(data: Partial<Location>): Promise<Location> {
+export async function createLocation(data: {
+    name: string;
+    kind?: LocationKind;
+    parentId?: string | null;
+    qrCode?: string | null;
+    ownerId: number;
+}): Promise<Location> {
     const repo = AppDataSource.getRepository(Location);
-    const location = repo.create(data);
+    const location = new Location();
+    location.name = data.name;
+    location.kind = data.kind || LocationKind.OTHER;
+    if (data.parentId) {
+        location.parent = {id: data.parentId} as Location;
+    }
+    location.qrCode = data.qrCode ?? null;
+    location.owner = {id: data.ownerId} as User;
     return await repo.save(location);
 }
 
@@ -19,7 +33,7 @@ export async function getLocationById(id: string): Promise<Location | null> {
 export async function getAllLocations(ownerId: number): Promise<Location[]> {
     const repo = AppDataSource.getRepository(Location);
     return await repo.find({
-        where: {ownerId},
+        where: {owner: {id: ownerId}},
         order: {name: 'ASC'},
     });
 }
@@ -32,9 +46,29 @@ export async function getLocationByQrCode(qrCode: string): Promise<Location | nu
     });
 }
 
-export async function updateLocation(id: string, data: Partial<Omit<Location, 'parent' | 'children' | 'owner'>>): Promise<void> {
+export async function updateLocation(id: string, data: {
+    name?: string;
+    kind?: LocationKind;
+    parentId?: string | null;
+    qrCode?: string | null;
+}): Promise<void> {
     const repo = AppDataSource.getRepository(Location);
-    await repo.update({id}, data as Record<string, unknown>);
+    const location = await repo.findOne({where: {id}});
+    if (!location) return;
+    
+    if (data.name !== undefined) {
+        location.name = data.name;
+    }
+    if (data.kind !== undefined) {
+        location.kind = data.kind;
+    }
+    if (data.parentId !== undefined) {
+        location.parent = data.parentId ? {id: data.parentId} as Location : null;
+    }
+    if (data.qrCode !== undefined) {
+        location.qrCode = data.qrCode;
+    }
+    await repo.save(location);
 }
 
 export async function deleteLocation(id: string): Promise<void> {
@@ -48,7 +82,7 @@ export async function deleteLocation(id: string): Promise<void> {
 export async function getLocationTree(ownerId: number): Promise<Location[]> {
     const repo = AppDataSource.getRepository(Location);
     const allLocations = await repo.find({
-        where: {ownerId},
+        where: {owner: {id: ownerId}},
         order: {name: 'ASC'},
     });
 

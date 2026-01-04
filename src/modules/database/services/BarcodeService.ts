@@ -28,7 +28,7 @@ export async function getBarcodeById(id: string): Promise<Barcode | null> {
 export async function getBarcodesByItemId(itemId: string): Promise<Barcode[]> {
     const repo = AppDataSource.getRepository(Barcode);
     return await repo.find({
-        where: {itemId},
+        where: {item: {id: itemId}},
         order: {createdAt: 'DESC'},
     });
 }
@@ -84,7 +84,7 @@ export async function deleteBarcode(id: string): Promise<void> {
 export async function getUnmappedBarcodes(): Promise<Barcode[]> {
     const repo = AppDataSource.getRepository(Barcode);
     return await repo.find({
-        where: {itemId: IsNull()},
+        where: {item: IsNull()},
         order: {createdAt: 'DESC'},
     });
 }

@@ -1,5 +1,8 @@
 import {AppDataSource} from '../dataSource';
 import {ItemMovement} from '../entities/itemMovement/ItemMovement';
+import {Item} from '../entities/item/Item';
+import {Location} from '../entities/location/Location';
+import {User} from '../entities/user/User';
 
 export async function createMovement(data: Partial<ItemMovement>): Promise<ItemMovement> {
     const repo = AppDataSource.getRepository(ItemMovement);
@@ -10,7 +13,7 @@ export async function createMovement(data: Partial<ItemMovement>): Promise<ItemM
 export async function getMovementsByItemId(itemId: string): Promise<ItemMovement[]> {
     const repo = AppDataSource.getRepository(ItemMovement);
     return await repo.find({
-        where: {itemId},
+        where: {item: {id: itemId}},
         relations: ['fromLocation', 'toLocation'],
         order: {movedAt: 'DESC'},
     });
@@ -35,11 +38,18 @@ export async function recordMovement(
     note?: string | null,
     movedByUserId?: number | null
 ): Promise<ItemMovement> {
-    return await createMovement({
-        itemId,
-        fromLocationId,
-        toLocationId,
-        note,
-        movedByUserId,
-    });
+    const repo = AppDataSource.getRepository(ItemMovement);
+    const movement = new ItemMovement();
+    movement.item = {id: itemId} as Item;
+    if (fromLocationId) {
+        movement.fromLocation = {id: fromLocationId} as Location;
+    }
+    if (toLocationId) {
+        movement.toLocation = {id: toLocationId} as Location;
+    }
+    movement.note = note ?? null;
+    if (movedByUserId) {
+        movement.movedByUser = {id: movedByUserId} as User;
+    }
+    return await repo.save(movement);
 }

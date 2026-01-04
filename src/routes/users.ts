@@ -1,6 +1,9 @@
 import express, {Request, Response} from 'express';
 
 import * as userController from "../controller/userController";
+import * as itemService from "../modules/database/services/ItemService";
+import * as loanService from "../modules/database/services/LoanService";
+import * as locationService from "../modules/database/services/LocationService";
 import renderer from "../modules/renderer";
 import {asyncHandler} from '../modules/lib/asyncHandler';
 import settings from "../modules/settings";
@@ -10,6 +13,38 @@ const app = express.Router();
 
 /* GET users listing. */
 app.get('/', asyncHandler((req: Request, res: Response) => {
+    res.redirect('/users/dashboard');
+}));
+
+// User dashboard - overview of user's inventory
+app.get('/dashboard', asyncHandler(async (req: Request, res: Response) => {
+    if (!req.session.user) {
+        return res.redirect('/users/login');
+    }
+    const ownerId = req.session.user.id;
+    
+    // Get summary data for the dashboard
+    const items = await itemService.getAllItems(ownerId);
+    const locations = await locationService.getAllLocations(ownerId);
+    const activeLoans = await loanService.getActiveLoans(ownerId);
+    const overdueLoans = await loanService.getOverdueLoans(ownerId);
+    
+    renderer.renderWithData(res, 'users/dashboard', {
+        itemCount: items.length,
+        locationCount: locations.length,
+        activeLoanCount: activeLoans.length,
+        overdueLoanCount: overdueLoans.length,
+        recentItems: items.slice(0, 5),
+        activeLoans: activeLoans.slice(0, 5),
+    });
+}));
+
+// Managed items dashboard (placeholder for future admin functionality)
+app.get('/manage-dashboard', asyncHandler(async (req: Request, res: Response) => {
+    if (!req.session.user) {
+        return res.redirect('/users/login');
+    }
+    // For now, redirect to regular dashboard
     res.redirect('/users/dashboard');
 }));
 
