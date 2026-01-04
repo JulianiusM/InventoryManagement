@@ -78,6 +78,11 @@ export async function deleteBarcode(id: string): Promise<void> {
     await repo.delete({id});
 }
 
+export async function deleteBarcodesByItemId(itemId: string): Promise<void> {
+    const repo = AppDataSource.getRepository(Barcode);
+    await repo.delete({item: {id: itemId}});
+}
+
 /**
  * Get all unmapped barcodes (barcodes not assigned to any item)
  */

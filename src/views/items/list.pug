@@ -1,65 +1,215 @@
 extends ../layout
 
+block meta
+    title Items | Inventory Management
+
 block content
     - const items = (data && data.items) ? data.items : []
     - const locations = (data && data.locations) ? data.locations : []
+    - const itemTypes = ['book', 'tool', 'game', 'electronics', 'clothing', 'collectible', 'other']
+    - const conditions = ['new', 'like_new', 'good', 'fair', 'poor']
+
+    #liveAlerts
+
+    //- Header with breadcrumb
+    nav.mb-2(aria-label="breadcrumb")
+        ol.breadcrumb.mb-0
+            li.breadcrumb-item
+                a.text-white(href="/") Home
+            li.breadcrumb-item.active.text-white-50(aria-current="page") Items
 
     .d-flex.justify-content-between.align-items-center.mb-3
-        h1.mb-0.text-white Items
-        .btn-group
-            a.btn.btn-outline-light(href="/scan") Scan
-            a.btn.btn-outline-light(href="/locations") Locations
-            a.btn.btn-outline-light(href="/loans") Lending
+        h1.h3.mb-0.text-white
+            i.bi.bi-box-seam.me-2
+            | Items
+            if items.length > 0
+                span.badge.text-bg-secondary.ms-2.fs-6 #{items.length}
 
-    .card.text-bg-dark.border-secondary.mb-4
-        .card-body
-            h2.h5.mb-3 Add item
-            form.row.g-3(method="post" action="/items")
+    //- Search and filter row
+    .card.text-bg-dark.border-secondary.mb-3
+        .card-body.py-2
+            .row.g-2.align-items-center
                 .col-md-4
-                    label.form-label(for="name") Name
-                    input#name.form-control.text-bg-dark(type="text" name="name" required)
-                .col-md-2
-                    label.form-label(for="type") Type
-                    select#type.form-select.text-bg-dark(name="type")
-                        option(value="book") Book
-                        option(value="tool") Tool
-                        option(value="game") Game
-                        option(value="other" selected) Other
-                .col-md-4
-                    label.form-label(for="locationId") Location
-                    select#locationId.form-select.text-bg-dark(name="locationId")
-                        option(value="") Unassigned
+                    .input-group
+                        span.input-group-text.text-bg-dark.border-secondary
+                            i.bi.bi-search
+                        input#itemSearch.form-control.text-bg-dark.border-secondary(type="text" placeholder="Search items..." autocomplete="off")
+                .col-md-3
+                    select#filterType.form-select.text-bg-dark.border-secondary
+                        option(value="") All types
+                        each t in itemTypes
+                            option(value=t) #{t.charAt(0).toUpperCase() + t.slice(1)}
+                .col-md-3
+                    select#filterLocation.form-select.text-bg-dark.border-secondary
+                        option(value="") All locations
+                        option(value="unassigned") Unassigned
                         each loc in locations
                             option(value=loc.id) #{loc.name}
-                .col-md-2.d-flex.align-items-end
-                    button.btn.btn-primary.w-100(type="submit") Create
-                .col-12
-                    label.form-label(for="description") Description
-                    textarea#description.form-control.text-bg-dark(name="description" rows="2")
+                .col-md-2
+                    button#clearFilters.btn.btn-outline-secondary.w-100(type="button")
+                        i.bi.bi-x-lg.me-1
+                        | Clear
 
+    //- Add item form (collapsible)
+    .card.text-bg-dark.border-secondary.mb-4
+        .card-header.d-flex.justify-content-between.align-items-center(data-bs-toggle="collapse" data-bs-target="#addItemForm" style="cursor: pointer")
+            h2.h5.mb-0
+                i.bi.bi-plus-circle.me-2
+                | Add New Item
+            i.bi.bi-chevron-down
+        #addItemForm.collapse.show
+            .card-body
+                form.row.g-3(method="post" action="/items")
+                    .col-md-5
+                        label.form-label(for="name")
+                            i.bi.bi-tag.me-1
+                            | Name *
+                        input#name.form-control.text-bg-dark(type="text" name="name" required placeholder="Enter item name")
+                    .col-md-3
+                        label.form-label(for="type")
+                            i.bi.bi-grid.me-1
+                            | Type
+                        select#type.form-select.text-bg-dark(name="type")
+                            each t in itemTypes
+                                option(value=t selected=(t === 'other')) #{t.charAt(0).toUpperCase() + t.slice(1).replace('_', ' ')}
+                    .col-md-4
+                        label.form-label(for="locationId")
+                            i.bi.bi-geo-alt.me-1
+                            | Location
+                        select#locationId.form-select.text-bg-dark(name="locationId")
+                            option(value="") Unassigned
+                            each loc in locations
+                                option(value=loc.id) #{loc.name}
+                    .col-md-3
+                        label.form-label(for="condition")
+                            i.bi.bi-heart.me-1
+                            | Condition
+                        select#condition.form-select.text-bg-dark(name="condition")
+                            option(value="") Not specified
+                            each c in conditions
+                                option(value=c) #{c.charAt(0).toUpperCase() + c.slice(1).replace('_', ' ')}
+                    .col-md-3
+                        label.form-label(for="serialNumber")
+                            i.bi.bi-hash.me-1
+                            | Serial Number
+                        input#serialNumber.form-control.text-bg-dark(type="text" name="serialNumber" placeholder="Optional")
+                    .col-md-6
+                        label.form-label(for="tags")
+                            i.bi.bi-tags.me-1
+                            | Tags
+                        input#tags.form-control.text-bg-dark(type="text" name="tags" placeholder="Comma-separated tags, e.g. electronics, red, vintage")
+                    .col-12
+                        label.form-label(for="description")
+                            i.bi.bi-text-left.me-1
+                            | Description
+                        textarea#description.form-control.text-bg-dark(name="description" rows="2" placeholder="Optional notes about this item")
+                    .col-12
+                        button.btn.btn-primary(type="submit")
+                            i.bi.bi-plus-lg.me-1
+                            | Create Item
+
+    //- Items list
     if items.length === 0
-        .alert.alert-info No items yet.
+        .card.text-bg-dark.border-secondary
+            .card-body.text-center.py-5
+                i.bi.bi-inbox.display-1.text-white-50.mb-3.d-block
+                p.text-white-50.mb-3 No items yet. Add your first item above!
+                a.btn.btn-outline-light(href="/scan")
+                    i.bi.bi-upc-scan.me-1
+                    | Or scan a barcode
     else
         .card.text-bg-dark.border-secondary
             .card-body
-                h2.h5.mb-3 Overview
+                h2.h5.mb-3
+                    i.bi.bi-list-ul.me-2
+                    | All Items
                 .table-responsive
-                    table.table.table-dark.table-hover.align-middle
+                    table#itemsTable.table.table-dark.table-hover.align-middle
                         thead
                             tr
-                                th Name
+                                th(style="width: 30%") Name
                                 th Type
+                                th Condition
                                 th Location
                                 th Created
+                                th.text-end(style="width: 100px") Actions
                         tbody
                             each it in items
-                                tr
+                                tr.item-row(data-type=it.type data-location=it.locationId || 'unassigned' data-name=it.name.toLowerCase())
                                     td
-                                        a.text-white(href=`/items/${it.id}`) #{it.name}
-                                    td.text-white-50 #{it.type}
+                                        a.text-white.text-decoration-none(href=`/items/${it.id}`)
+                                            i.bi.bi-box.me-2.text-white-50
+                                            | #{it.name}
+                                        if it.tags && it.tags.length
+                                            each tag in it.tags.slice(0, 2)
+                                                span.badge.text-bg-secondary.ms-1.small #{tag}
+                                            if it.tags.length > 2
+                                                span.badge.text-bg-secondary.ms-1.small +#{it.tags.length - 2}
+                                    td
+                                        span.badge.text-bg-info #{it.type}
+                                    td.text-white-50 #{it.condition ? it.condition.replace('_', ' ') : '—'}
                                     td
                                         if it.location
-                                            a.text-white(href=`/locations/${it.location.id}`) #{it.location.name}
+                                            a.text-white.text-decoration-none(href=`/locations/${it.location.id}`)
+                                                i.bi.bi-geo-alt-fill.me-1.text-white-50
+                                                | #{it.location.name}
                                         else
                                             span.text-white-50 Unassigned
-                                    td.text-white-50 #{new Date(it.createdAt).toLocaleString()}
+                                    td.text-white-50.small #{new Date(it.createdAt).toLocaleDateString()}
+                                    td.text-end
+                                        .btn-group.btn-group-sm
+                                            a.btn.btn-outline-light(href=`/items/${it.id}` title="View details")
+                                                i.bi.bi-eye
+                                            a.btn.btn-outline-primary(href=`/items/${it.id}#move` title="Move item")
+                                                i.bi.bi-arrow-right-square
+                p#noResultsMessage.text-white-50.text-center.mt-3.d-none No items match your filters.
+
+block scripts
+    script.
+        // Item filtering
+        document.addEventListener('DOMContentLoaded', function() {
+            const searchInput = document.getElementById('itemSearch');
+            const filterType = document.getElementById('filterType');
+            const filterLocation = document.getElementById('filterLocation');
+            const clearBtn = document.getElementById('clearFilters');
+            const rows = document.querySelectorAll('.item-row');
+            const noResults = document.getElementById('noResultsMessage');
+
+            function filterItems() {
+                const search = searchInput.value.toLowerCase();
+                const type = filterType.value;
+                const location = filterLocation.value;
+                let visibleCount = 0;
+
+                rows.forEach(row => {
+                    const name = row.dataset.name;
+                    const rowType = row.dataset.type;
+                    const rowLocation = row.dataset.location;
+
+                    const matchesSearch = !search || name.includes(search);
+                    const matchesType = !type || rowType === type;
+                    const matchesLocation = !location || rowLocation === location;
+
+                    if (matchesSearch && matchesType && matchesLocation) {
+                        row.classList.remove('d-none');
+                        visibleCount++;
+                    } else {
+                        row.classList.add('d-none');
+                    }
+                });
+
+                noResults.classList.toggle('d-none', visibleCount > 0);
+            }
+
+            if (searchInput) searchInput.addEventListener('input', filterItems);
+            if (filterType) filterType.addEventListener('change', filterItems);
+            if (filterLocation) filterLocation.addEventListener('change', filterItems);
+            if (clearBtn) {
+                clearBtn.addEventListener('click', function() {
+                    searchInput.value = '';
+                    filterType.value = '';
+                    filterLocation.value = '';
+                    filterItems();
+                });
+            }
+        });

@@ -11,8 +11,9 @@ const validConditions = Object.values(ItemCondition) as string[];
 export async function listLoans(ownerId: number) {
     requireAuthenticatedUser(ownerId);
     const loans = await loanService.getActiveLoans(ownerId);
+    const allLoans = await loanService.getAllLoans(ownerId);
     const items = await itemService.getAllItems(ownerId);
-    return {loans, items};
+    return {loans, allLoans, items};
 }
 
 export async function createLoan(body: {

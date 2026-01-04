@@ -53,3 +53,8 @@ export async function recordMovement(
     }
     return await repo.save(movement);
 }
+
+export async function deleteMovementsByItemId(itemId: string): Promise<void> {
+    const repo = AppDataSource.getRepository(ItemMovement);
+    await repo.delete({item: {id: itemId}});
+}

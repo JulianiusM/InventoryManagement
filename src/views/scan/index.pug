@@ -1,40 +1,110 @@
 extends ../layout
 
+block meta
+    title Scan | Inventory Management
+
 block content
     - const items = (data && data.items) ? data.items : []
 
+    #liveAlerts
+
+    //- Breadcrumb navigation
+    nav.mb-2(aria-label="breadcrumb")
+        ol.breadcrumb.mb-0
+            li.breadcrumb-item
+                a.text-white(href="/") Home
+            li.breadcrumb-item.active.text-white-50(aria-current="page") Scan
+
     .d-flex.justify-content-between.align-items-center.mb-3
+        h1.h3.mb-0.text-white
+            i.bi.bi-upc-scan.me-2
+            | Barcode Scanner
+
+    //- Instructions card
+    .alert.alert-info.d-flex.align-items-start.mb-3
+        i.bi.bi-info-circle.fs-4.me-3
         div
-            a.btn.btn-outline-light.btn-sm(href="/items") Back
-            h1.h3.mt-2.mb-0.text-white Scan
-            p.text-white-50.mb-0 Use your camera to scan a barcode or location QR code.
-        a.btn.btn-outline-light(href="/items") Items
+            p.mb-1 Scan a barcode to:
+            ul.mb-0.ps-3
+                li Find an existing item instantly
+                li Navigate to a location using its QR code
+                li Create a new item if the code is unknown
 
     .row.g-3
+        //- Camera scanner
         .col-lg-7
             .card.text-bg-dark.border-secondary
+                .card-header
+                    h2.h5.mb-0
+                        i.bi.bi-camera-video.me-2
+                        | Camera Scanner
                 .card-body
-                    h2.h5.mb-3 Camera scanner
-                    video#scanVideo.w-100(style="max-height: 360px; background: #111" playsinline)
-                    .d-flex.gap-2.mt-3
-                        button#scanStart.btn.btn-primary(type="button") Start
-                        button#scanStop.btn.btn-outline-light(type="button" disabled) Stop
-                    #scanStatus.mt-3
+                    //- Camera viewport
+                    .position-relative.mb-3
+                        video#scanVideo.w-100.rounded(style="max-height: 360px; background: #111; object-fit: cover" playsinline)
+                        //- Scanning overlay
+                        #scanOverlay.position-absolute.top-0.start-0.w-100.h-100.d-none
+                            .position-absolute.top-50.start-50.translate-middle
+                                .spinner-border.text-primary(role="status")
+                                    span.visually-hidden Loading...
+                    
+                    //- Status message area
+                    #scanStatus.mb-3
+                        .alert.alert-secondary.py-2.mb-0
+                            i.bi.bi-camera.me-2
+                            | Camera not active. Click "Start Scanning" to begin.
+                    
+                    //- Control buttons
+                    .d-flex.gap-2
+                        button#scanStart.btn.btn-primary.flex-grow-1(type="button")
+                            i.bi.bi-play-fill.me-1
+                            | Start Scanning
+                        button#scanStop.btn.btn-outline-light.flex-grow-1(type="button" disabled)
+                            i.bi.bi-stop-fill.me-1
+                            | Stop
+                    
+                    //- Scanner hints
+                    .mt-3
+                        h6.text-white-50.small.mb-2
+                            i.bi.bi-lightbulb.me-1
+                            | Tips for better scanning:
+                        ul.text-white-50.small.mb-0
+                            li Ensure good lighting
+                            li Hold the barcode steady and centered
+                            li Avoid glare on shiny surfaces
+                            li EAN, UPC, QR, and Code128 are supported
 
+        //- Manual entry & result
         .col-lg-5
-            .card.text-bg-dark.border-secondary
+            //- Manual entry
+            .card.text-bg-dark.border-secondary.mb-3
+                .card-header
+                    h2.h5.mb-0
+                        i.bi.bi-keyboard.me-2
+                        | Manual Entry
                 .card-body
-                    h2.h5.mb-3 Manual entry
                     form#manualForm
                         .input-group
-                            input#manualCode.form-control.text-bg-dark(type="text" placeholder="Enter code" autocomplete="off")
-                            button.btn.btn-outline-light(type="submit") Resolve
-                    #manualMsg.mt-3
+                            input#manualCode.form-control.text-bg-dark.form-control-lg(type="text" placeholder="Enter barcode or QR code" autocomplete="off")
+                            button.btn.btn-primary(type="submit")
+                                i.bi.bi-search.me-1
+                                | Lookup
+                    .form-text.text-white-50.mt-2
+                        i.bi.bi-info-circle.me-1
+                        | Enter the code manually if camera scanning doesn't work.
+                    #manualMsg.mt-2
 
-    .card.text-bg-dark.border-secondary.mt-3
-        .card-body
-            h2.h5.mb-3 Result
-            #scanResult.text-white-50 Scan a code to see details.
+            //- Result display
+            .card.text-bg-dark.border-secondary
+                .card-header
+                    h2.h5.mb-0
+                        i.bi.bi-search.me-2
+                        | Scan Result
+                .card-body
+                    #scanResult
+                        .text-center.py-4
+                            i.bi.bi-upc.display-4.text-white-50.mb-3.d-block
+                            p.text-white-50.mb-0 Scan a code to see details here.
 
 block scripts
     script(type="module" src="/js/scan/index.gen.js")

@@ -122,3 +122,28 @@ export async function updateLocation(
     
     await locationService.updateLocation(id, updates);
 }
+
+export async function deleteLocation(id: string, userId: number): Promise<void> {
+    requireAuthenticatedUser(userId);
+    const location = await locationService.getLocationById(id);
+    if (!location) {
+        throw new ExpectedError('Location not found', 'error', 404);
+    }
+    checkOwnership(location, userId);
+    
+    // Move child locations to top-level (remove parent)
+    if (location.children && location.children.length > 0) {
+        for (const child of location.children) {
+            await locationService.updateLocation(child.id, {parentId: null});
+        }
+    }
+    
+    // Clear location from items (set to unassigned)
+    const items = await itemService.getItemsByLocation(id);
+    for (const item of items) {
+        await itemService.updateItemLocation(item.id, null);
+    }
+    
+    // Delete the location
+    await locationService.deleteLocation(id);
+}

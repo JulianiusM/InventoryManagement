@@ -10,11 +10,13 @@ jest.mock('../../src/modules/database/services/ItemService');
 jest.mock('../../src/modules/database/services/LocationService');
 jest.mock('../../src/modules/database/services/BarcodeService');
 jest.mock('../../src/modules/database/services/ItemMovementService');
+jest.mock('../../src/modules/database/services/LoanService');
 
 import * as itemService from '../../src/modules/database/services/ItemService';
 import * as locationService from '../../src/modules/database/services/LocationService';
 import * as barcodeService from '../../src/modules/database/services/BarcodeService';
 import * as itemMovementService from '../../src/modules/database/services/ItemMovementService';
+import * as loanService from '../../src/modules/database/services/LoanService';
 import * as itemController from '../../src/controller/itemController';
 
 describe('itemController', () => {
@@ -136,11 +138,13 @@ describe('itemController', () => {
             const mockLocations = [{id: 'uuid-l1', name: 'Location 1'}];
             const mockBarcodes = [{id: 'uuid-b1', code: '123'}];
             const mockMovements = [{id: 'uuid-m1', fromLocationId: null, toLocationId: 'uuid-l1'}];
+            const mockLoans = [{id: 'uuid-loan1', itemId: 'uuid-1', direction: 'lend', status: 'active'}];
 
             setupMock(itemService.getItemById as jest.Mock, mockItem);
             setupMock(locationService.getAllLocations as jest.Mock, mockLocations);
             setupMock(barcodeService.getBarcodesByItemId as jest.Mock, mockBarcodes);
             setupMock(itemMovementService.getMovementsByItemId as jest.Mock, mockMovements);
+            setupMock(loanService.getLoansByItemId as jest.Mock, mockLoans);
 
             const result = await itemController.getItemDetail('uuid-1', TEST_USER_ID);
 
@@ -148,6 +152,7 @@ describe('itemController', () => {
             expect(result.locations).toEqual(mockLocations);
             expect(result.barcodes).toEqual(mockBarcodes);
             expect(result.movements).toEqual(mockMovements);
+            expect(result.loans).toEqual(mockLoans);
         });
 
         test('throws error when item not found', async () => {

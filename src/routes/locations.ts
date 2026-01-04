@@ -41,4 +41,13 @@ router.post('/:id', asyncHandler(async (req: Request, res: Response) => {
     res.redirect(`/locations/${id}`);
 }));
 
+// Delete location (with ownership check)
+router.post('/:id/delete', asyncHandler(async (req: Request, res: Response) => {
+    const id = req.params.id;
+    const userId = req.session.user!.id;
+    await locationController.deleteLocation(id, userId);
+    req.flash('success', 'Location deleted successfully');
+    res.redirect('/locations');
+}));
+
 export default router;

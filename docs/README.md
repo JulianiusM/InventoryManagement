@@ -35,7 +35,8 @@ Welcome to the Inventory Management documentation. This directory contains compr
 
 ### 👥 For End Users
 
-- **[user-guide/](user-guide/)** - End-user documentation for app features
+- **[USER_GUIDE.md](USER_GUIDE.md)** - Complete user guide for the inventory management app
+- **[user-guide/](user-guide/)** - Detailed end-user documentation by feature
   - **[GETTING_STARTED.md](user-guide/GETTING_STARTED.md)** - Registration and login
   - **[ITEMS.md](user-guide/ITEMS.md)** - Managing items and barcodes
   - **[LOCATIONS.md](user-guide/LOCATIONS.md)** - Hierarchical location management
@@ -66,7 +67,7 @@ Historical and deprecated documentation:
 - **Add a new feature** → [DEVELOPMENT.md](DEVELOPMENT.md)
 - **Deploy the application** → [DEPLOYMENT.md](DEPLOYMENT.md)
 - **Use as AI agent** → [../AGENTS.md](../AGENTS.md)
-- **Learn as end user** → [user-guide/GETTING_STARTED.md](user-guide/GETTING_STARTED.md)
+- **Learn to use the app** → [USER_GUIDE.md](USER_GUIDE.md)
 
 ## Documentation Standards
 
