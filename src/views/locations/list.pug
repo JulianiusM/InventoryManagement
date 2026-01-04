@@ -1,12 +1,12 @@
 extends ../layout
 
 mixin treeNode(node)
-    li
+    li.text-white
         .d-flex.justify-content-between.align-items-center
-            a(href=`/locations/${node.id}`) #{node.name}
+            a.text-white(href=`/locations/${node.id}`) #{node.name}
             span.badge.text-bg-secondary #{node.kind}
         if node.qrCode
-            div.small.text-muted QR: #{node.qrCode}
+            div.small.text-white-50 QR: #{node.qrCode}
         if node.childrenNodes && node.childrenNodes.length
             ul.mt-2
                 each child in node.childrenNodes
@@ -18,20 +18,20 @@ block content
 
     .d-flex.justify-content-between.align-items-center.mb-3
         div
-            a.btn.btn-outline-secondary.btn-sm(href="/items") Back
-            h1.h3.mt-2.mb-0 Locations
-        a.btn.btn-outline-secondary(href="/scan") Scan
+            a.btn.btn-outline-light.btn-sm(href="/items") Back
+            h1.h3.mt-2.mb-0.text-white Locations
+        a.btn.btn-outline-light(href="/scan") Scan
 
-    .card.mb-4
+    .card.text-bg-dark.border-secondary.mb-4
         .card-body
             h2.h5.mb-3 Add location
             form.row.g-3(method="post" action="/locations")
                 .col-md-6
                     label.form-label(for="name") Name
-                    input#name.form-control(type="text" name="name" required)
+                    input#name.form-control.text-bg-dark(type="text" name="name" required)
                 .col-md-3
                     label.form-label(for="kind") Kind
-                    select#kind.form-select(name="kind")
+                    select#kind.form-select.text-bg-dark(name="kind")
                         option(value="room") Room
                         option(value="shelf") Shelf
                         option(value="box") Box
@@ -39,21 +39,21 @@ block content
                         option(value="other" selected) Other
                 .col-md-3
                     label.form-label(for="parentId") Parent
-                    select#parentId.form-select(name="parentId")
+                    select#parentId.form-select.text-bg-dark(name="parentId")
                         option(value="") None
                         each loc in locations
                             option(value=loc.id) #{loc.name}
                 .col-12
                     label.form-label(for="qrCode") QR code (optional)
-                    input#qrCode.form-control(type="text" name="qrCode" placeholder="e.g. LOC:garage-shelf-1")
+                    input#qrCode.form-control.text-bg-dark(type="text" name="qrCode" placeholder="e.g. LOC:garage-shelf-1")
                 .col-12
                     button.btn.btn-primary(type="submit") Create
 
-    .card
+    .card.text-bg-dark.border-secondary
         .card-body
             h2.h5.mb-3 Tree
             if tree.length === 0
-                .text-muted No locations yet.
+                .text-white-50 No locations yet.
             else
                 ul
                     each root in tree

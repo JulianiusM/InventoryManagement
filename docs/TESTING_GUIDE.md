@@ -1,6 +1,6 @@
 # Testing Guide
 
-This document provides a comprehensive guide to testing in the Surveyor application, covering our data-driven and keyword-driven testing approaches.
+This document provides a comprehensive guide to testing in the Inventory Management application, covering our data-driven and keyword-driven testing approaches.
 
 ## Table of Contents
 
@@ -13,7 +13,7 @@ This document provides a comprehensive guide to testing in the Surveyor applicat
 
 ## Overview
 
-The Surveyor test suite uses a combination of data-driven and keyword-driven testing approaches to ensure:
+The Inventory Management test suite uses a combination of data-driven and keyword-driven testing approaches to ensure:
 
 1. **Maintainability**: Separation of test data from test logic
 2. **Reusability**: Shared test keywords and data across multiple tests

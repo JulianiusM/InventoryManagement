@@ -85,7 +85,7 @@ The E2E database should be configured with:
 
 ## Running Tests
 
-The Surveyor test suite uses **data-driven** and **keyword-driven** testing approaches for maintainable, reusable, and comprehensive test coverage. 
+The Inventory Management test suite uses **data-driven** and **keyword-driven** testing approaches for maintainable, reusable, and comprehensive test coverage. 
 
 **Quick Summary:**
 - ⭐⭐⭐⭐⭐ Test quality rating: Excellent
@@ -169,10 +169,10 @@ npm run e2e                 # Run E2E tests
 The E2E tests are organized by feature area:
 
 - `auth.test.ts` - Authentication flows (login, registration, password reset, tokens)
-- `survey.test.ts` - Survey creation and management
-- `packing.test.ts` - Packing list management
-- `activity.test.ts` - Activity plan management
-- `drivers.test.ts` - Drivers list management
+- `items.test.ts` - Item management
+- `locations.test.ts` - Location management
+- `loans.test.ts` - Lending workflow
+- `scan.test.ts` - Barcode scanning
 - `navigation.test.ts` - UI navigation and accessibility
 - `error-handling.test.ts` - Frontend error handling and validation
 
@@ -230,7 +230,8 @@ When adding or updating frontend code:
 - Reuse the core and shared helpers instead of re-implementing HTTP, drag-and-drop, inline editing, or permission checks.
 - Load permissions with `loadPerms()` and gate UI actions using `requireEntityPerm`/`requireItemPerm` before calling protected endpoints.
 - Keep new components documented with JSDoc comments and prefer type-safe DOM queries (`querySelector`/`closest` with element type casting) over `any`.
-- Expose initialization via `window.Surveyor.init` for consistent page bootstrapping.
+- Expose initialization via `window.InventoryApp.init` for consistent page bootstrapping.
+- Use Bootstrap dark theme classes (`text-bg-dark`, `table-dark`, `text-white`, `text-white-50` for muted text).
 
 ## Project Structure
 

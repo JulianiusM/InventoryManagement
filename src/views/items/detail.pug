@@ -11,80 +11,80 @@ block content
     else
         .d-flex.justify-content-between.align-items-center.mb-3
             div
-                a.btn.btn-outline-secondary.btn-sm(href="/items") Back
-                h1.h3.mt-2.mb-0 #{item.name}
-                p.text-muted.mb-0 Type: #{item.type}
-            a.btn.btn-outline-secondary(href="/scan") Scan
+                a.btn.btn-outline-light.btn-sm(href="/items") Back
+                h1.h3.mt-2.mb-0.text-white #{item.name}
+                p.text-white-50.mb-0 Type: #{item.type}
+            a.btn.btn-outline-light(href="/scan") Scan
 
         .row.g-3
             .col-lg-7
-                .card.mb-3
+                .card.text-bg-dark.border-secondary.mb-3
                     .card-body
                         h2.h5.mb-3 Details
                         dl.row.mb-0
                             dt.col-sm-4 ID
-                            dd.col-sm-8 #{item.id}
+                            dd.col-sm-8.text-white-50 #{item.id}
                             dt.col-sm-4 Location
                             dd.col-sm-8
                                 if item.location
-                                    a(href=`/locations/${item.location.id}`) #{item.location.name}
+                                    a.text-white(href=`/locations/${item.location.id}`) #{item.location.name}
                                 else
-                                    span.text-muted Unassigned
+                                    span.text-white-50 Unassigned
                             dt.col-sm-4 Serial number
-                            dd.col-sm-8 #{item.serialNumber || '—'}
+                            dd.col-sm-8.text-white-50 #{item.serialNumber || '—'}
                             dt.col-sm-4 Condition
-                            dd.col-sm-8 #{item.condition || '—'}
+                            dd.col-sm-8.text-white-50 #{item.condition || '—'}
                         if item.description
-                            hr
+                            hr.border-secondary
                             h3.h6 Description
-                            p.mb-0 #{item.description}
+                            p.mb-0.text-white-50 #{item.description}
 
-                .card.mb-3
+                .card.text-bg-dark.border-secondary.mb-3
                     .card-body
                         h2.h5.mb-3 Barcodes
                         if barcodes.length === 0
-                            p.text-muted.mb-3 No barcodes assigned yet.
+                            p.text-white-50.mb-3 No barcodes assigned yet.
                         else
-                            ul.list-group.mb-3
+                            ul.list-group.list-group-flush.mb-3
                                 each b in barcodes
-                                    li.list-group-item.d-flex.justify-content-between.align-items-center
-                                        code #{b.code}
+                                    li.list-group-item.d-flex.justify-content-between.align-items-center.bg-transparent.text-white.border-secondary
+                                        code.text-info #{b.code}
                                         span.badge.text-bg-secondary #{b.symbology}
 
                         h3.h6.mb-2 Add / map barcode
                         form#barcodeForm.row.g-2
                             .col-md-8
-                                input#barcodeInput.form-control(type="text" placeholder="Scan or enter barcode" autocomplete="off")
+                                input#barcodeInput.form-control.text-bg-dark(type="text" placeholder="Scan or enter barcode" autocomplete="off")
                             .col-md-4
                                 button#barcodeMapBtn.btn.btn-primary.w-100(type="submit") Map to this item
-                        .form-text Use a USB scanner or type the code, then map it.
+                        .form-text.text-white-50 Use a USB scanner or type the code, then map it.
                         #barcodeMsg.mt-2
 
             .col-lg-5
-                .card.mb-3
+                .card.text-bg-dark.border-secondary.mb-3
                     .card-body
                         h2.h5.mb-3 Move item
                         form(method="post" action=`/items/${item.id}/move`)
                             .mb-3
                                 label.form-label(for="locationId") New location
-                                select#locationId.form-select(name="locationId")
+                                select#locationId.form-select.text-bg-dark(name="locationId")
                                     option(value="") Unassigned
                                     each loc in locations
                                         option(value=loc.id selected=(item.locationId && item.locationId === loc.id)) #{loc.name}
                             .mb-3
                                 label.form-label(for="note") Note (optional)
-                                input#note.form-control(type="text" name="note")
-                            button.btn.btn-outline-primary(type="submit") Move
+                                input#note.form-control.text-bg-dark(type="text" name="note")
+                            button.btn.btn-outline-light(type="submit") Move
 
-                .card
+                .card.text-bg-dark.border-secondary
                     .card-body
                         h2.h5.mb-3 Movement history
                         if movements.length === 0
-                            p.text-muted No movements recorded yet.
+                            p.text-white-50 No movements recorded yet.
                         else
-                            ul.list-group
+                            ul.list-group.list-group-flush
                                 each m in movements
-                                    li.list-group-item
+                                    li.list-group-item.bg-transparent.text-white.border-secondary
                                         .d-flex.justify-content-between
                                             span
                                                 if m.fromLocation
@@ -96,9 +96,9 @@ block content
                                                     |  #{m.toLocation.name}
                                                 else
                                                     |  Unassigned
-                                            span.text-muted.small #{new Date(m.movedAt).toLocaleString()}
+                                            span.text-white-50.small #{new Date(m.movedAt).toLocaleString()}
                                         if m.note
-                                            div.small.text-muted.mt-1 #{m.note}
+                                            div.small.text-white-50.mt-1 #{m.note}
 
 block scripts
     script(type="module" src="/js/items/detail.gen.js")

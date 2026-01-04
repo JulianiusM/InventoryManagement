@@ -1,4 +1,4 @@
-# GitHub Copilot Instructions for Surveyor
+# GitHub Copilot Instructions for Inventory Management
 
 This is the main instruction file for GitHub Copilot. Additional detailed guidelines are organized in modular files:
 
@@ -22,6 +22,8 @@ For comprehensive documentation:
 ### Project Structure
 - `src/modules/` - Application modules (database, user, etc.)
 - `src/migrations/` - Database migrations
+- `src/controller/` - Business logic controllers
+- `src/routes/` - Express routes (page navigation and API)
 - `tests/` - All test files (unit, controller, middleware, database, e2e)
 - `tests/data/` - Test data files for data-driven testing
 - `tests/keywords/` - Test keywords for keyword-driven testing
@@ -34,6 +36,7 @@ For comprehensive documentation:
 5. **Following Directions**: Always follow user directions. If you are not sure, make reasonable assumptions. Interpret requirements conservatively.
 6. **Generic approach**: If the user asks you to fix all tests, fix all tests including database and e2e tests. Fix all issues including those that are not influenced or caused by your changes.
 7. **Pre-commit requirement**: **ALWAYS run all tests (including database and E2E) before committing. All tests must pass. Fix all test failures, including unrelated ones.**
+8. **Dark theme**: All UI pages use Bootstrap dark theme (`text-bg-dark`, `table-dark`, `text-white`, `text-white-50` for muted)
 
 ## Testing Approach
 
