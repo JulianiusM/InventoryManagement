@@ -7,7 +7,7 @@ export {};
 
 declare global {
     interface Window {
-        Surveyor: {
+        InventoryApp: {
             init?: () => void;
             // Add more functions/properties if needed
             // Entity IDs from server
