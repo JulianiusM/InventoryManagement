@@ -40,12 +40,27 @@ export async function mapBarcodeToItem(code: string, itemId: string, symbology =
     let barcode = await repo.findOne({where: {code}});
     
     if (barcode) {
-        // Update existing barcode to point to new item
-        barcode.item = {id: itemId} as any;
-        return await repo.save(barcode);
+        // Update existing barcode to point to new item using query builder
+        await repo.createQueryBuilder()
+            .update(Barcode)
+            .set({item: () => `:itemId`})
+            .setParameters({itemId})
+            .where('id = :id', {id: barcode.id})
+            .execute();
+        // Reload to get the updated barcode with relations
+        return (await repo.findOne({where: {id: barcode.id}, relations: ['item']}))!;
     } else {
-        // Create new barcode
-        return await createBarcode({code, symbology: symbology as BarcodeSymbology, item: {id: itemId} as any});
+        // Create new barcode - use update after create
+        const newBarcode = repo.create({code, symbology: symbology as BarcodeSymbology});
+        await repo.save(newBarcode);
+        // Link to item using direct update
+        await repo.createQueryBuilder()
+            .update(Barcode)
+            .set({item: () => `:itemId`})
+            .setParameters({itemId})
+            .where('id = :id', {id: newBarcode.id})
+            .execute();
+        return (await repo.findOne({where: {id: newBarcode.id}, relations: ['item']}))!;
     }
 }
 
