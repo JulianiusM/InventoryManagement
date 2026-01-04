@@ -8,12 +8,44 @@ import {ItemCondition, LoanDirection, LoanStatus} from '../types/InventoryEnums'
 
 const validConditions = Object.values(ItemCondition) as string[];
 
-export async function listLoans(ownerId: number) {
+export async function listLoans(ownerId: number, options?: {
+    page?: number;
+    perPage?: number;
+    tab?: 'active' | 'history';
+}) {
     requireAuthenticatedUser(ownerId);
-    const loans = await loanService.getActiveLoans(ownerId);
+    const activeLoans = await loanService.getActiveLoans(ownerId);
     const allLoans = await loanService.getAllLoans(ownerId);
     const items = await itemService.getAllItems(ownerId);
-    return {loans, allLoans, items};
+    
+    const page = options?.page || 1;
+    const perPage = Math.min(options?.perPage || 30, 100);
+    const tab = options?.tab || 'active';
+    
+    // Select which loans to paginate
+    const loansToShow = tab === 'active' ? activeLoans : allLoans.filter(l => l.status === 'returned');
+    
+    // Calculate pagination
+    const totalLoans = loansToShow.length;
+    const totalPages = Math.ceil(totalLoans / perPage);
+    const skip = (page - 1) * perPage;
+    const paginatedLoans = loansToShow.slice(skip, skip + perPage);
+    
+    return {
+        loans: tab === 'active' ? paginatedLoans : activeLoans, // Keep active loans for stats
+        allLoans,
+        items,
+        paginatedLoans: tab === 'history' ? paginatedLoans : undefined,
+        pagination: {
+            page,
+            perPage,
+            totalItems: totalLoans,
+            totalPages,
+            hasNext: page < totalPages,
+            hasPrev: page > 1,
+            tab
+        }
+    };
 }
 
 export async function createLoan(body: {

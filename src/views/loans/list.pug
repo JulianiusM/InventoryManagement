@@ -7,8 +7,12 @@ block content
     - const items = (data && data.items) ? data.items : []
     - const loans = (data && data.loans) ? data.loans : []
     - const allLoans = (data && data.allLoans) ? data.allLoans : []
+    - const paginatedLoans = (data && data.paginatedLoans) ? data.paginatedLoans : null
+    - const pagination = (data && data.pagination) ? data.pagination : {page: 1, totalPages: 1, totalItems: 0, perPage: 30, tab: 'active'}
     - const overdueLoans = loans.filter(l => l.status === 'overdue' || (l.dueAt && new Date(l.dueAt) < new Date() && l.status === 'active'))
     - const conditions = ['new', 'like_new', 'good', 'fair', 'poor']
+
+    include ../modules/module_pagination
 
     #liveAlerts
 
@@ -123,13 +127,19 @@ block content
     //- Tabs for active and history
     ul.nav.nav-tabs.mb-0(role="tablist")
         li.nav-item
-            button.nav-link.active.text-bg-dark.border-secondary(data-bs-toggle="tab" data-bs-target="#activeLoans" type="button")
+            a.nav-link.text-bg-dark.border-secondary(
+                href="/loans?tab=active"
+                class=pagination.tab === 'active' ? 'active' : ''
+            )
                 i.bi.bi-clock.me-1
                 | Active
                 if loans.length > 0
                     span.badge.text-bg-primary.ms-2 #{loans.length}
         li.nav-item
-            button.nav-link.text-bg-dark.border-secondary(data-bs-toggle="tab" data-bs-target="#loanHistory" type="button")
+            a.nav-link.text-bg-dark.border-secondary(
+                href="/loans?tab=history"
+                class=pagination.tab === 'history' ? 'active' : ''
+            )
                 i.bi.bi-clock-history.me-1
                 | History
                 if allLoans.length > loans.length
@@ -137,7 +147,7 @@ block content
 
     .tab-content
         //- Active loans tab
-        #activeLoans.tab-pane.fade.show.active
+        if pagination.tab === 'active'
             .card.text-bg-dark.border-secondary.border-top-0.rounded-top-0
                 .card-body
                     if loans.length === 0
@@ -198,10 +208,10 @@ block content
                                                         | Return
 
         //- History tab
-        #loanHistory.tab-pane.fade
+        if pagination.tab === 'history'
             .card.text-bg-dark.border-secondary.border-top-0.rounded-top-0
                 .card-body
-                    - const returnedLoans = allLoans.filter(l => l.status === 'returned')
+                    - const returnedLoans = paginatedLoans || allLoans.filter(l => l.status === 'returned')
                     if returnedLoans.length === 0
                         .text-center.py-4
                             i.bi.bi-clock-history.display-4.text-white-50.mb-2.d-block
@@ -237,6 +247,9 @@ block content
                                                 | #{new Date(l.startAt).toLocaleDateString()}
                                                 | →
                                                 | #{l.returnedAt ? new Date(l.returnedAt).toLocaleDateString() : '—'}
+                        
+                        //- Pagination for history
+                        +pagination(pagination.page, pagination.totalPages, '/loans?tab=history')
 
 block scripts
     script(type="module" src="/js/loans/list.gen.js")
