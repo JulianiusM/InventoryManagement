@@ -12,7 +12,7 @@ export async function listLocations(ownerId: number, options?: {
 }) {
     requireAuthenticatedUser(ownerId);
     let locations = await locationService.getAllLocations(ownerId);
-    const tree = await locationService.getLocationTree(ownerId);
+    let tree = await locationService.getLocationTree(ownerId);
     
     const page = options?.page || 1;
     const perPage = Math.min(options?.perPage || 50, 100); // Max 100 locations per page
@@ -25,6 +25,10 @@ export async function listLocations(ownerId: number, options?: {
             (loc.qrCode && loc.qrCode.toLowerCase().includes(searchLower)) ||
             loc.kind.toLowerCase().includes(searchLower)
         );
+        
+        // Filter tree to only show matching locations and their ancestors
+        const matchingIds = new Set(locations.map(l => l.id));
+        tree = filterTree(tree, matchingIds);
     }
     
     // Calculate pagination
@@ -35,7 +39,7 @@ export async function listLocations(ownerId: number, options?: {
     
     return {
         locations: paginatedLocations,
-        tree, // Keep full tree for visualization
+        tree, // Filtered tree for visualization
         pagination: {
             page,
             perPage,
@@ -48,6 +52,41 @@ export async function listLocations(ownerId: number, options?: {
             search: options?.search || ''
         }
     };
+}
+
+// Helper function to filter tree recursively
+function filterTree(nodes: any[], matchingIds: Set<string>): any[] {
+    const result: any[] = [];
+    
+    for (const node of nodes) {
+        // Check if this node matches or has matching descendants
+        const hasMatchingDescendants = node.childrenNodes && 
+            node.childrenNodes.some((child: any) => 
+                matchingIds.has(child.id) || hasDescendants(child, matchingIds)
+            );
+        
+        if (matchingIds.has(node.id) || hasMatchingDescendants) {
+            const filteredNode = { ...node };
+            if (filteredNode.childrenNodes) {
+                filteredNode.childrenNodes = filterTree(filteredNode.childrenNodes, matchingIds);
+            }
+            result.push(filteredNode);
+        }
+    }
+    
+    return result;
+}
+
+// Helper to check if node has any matching descendants
+function hasDescendants(node: any, matchingIds: Set<string>): boolean {
+    if (!node.childrenNodes) return false;
+    
+    for (const child of node.childrenNodes) {
+        if (matchingIds.has(child.id) || hasDescendants(child, matchingIds)) {
+            return true;
+        }
+    }
+    return false;
 }
 
 export async function getLocationDetail(id: string, userId: number) {
