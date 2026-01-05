@@ -25,6 +25,13 @@ export class PlayerProfileValidationError extends Error {
 }
 
 /**
+ * Helper function to check if a value is defined (not null or undefined)
+ */
+function isDefined<T>(value: T | null | undefined): value is T {
+    return value !== null && value !== undefined;
+}
+
+/**
  * Validate player profile data
  * @throws PlayerProfileValidationError if validation fails
  */
@@ -49,10 +56,10 @@ export function validatePlayerProfile(profile: PlayerProfile): void {
         );
     } else {
         // If mode not supported, mode min/max must be null/absent
-        if (profile.onlineMinPlayers !== null && profile.onlineMinPlayers !== undefined) {
+        if (isDefined(profile.onlineMinPlayers)) {
             throw new PlayerProfileValidationError('Online min players must be null when online is not supported');
         }
-        if (profile.onlineMaxPlayers !== null && profile.onlineMaxPlayers !== undefined) {
+        if (isDefined(profile.onlineMaxPlayers)) {
             throw new PlayerProfileValidationError('Online max players must be null when online is not supported');
         }
     }
@@ -67,10 +74,10 @@ export function validatePlayerProfile(profile: PlayerProfile): void {
             profile.overallMaxPlayers
         );
     } else {
-        if (profile.localMinPlayers !== null && profile.localMinPlayers !== undefined) {
+        if (isDefined(profile.localMinPlayers)) {
             throw new PlayerProfileValidationError('Local min players must be null when local is not supported');
         }
-        if (profile.localMaxPlayers !== null && profile.localMaxPlayers !== undefined) {
+        if (isDefined(profile.localMaxPlayers)) {
             throw new PlayerProfileValidationError('Local max players must be null when local is not supported');
         }
     }
@@ -85,10 +92,10 @@ export function validatePlayerProfile(profile: PlayerProfile): void {
             profile.overallMaxPlayers
         );
     } else {
-        if (profile.physicalMinPlayers !== null && profile.physicalMinPlayers !== undefined) {
+        if (isDefined(profile.physicalMinPlayers)) {
             throw new PlayerProfileValidationError('Physical min players must be null when physical is not supported');
         }
-        if (profile.physicalMaxPlayers !== null && profile.physicalMaxPlayers !== undefined) {
+        if (isDefined(profile.physicalMaxPlayers)) {
             throw new PlayerProfileValidationError('Physical max players must be null when physical is not supported');
         }
     }
@@ -105,7 +112,7 @@ function validateModePlayerCounts(
     overallMax: number
 ): void {
     // If provided, validate constraints: overallMin <= modeMin <= modeMax <= overallMax
-    if (modeMin !== null && modeMin !== undefined) {
+    if (isDefined(modeMin)) {
         if (modeMin < overallMin) {
             throw new PlayerProfileValidationError(
                 `${modeName} min players (${modeMin}) must be >= overall min (${overallMin})`
@@ -113,7 +120,7 @@ function validateModePlayerCounts(
         }
     }
     
-    if (modeMax !== null && modeMax !== undefined) {
+    if (isDefined(modeMax)) {
         if (modeMax > overallMax) {
             throw new PlayerProfileValidationError(
                 `${modeName} max players (${modeMax}) must be <= overall max (${overallMax})`
@@ -121,8 +128,7 @@ function validateModePlayerCounts(
         }
     }
     
-    if (modeMin !== null && modeMin !== undefined && 
-        modeMax !== null && modeMax !== undefined) {
+    if (isDefined(modeMin) && isDefined(modeMax)) {
         if (modeMax < modeMin) {
             throw new PlayerProfileValidationError(
                 `${modeName} max players (${modeMax}) must be >= min players (${modeMin})`

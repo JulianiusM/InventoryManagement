@@ -117,6 +117,6 @@ export class SteamStubConnector extends BaseConnector {
         await new Promise(resolve => setTimeout(resolve, 200));
         
         // For stub, any non-empty token is valid
-        return !!tokenRef && tokenRef.length > 0;
+        return Boolean(tokenRef);
     }
 }

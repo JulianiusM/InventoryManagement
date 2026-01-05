@@ -102,9 +102,9 @@ export async function createGameTitle(body: {
     const profile = {
         overallMinPlayers: Number(body.overallMinPlayers) || 1,
         overallMaxPlayers: Number(body.overallMaxPlayers) || 1,
-        supportsOnline: body.supportsOnline === true || body.supportsOnline === 'true' as unknown,
-        supportsLocal: body.supportsLocal === true || body.supportsLocal === 'true' as unknown,
-        supportsPhysical: body.supportsPhysical === true || body.supportsPhysical === 'true' as unknown,
+        supportsOnline: Boolean(body.supportsOnline),
+        supportsLocal: Boolean(body.supportsLocal),
+        supportsPhysical: Boolean(body.supportsPhysical),
         onlineMinPlayers: body.onlineMinPlayers ? Number(body.onlineMinPlayers) : null,
         onlineMaxPlayers: body.onlineMaxPlayers ? Number(body.onlineMaxPlayers) : null,
         localMinPlayers: body.localMinPlayers ? Number(body.localMinPlayers) : null,
