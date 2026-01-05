@@ -17,13 +17,9 @@ block content
             if accounts.length > 0
                 span.badge.text-bg-secondary.ms-2.fs-6 #{accounts.length}
         
-        .d-flex.gap-2
-            a.btn.btn-outline-light(href="/games")
-                i.bi.bi-arrow-left.me-1
-                | Back to Games
-            button.btn.btn-primary(type="button" data-bs-toggle="modal" data-bs-target="#addAccountModal")
-                i.bi.bi-plus-lg.me-1
-                | Link Account
+        button.btn.btn-primary(type="button" data-bs-toggle="modal" data-bs-target="#addAccountModal")
+            i.bi.bi-plus-lg.me-1
+            | Link Account
 
     //- Info card
     .card.text-bg-dark.border-secondary.mb-3

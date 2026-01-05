@@ -16,17 +16,6 @@ block content
             i.bi.bi-exclamation-triangle.me-2
             | Release not found.
     else
-        //- Breadcrumb navigation
-        nav.mb-2(aria-label="breadcrumb")
-            ol.breadcrumb.mb-0
-                li.breadcrumb-item
-                    a.text-white(href="/") Home
-                li.breadcrumb-item
-                    a.text-white(href="/games") Games
-                li.breadcrumb-item
-                    a.text-white(href=`/games/titles/${release.gameTitleId}`) #{release.gameTitle ? release.gameTitle.name : 'Game'}
-                li.breadcrumb-item.active.text-white-50(aria-current="page") #{platformLabels[release.platform] || release.platform}
-
         //- Header
         .d-flex.justify-content-between.align-items-start.mb-3
             div
@@ -39,10 +28,6 @@ block content
                         span.badge.text-bg-secondary #{release.edition}
                     if release.region
                         span.badge.text-bg-secondary #{release.region}
-            .btn-group
-                a.btn.btn-outline-light(href=`/games/titles/${release.gameTitleId}`)
-                    i.bi.bi-arrow-left.me-1
-                    | Back
 
         .row.g-3
             //- Left column: Copies

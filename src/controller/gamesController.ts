@@ -29,6 +29,15 @@ import {
     LoanDirection,
     MappingStatus
 } from '../types/InventoryEnums';
+import {
+    CreateGameTitleBody,
+    CreateGameReleaseBody,
+    CreateGameCopyBody,
+    MoveGameCopyBody,
+    LendGameCopyBody,
+    CreateExternalAccountBody,
+    ResolveMappingBody
+} from '../types/GamesTypes';
 
 // Ensure connectors are initialized
 initializeConnectors();
@@ -75,23 +84,7 @@ export async function getGameTitleDetail(id: string, userId: number) {
     return {title, releases};
 }
 
-export async function createGameTitle(body: {
-    name: string;
-    type?: string;
-    description?: string;
-    coverImageUrl?: string;
-    overallMinPlayers: number;
-    overallMaxPlayers: number;
-    supportsOnline?: boolean;
-    supportsLocal?: boolean;
-    supportsPhysical?: boolean;
-    onlineMinPlayers?: number;
-    onlineMaxPlayers?: number;
-    localMinPlayers?: number;
-    localMaxPlayers?: number;
-    physicalMinPlayers?: number;
-    physicalMaxPlayers?: number;
-}, ownerId: number): Promise<GameTitle> {
+export async function createGameTitle(body: CreateGameTitleBody, ownerId: number): Promise<GameTitle> {
     requireAuthenticatedUser(ownerId);
     
     if (!body.name || body.name.trim() === '') {
@@ -185,15 +178,7 @@ export async function deleteGameTitle(id: string, userId: number): Promise<void>
 
 // ============ Game Releases ============
 
-export async function createGameRelease(body: {
-    gameTitleId: string;
-    platform?: string;
-    edition?: string;
-    region?: string;
-    releaseDate?: string;
-    playersOverrideMin?: number;
-    playersOverrideMax?: number;
-}, ownerId: number): Promise<GameRelease> {
+export async function createGameRelease(body: CreateGameReleaseBody, ownerId: number): Promise<GameRelease> {
     requireAuthenticatedUser(ownerId);
     
     // Verify title ownership
@@ -287,17 +272,7 @@ export async function getGameCopyDetail(id: string, userId: number) {
     return {copy, loans, barcodes, locations, parties};
 }
 
-export async function createGameCopy(body: {
-    gameReleaseId: string;
-    copyType: string;
-    externalAccountId?: string;
-    externalGameId?: string;
-    locationId?: string;
-    condition?: string;
-    notes?: string;
-    lendable?: boolean;
-    acquiredAt?: string;
-}, ownerId: number): Promise<GameCopy> {
+export async function createGameCopy(body: CreateGameCopyBody, ownerId: number): Promise<GameCopy> {
     requireAuthenticatedUser(ownerId);
     
     // Verify release ownership
@@ -323,7 +298,7 @@ export async function createGameCopy(body: {
 
 export async function moveGameCopy(
     id: string,
-    body: {locationId?: string},
+    body: MoveGameCopyBody,
     userId: number
 ): Promise<void> {
     requireAuthenticatedUser(userId);
@@ -355,13 +330,7 @@ export async function deleteGameCopy(id: string, userId: number): Promise<void> 
 
 // ============ Physical Copy Lending ============
 
-export async function lendGameCopy(body: {
-    gameCopyId: string;
-    partyId: string;
-    dueAt?: string;
-    conditionOut?: string;
-    notes?: string;
-}, ownerId: number) {
+export async function lendGameCopy(body: LendGameCopyBody, ownerId: number) {
     requireAuthenticatedUser(ownerId);
     
     const copy = await gameCopyService.getGameCopyById(body.gameCopyId);
@@ -453,12 +422,7 @@ export async function listExternalAccounts(ownerId: number) {
     return {accounts, connectors};
 }
 
-export async function createExternalAccount(body: {
-    provider: string;
-    accountName: string;
-    externalUserId?: string;
-    tokenRef?: string;
-}, ownerId: number) {
+export async function createExternalAccount(body: CreateExternalAccountBody, ownerId: number) {
     requireAuthenticatedUser(ownerId);
     
     if (!body.accountName || body.accountName.trim() === '') {
@@ -519,11 +483,7 @@ export async function getPendingMappings(ownerId: number) {
     return {mappings, titles};
 }
 
-export async function resolveMappings(id: string, body: {
-    gameTitleId?: string;
-    gameReleaseId?: string;
-    action: 'map' | 'ignore';
-}, userId: number) {
+export async function resolveMappings(id: string, body: ResolveMappingBody, userId: number) {
     requireAuthenticatedUser(userId);
     
     const mapping = await gameMappingService.getMappingById(id);
