@@ -491,6 +491,50 @@ export async function getSyncStatus(accountId: string, userId: number) {
 
 // ============ Mapping Queue ============
 
+// Helper function to create game title and release from a mapping
+async function createTitleAndReleaseFromMapping(
+    externalGameName: string | null | undefined,
+    externalGameId: string,
+    mappingId: string,
+    userId: number
+): Promise<{title: GameTitle; release: GameRelease}> {
+    // Create a new game title from the mapping
+    const title = await gameTitleService.createGameTitle({
+        name: externalGameName || `Game ${externalGameId}`,
+        type: GameType.VIDEO_GAME,
+        description: null,
+        coverImageUrl: null,
+        overallMinPlayers: 1,
+        overallMaxPlayers: 1,
+        supportsOnline: false,
+        supportsLocal: false,
+        supportsPhysical: false,
+        onlineMinPlayers: null,
+        onlineMaxPlayers: null,
+        localMinPlayers: null,
+        localMaxPlayers: null,
+        physicalMinPlayers: null,
+        physicalMaxPlayers: null,
+        ownerId: userId,
+    });
+    
+    // Create a release for this title
+    const release = await gameReleaseService.createGameRelease({
+        gameTitleId: title.id,
+        platform: GamePlatform.PC, // Default to PC for digital games
+        ownerId: userId,
+    });
+    
+    // Update the mapping
+    await gameMappingService.updateMapping(mappingId, {
+        gameTitleId: title.id,
+        gameReleaseId: release.id,
+        status: MappingStatus.MAPPED,
+    });
+    
+    return {title, release};
+}
+
 export async function getPendingMappings(ownerId: number) {
     requireAuthenticatedUser(ownerId);
     const mappings = await gameMappingService.getPendingMappings(ownerId);
@@ -512,39 +556,13 @@ export async function resolveMappings(id: string, body: ResolveMappingBody, user
             status: MappingStatus.IGNORED,
         });
     } else if (body.action === 'create') {
-        // Auto-create a new game title from the mapping
-        const title = await gameTitleService.createGameTitle({
-            name: mapping.externalGameName || `Game ${mapping.externalGameId}`,
-            type: GameType.VIDEO_GAME,
-            description: null,
-            coverImageUrl: null,
-            overallMinPlayers: 1,
-            overallMaxPlayers: 1,
-            supportsOnline: false,
-            supportsLocal: false,
-            supportsPhysical: false,
-            onlineMinPlayers: null,
-            onlineMaxPlayers: null,
-            localMinPlayers: null,
-            localMaxPlayers: null,
-            physicalMinPlayers: null,
-            physicalMaxPlayers: null,
-            ownerId: userId,
-        });
-        
-        // Create a release for this title
-        const release = await gameReleaseService.createGameRelease({
-            gameTitleId: title.id,
-            platform: GamePlatform.PC, // Default to PC for digital games
-            ownerId: userId,
-        });
-        
-        // Update the mapping
-        await gameMappingService.updateMapping(id, {
-            gameTitleId: title.id,
-            gameReleaseId: release.id,
-            status: MappingStatus.MAPPED,
-        });
+        // Auto-create a new game title from the mapping using helper
+        await createTitleAndReleaseFromMapping(
+            mapping.externalGameName,
+            mapping.externalGameId,
+            id,
+            userId
+        );
     } else {
         // Map to existing title
         if (!body.gameTitleId && !body.gameReleaseId) {
@@ -565,40 +583,12 @@ export async function bulkCreateMappings(userId: number): Promise<number> {
     let created = 0;
     
     for (const mapping of mappings) {
-        // Create a new game title from the mapping
-        const title = await gameTitleService.createGameTitle({
-            name: mapping.externalGameName || `Game ${mapping.externalGameId}`,
-            type: GameType.VIDEO_GAME,
-            description: null,
-            coverImageUrl: null,
-            overallMinPlayers: 1,
-            overallMaxPlayers: 1,
-            supportsOnline: false,
-            supportsLocal: false,
-            supportsPhysical: false,
-            onlineMinPlayers: null,
-            onlineMaxPlayers: null,
-            localMinPlayers: null,
-            localMaxPlayers: null,
-            physicalMinPlayers: null,
-            physicalMaxPlayers: null,
-            ownerId: userId,
-        });
-        
-        // Create a release for this title
-        const release = await gameReleaseService.createGameRelease({
-            gameTitleId: title.id,
-            platform: GamePlatform.PC,
-            ownerId: userId,
-        });
-        
-        // Update the mapping
-        await gameMappingService.updateMapping(mapping.id, {
-            gameTitleId: title.id,
-            gameReleaseId: release.id,
-            status: MappingStatus.MAPPED,
-        });
-        
+        await createTitleAndReleaseFromMapping(
+            mapping.externalGameName,
+            mapping.externalGameId,
+            mapping.id,
+            userId
+        );
         created++;
     }
     

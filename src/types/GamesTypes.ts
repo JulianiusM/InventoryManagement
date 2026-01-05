@@ -64,5 +64,5 @@ export interface CreateExternalAccountBody {
 export interface ResolveMappingBody {
     gameTitleId?: string;
     gameReleaseId?: string;
-    action: 'map' | 'ignore';
+    action: 'map' | 'ignore' | 'create';
 }
