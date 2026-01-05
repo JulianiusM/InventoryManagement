@@ -266,3 +266,21 @@ export async function mapBarcodeToItem(
     await barcodeService.mapBarcodeToItem(code.trim(), itemId, symbology);
     return {success: true, message: 'Barcode mapped successfully'};
 }
+
+export async function deleteBarcodeFromItem(
+    itemId: string,
+    barcodeId: string,
+    userId: number
+): Promise<{success: boolean; message: string}> {
+    requireAuthenticatedUser(userId);
+    
+    const item = await itemService.getItemById(itemId);
+    if (!item) {
+        throw new ExpectedError('Item not found', 'error', 404);
+    }
+    checkOwnership(item, userId);
+    
+    // Delete the barcode
+    await barcodeService.deleteBarcode(barcodeId);
+    return {success: true, message: 'Barcode removed successfully'};
+}
