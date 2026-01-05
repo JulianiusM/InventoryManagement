@@ -21,6 +21,7 @@ import * as gameTitleService from '../database/services/GameTitleService';
 import * as gameReleaseService from '../database/services/GameReleaseService';
 import * as itemService from '../database/services/ItemService';
 import * as syncJobService from '../database/services/SyncJobService';
+import * as platformService from '../database/services/PlatformService';
 import {
     GameCopyType, 
     MappingStatus, 
@@ -308,6 +309,9 @@ async function autoCreateGameFromMetadata(
     platform: string,
     ownerId: number
 ): Promise<{title: Awaited<ReturnType<typeof gameTitleService.createGameTitle>>; release: Awaited<ReturnType<typeof gameReleaseService.createGameRelease>>}> {
+    // Ensure the platform exists in the database (auto-create if missing)
+    await platformService.getOrCreatePlatform(platform, ownerId);
+    
     // Create game title with metadata from connector
     const title = await gameTitleService.createGameTitle({
         name: game.name,

@@ -1,8 +1,10 @@
 import express, {Request, Response} from 'express';
 import * as itemController from '../controller/itemController';
+import * as itemService from '../modules/database/services/ItemService';
 import renderer from '../modules/renderer';
 import {asyncHandler} from '../modules/lib/asyncHandler';
 import {requireAuth} from '../middleware/authMiddleware';
+import {ItemType} from '../types/InventoryEnums';
 
 const router = express.Router();
 
@@ -36,10 +38,17 @@ router.post('/', asyncHandler(async (req: Request, res: Response) => {
     res.redirect('/items');
 }));
 
-// Get item detail (with ownership check)
+// Get item detail (with ownership check) - redirect game items to games module
 router.get('/:id', asyncHandler(async (req: Request, res: Response) => {
     const id = req.params.id;
     const userId = req.session.user!.id;
+    
+    // Check if item is a game and redirect to games module
+    const item = await itemService.getItemById(id);
+    if (item && (item.type === ItemType.GAME || item.type === ItemType.GAME_DIGITAL)) {
+        return res.redirect(`/games/copies/${id}`);
+    }
+    
     const data = await itemController.getItemDetail(id, userId);
     renderer.renderWithData(res, 'items/detail', data);
 }));

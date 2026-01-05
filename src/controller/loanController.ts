@@ -4,7 +4,7 @@ import * as partyService from '../modules/database/services/PartyService';
 import {ExpectedError} from '../modules/lib/errors';
 import {checkOwnership, requireAuthenticatedUser} from '../middleware/authMiddleware';
 import {Loan} from '../modules/database/entities/loan/Loan';
-import {ItemCondition, LoanDirection, LoanStatus} from '../types/InventoryEnums';
+import {ItemCondition, ItemType, LoanDirection, LoanStatus} from '../types/InventoryEnums';
 
 const validConditions = Object.values(ItemCondition) as string[];
 
@@ -16,7 +16,11 @@ export async function listLoans(ownerId: number, options?: {
     requireAuthenticatedUser(ownerId);
     const activeLoans = await loanService.getActiveLoans(ownerId);
     const allLoans = await loanService.getAllLoans(ownerId);
-    const items = await itemService.getAllItems(ownerId);
+    const allItems = await itemService.getAllItems(ownerId);
+    // Filter out digital games (they cannot be lent) and only include lendable items
+    const items = allItems.filter(item => 
+        item.type !== ItemType.GAME_DIGITAL && item.lendable !== false
+    );
     
     const page = options?.page || 1;
     const perPage = Math.min(options?.perPage || 30, 100);
@@ -141,6 +145,11 @@ export async function returnLoan(
     }
     
     await loanService.returnLoan(id, validatedConditionIn);
+    
+    // Update item condition if provided
+    if (validatedConditionIn && loan.item) {
+        await itemService.updateItem(loan.item.id, {condition: validatedConditionIn});
+    }
 }
 
 export async function getLoanDetail(id: string, userId: number) {

@@ -157,10 +157,13 @@ block content
                 //- Loan history (physical only)
                 if copy.gameCopyType === 'physical_copy'
                     .card.text-bg-dark.border-secondary.mb-3
-                        .card-header
+                        .card-header.d-flex.justify-content-between.align-items-center
                             h2.h5.mb-0
                                 i.bi.bi-arrow-left-right.me-2
                                 | Loan History
+                            a.btn.btn-sm.btn-outline-light(href="/loans")
+                                i.bi.bi-arrow-up-right.me-1
+                                | View All
                         .card-body
                             if loans.length === 0
                                 p.text-white-50.mb-0
@@ -183,8 +186,6 @@ block content
                                                         span.badge.text-bg-danger.ms-2 Overdue
                                                     else
                                                         span.badge.text-bg-warning.ms-2 Active
-                                                        form.d-inline(method="post" action=`/games/loans/${l.id}/return`)
-                                                            button.btn.btn-sm.btn-outline-success.ms-2(type="submit") Return
                                                 .text-white-50.small
                                                     | #{new Date(l.startAt).toLocaleDateString()}
 
@@ -209,33 +210,20 @@ block content
                                     i.bi.bi-arrow-right.me-1
                                     | Move
 
-                //- Lend copy (physical only)
+                //- Lending (physical only) - use unified lending UI
                 if copy.gameCopyType === 'physical_copy' && copy.lendable
                     .card.text-bg-dark.border-secondary.mb-3
                         .card-header
                             h2.h5.mb-0
                                 i.bi.bi-hand-index.me-2
-                                | Lend Copy
+                                | Lending
                         .card-body
-                            form(method="post" action=`/games/copies/${copy.id}/lend`)
-                                .mb-3
-                                    label.form-label Lend To *
-                                    select.form-select.text-bg-dark(name="partyId" required)
-                                        option(value="") Select party...
-                                        each p in parties
-                                            option(value=p.id) #{p.name}
-                                .mb-3
-                                    label.form-label Due Date
-                                    input.form-control.text-bg-dark(type="date" name="dueAt")
-                                .mb-3
-                                    label.form-label Condition Out
-                                    select.form-select.text-bg-dark(name="conditionOut")
-                                        option(value="") Not specified
-                                        each c in conditions
-                                            option(value=c) #{c.charAt(0).toUpperCase() + c.slice(1).replace('_', ' ')}
-                                button.btn.btn-primary.w-100(type="submit")
-                                    i.bi.bi-hand-index.me-1
-                                    | Lend
+                            p.text-white-50.mb-3
+                                i.bi.bi-info-circle.me-1
+                                | Use the unified lending UI to lend or return this item.
+                            a.btn.btn-outline-primary.w-100(href="/loans")
+                                i.bi.bi-arrow-left-right.me-1
+                                | Go to Lending
                 
                 //- Link to account (digital only)
                 if copy.gameCopyType === 'digital_license'
