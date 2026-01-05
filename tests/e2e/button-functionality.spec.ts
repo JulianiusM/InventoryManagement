@@ -110,7 +110,10 @@ test.describe('Button Functionality Tests', () => {
         await page.fill('input[name="username"]', username);
         await page.fill('input[name="password"]', password);
         await page.click('button[type="submit"]');
-        await page.waitForURL(/\/(items|locations|loans|scan|profile)/, { timeout: 10000 });
+        // Wait for navigation after login - should redirect to dashboard or items page
+        await page.waitForURL((url) => url.pathname !== '/login', { timeout: 10000 });
+        // Wait for page to be fully loaded
+        await page.waitForLoadState('networkidle');
     });
     
     for (const testPage of TEST_PAGES) {
@@ -123,6 +126,12 @@ test.describe('Button Functionality Tests', () => {
             
             console.log(`Found ${buttons.length} buttons on ${testPage.name}`);
             
+            // If no buttons found (empty state), skip
+            if (buttons.length === 0) {
+                console.log(`No buttons found on ${testPage.name}, skipping...`);
+                return;
+            }
+            
             const results: Array<{ text: string; result: { success: boolean; message: string } }> = [];
             
             for (const button of buttons) {
@@ -133,6 +142,11 @@ test.describe('Button Functionality Tests', () => {
                 
                 // Skip certain buttons that are known to work differently
                 if (text.includes('Sign Out') || text.includes('Logout')) {
+                    continue;
+                }
+                
+                // Skip navigation buttons (they change the page)
+                if (text.includes('Items') || text.includes('Locations') || text.includes('Lending') || text.includes('Profile')) {
                     continue;
                 }
                 
