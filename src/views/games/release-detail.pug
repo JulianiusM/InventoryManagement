@@ -273,7 +273,7 @@ block content
                             select.form-select.text-bg-dark(name="targetId" required)
                                 option(value="") Select target release...
                                 each r in allReleases
-                                    option(value=r.id) #{r.edition || 'Standard'} (#{platformLabels[r.platform] || r.platform})#{r.region ? ' - ' + r.region : ''}
+                                    option(value=r.id) #{r.edition || 'Standard'} (#{r.platform})#{r.region ? ' - ' + r.region : ''}
                     .modal-footer.border-secondary
                         button.btn.btn-secondary(type="button" data-bs-dismiss="modal") Cancel
                         button.btn.btn-warning(type="submit" form="mergeReleaseForm" onclick="return confirm('This will permanently merge the releases. Continue?')")

@@ -1,6 +1,9 @@
 import {AppDataSource} from '../dataSource';
 import {GameRelease} from '../entities/gameRelease/GameRelease';
 import {GameTitle} from '../entities/gameTitle/GameTitle';
+import {GameExternalMapping} from '../entities/gameExternalMapping/GameExternalMapping';
+import {Item} from '../entities/item/Item';
+import {Barcode} from '../entities/barcode/Barcode';
 import {User} from '../entities/user/User';
 
 export interface CreateGameReleaseData {
@@ -81,9 +84,9 @@ export async function updateGameRelease(id: string, data: Partial<Omit<GameRelea
 
 export async function deleteGameRelease(id: string): Promise<void> {
     const repo = AppDataSource.getRepository(GameRelease);
-    const itemRepo = AppDataSource.getRepository('Item');
-    const barcodeRepo = AppDataSource.getRepository('Barcode');
-    const gameMappingRepo = AppDataSource.getRepository('GameExternalMapping');
+    const itemRepo = AppDataSource.getRepository(Item);
+    const barcodeRepo = AppDataSource.getRepository(Barcode);
+    const gameMappingRepo = AppDataSource.getRepository(GameExternalMapping);
     
     // Get the release with its items/copies
     const release = await repo.findOne({where: {id}, relations: ['items']});
@@ -112,8 +115,8 @@ export async function deleteGameRelease(id: string): Promise<void> {
  */
 export async function mergeGameReleases(sourceId: string, targetId: string): Promise<number> {
     const repo = AppDataSource.getRepository(GameRelease);
-    const itemRepo = AppDataSource.getRepository('Item');
-    const gameMappingRepo = AppDataSource.getRepository('GameExternalMapping');
+    const itemRepo = AppDataSource.getRepository(Item);
+    const gameMappingRepo = AppDataSource.getRepository(GameExternalMapping);
     
     // Get source with items
     const source = await repo.findOne({where: {id: sourceId}, relations: ['items']});

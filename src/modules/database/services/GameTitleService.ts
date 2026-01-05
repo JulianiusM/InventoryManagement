@@ -1,5 +1,7 @@
 import {AppDataSource} from '../dataSource';
 import {GameTitle} from '../entities/gameTitle/GameTitle';
+import {GameRelease} from '../entities/gameRelease/GameRelease';
+import {GameExternalMapping} from '../entities/gameExternalMapping/GameExternalMapping';
 import {User} from '../entities/user/User';
 import {GameType} from '../../../types/InventoryEnums';
 import {validatePlayerProfile} from './GameValidationService';
@@ -99,7 +101,7 @@ export async function updateGameTitle(id: string, data: Partial<Omit<GameTitle, 
 
 export async function deleteGameTitle(id: string): Promise<void> {
     const repo = AppDataSource.getRepository(GameTitle);
-    const gameMappingRepo = AppDataSource.getRepository('GameExternalMapping');
+    const gameMappingRepo = AppDataSource.getRepository(GameExternalMapping);
     
     // Delete associated mappings so that re-sync can recreate the games (Issue 2)
     await gameMappingRepo.delete({gameTitle: {id}});
@@ -126,8 +128,8 @@ export async function searchGameTitles(ownerId: number, search: string): Promise
  */
 export async function mergeGameTitles(sourceId: string, targetId: string): Promise<number> {
     const repo = AppDataSource.getRepository(GameTitle);
-    const gameReleaseRepo = AppDataSource.getRepository('GameRelease');
-    const gameMappingRepo = AppDataSource.getRepository('GameExternalMapping');
+    const gameReleaseRepo = AppDataSource.getRepository(GameRelease);
+    const gameMappingRepo = AppDataSource.getRepository(GameExternalMapping);
     
     // Get source with releases
     const source = await repo.findOne({where: {id: sourceId}, relations: ['releases']});
