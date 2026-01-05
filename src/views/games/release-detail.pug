@@ -115,7 +115,7 @@ block content
 
     //- Add Copy Modal
     #addCopyModal.modal.fade(tabindex="-1")
-        .modal-dialog
+        .modal-dialog.modal-lg
             .modal-content.text-bg-dark
                 .modal-header.border-secondary
                     h5.modal-title
@@ -123,19 +123,49 @@ block content
                         | Add Copy
                     button.btn-close.btn-close-white(type="button" data-bs-dismiss="modal")
                 .modal-body
+                    - const locations = (data && data.locations) ? data.locations : []
+                    - const accounts = (data && data.accounts) ? data.accounts : []
                     if release
                         form#addCopyForm.row.g-3(method="post" action=`/games/releases/${release.id}/copies`)
                             .col-12
                                 label.form-label Copy Type *
-                                select.form-select.text-bg-dark(name="copyType" required)
+                                select#copyTypeSelect.form-select.text-bg-dark(name="copyType" required)
                                     option(value="physical_copy") Physical Copy
                                     option(value="digital_license") Digital License
-                            .col-md-6
-                                label.form-label Condition
-                                select.form-select.text-bg-dark(name="condition")
-                                    option(value="") Not specified
-                                    each c in conditions
-                                        option(value=c) #{c.charAt(0).toUpperCase() + c.slice(1).replace('_', ' ')}
+                            
+                            //- Physical copy fields
+                            #physicalFields
+                                .row.g-3
+                                    .col-md-6
+                                        label.form-label Location
+                                        select.form-select.text-bg-dark(name="locationId")
+                                            option(value="") No location assigned
+                                            each loc in locations
+                                                option(value=loc.id) #{loc.name}
+                                    .col-md-6
+                                        label.form-label Condition
+                                        select.form-select.text-bg-dark(name="condition")
+                                            option(value="") Not specified
+                                            each c in conditions
+                                                option(value=c) #{c.charAt(0).toUpperCase() + c.slice(1).replace('_', ' ')}
+                                    .col-12
+                                        .form-check
+                                            input.form-check-input(type="checkbox" name="lendable" value="true" id="lendableCheck" checked)
+                                            label.form-check-label(for="lendableCheck") Allow lending
+                            
+                            //- Digital copy fields (hidden by default)
+                            #digitalFields.d-none
+                                .row.g-3
+                                    .col-md-6
+                                        label.form-label External Account
+                                        select.form-select.text-bg-dark(name="externalAccountId")
+                                            option(value="") Select account...
+                                            each acc in accounts
+                                                option(value=acc.id) #{acc.accountName} (#{acc.provider})
+                                    .col-md-6
+                                        label.form-label External Game ID
+                                        input.form-control.text-bg-dark(type="text" name="externalGameId" placeholder="Steam App ID, etc.")
+                            
                             .col-md-6
                                 label.form-label Acquired Date
                                 input.form-control.text-bg-dark(type="date" name="acquiredAt")
@@ -147,3 +177,13 @@ block content
                     button.btn.btn-primary(type="submit" form="addCopyForm")
                         i.bi.bi-plus-lg.me-1
                         | Add Copy
+
+block scripts
+    script(type="module" src="/js/stub.gen.js")
+    script.
+        // Toggle between physical and digital fields
+        document.getElementById('copyTypeSelect')?.addEventListener('change', function() {
+            const isDigital = this.value === 'digital_license';
+            document.getElementById('physicalFields')?.classList.toggle('d-none', isDigital);
+            document.getElementById('digitalFields')?.classList.toggle('d-none', !isDigital);
+        });

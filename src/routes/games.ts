@@ -31,7 +31,7 @@ router.post('/', asyncHandler(async (req: Request, res: Response) => {
     const ownerId = req.session.user!.id;
     const title = await gamesController.createGameTitle(req.body, ownerId);
     req.flash('success', 'Game title created successfully');
-    res.redirect(`/games/${title.id}`);
+    res.redirect(`/games/titles/${title.id}`);
 }));
 
 // ============ Game Titles ============
@@ -209,6 +209,22 @@ router.get('/mappings', asyncHandler(async (req: Request, res: Response) => {
     const ownerId = req.session.user!.id;
     const data = await gamesController.getPendingMappings(ownerId);
     renderer.renderWithData(res, 'games/mappings', data);
+}));
+
+// Bulk create all pending mappings
+router.post('/mappings/bulk-create', asyncHandler(async (req: Request, res: Response) => {
+    const userId = req.session.user!.id;
+    const created = await gamesController.bulkCreateMappings(userId);
+    req.flash('success', `Created ${created} new game titles`);
+    res.redirect('/games/mappings');
+}));
+
+// Bulk ignore all pending mappings
+router.post('/mappings/bulk-ignore', asyncHandler(async (req: Request, res: Response) => {
+    const userId = req.session.user!.id;
+    const ignored = await gamesController.bulkIgnoreMappings(userId);
+    req.flash('success', `Ignored ${ignored} mappings`);
+    res.redirect('/games/mappings');
 }));
 
 // Resolve mapping

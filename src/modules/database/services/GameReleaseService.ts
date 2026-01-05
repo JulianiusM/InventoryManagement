@@ -33,7 +33,7 @@ export async function getGameReleaseById(id: string): Promise<GameRelease | null
     const repo = AppDataSource.getRepository(GameRelease);
     return await repo.findOne({
         where: {id},
-        relations: ['gameTitle', 'owner', 'copies'],
+        relations: ['gameTitle', 'owner', 'items'],
     });
 }
 
@@ -41,7 +41,7 @@ export async function getGameReleasesByTitleId(titleId: string): Promise<GameRel
     const repo = AppDataSource.getRepository(GameRelease);
     return await repo.find({
         where: {gameTitle: {id: titleId}},
-        relations: ['copies'],
+        relations: ['items'],
         order: {platform: 'ASC'},
     });
 }
@@ -50,7 +50,7 @@ export async function getAllGameReleases(ownerId: number): Promise<GameRelease[]
     const repo = AppDataSource.getRepository(GameRelease);
     return await repo.find({
         where: {owner: {id: ownerId}},
-        relations: ['gameTitle', 'copies'],
+        relations: ['gameTitle', 'items'],
         order: {createdAt: 'DESC'},
     });
 }

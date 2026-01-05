@@ -214,7 +214,9 @@ export async function getGameReleaseDetail(id: string, userId: number) {
     
     // Use itemService to get game items linked to this release
     const copies = await itemService.getGameItemsByReleaseId(id);
-    return {release, copies};
+    const locations = await locationService.getAllLocations(userId);
+    const accounts = await externalAccountService.getAllExternalAccounts(userId);
+    return {release, copies, locations, accounts};
 }
 
 export async function deleteGameRelease(id: string, userId: number): Promise<void> {
@@ -509,7 +511,42 @@ export async function resolveMappings(id: string, body: ResolveMappingBody, user
         await gameMappingService.updateMapping(id, {
             status: MappingStatus.IGNORED,
         });
+    } else if (body.action === 'create') {
+        // Auto-create a new game title from the mapping
+        const title = await gameTitleService.createGameTitle({
+            name: mapping.externalGameName || `Game ${mapping.externalGameId}`,
+            type: GameType.VIDEO_GAME,
+            description: null,
+            coverImageUrl: null,
+            overallMinPlayers: 1,
+            overallMaxPlayers: 1,
+            supportsOnline: false,
+            supportsLocal: false,
+            supportsPhysical: false,
+            onlineMinPlayers: null,
+            onlineMaxPlayers: null,
+            localMinPlayers: null,
+            localMaxPlayers: null,
+            physicalMinPlayers: null,
+            physicalMaxPlayers: null,
+            ownerId: userId,
+        });
+        
+        // Create a release for this title
+        const release = await gameReleaseService.createGameRelease({
+            gameTitleId: title.id,
+            platform: GamePlatform.PC, // Default to PC for digital games
+            ownerId: userId,
+        });
+        
+        // Update the mapping
+        await gameMappingService.updateMapping(id, {
+            gameTitleId: title.id,
+            gameReleaseId: release.id,
+            status: MappingStatus.MAPPED,
+        });
     } else {
+        // Map to existing title
         if (!body.gameTitleId && !body.gameReleaseId) {
             throw new ExpectedError('Either title or release ID is required', 'error', 400);
         }
@@ -520,6 +557,67 @@ export async function resolveMappings(id: string, body: ResolveMappingBody, user
             status: MappingStatus.MAPPED,
         });
     }
+}
+
+export async function bulkCreateMappings(userId: number): Promise<number> {
+    requireAuthenticatedUser(userId);
+    const mappings = await gameMappingService.getPendingMappings(userId);
+    let created = 0;
+    
+    for (const mapping of mappings) {
+        // Create a new game title from the mapping
+        const title = await gameTitleService.createGameTitle({
+            name: mapping.externalGameName || `Game ${mapping.externalGameId}`,
+            type: GameType.VIDEO_GAME,
+            description: null,
+            coverImageUrl: null,
+            overallMinPlayers: 1,
+            overallMaxPlayers: 1,
+            supportsOnline: false,
+            supportsLocal: false,
+            supportsPhysical: false,
+            onlineMinPlayers: null,
+            onlineMaxPlayers: null,
+            localMinPlayers: null,
+            localMaxPlayers: null,
+            physicalMinPlayers: null,
+            physicalMaxPlayers: null,
+            ownerId: userId,
+        });
+        
+        // Create a release for this title
+        const release = await gameReleaseService.createGameRelease({
+            gameTitleId: title.id,
+            platform: GamePlatform.PC,
+            ownerId: userId,
+        });
+        
+        // Update the mapping
+        await gameMappingService.updateMapping(mapping.id, {
+            gameTitleId: title.id,
+            gameReleaseId: release.id,
+            status: MappingStatus.MAPPED,
+        });
+        
+        created++;
+    }
+    
+    return created;
+}
+
+export async function bulkIgnoreMappings(userId: number): Promise<number> {
+    requireAuthenticatedUser(userId);
+    const mappings = await gameMappingService.getPendingMappings(userId);
+    let ignored = 0;
+    
+    for (const mapping of mappings) {
+        await gameMappingService.updateMapping(mapping.id, {
+            status: MappingStatus.IGNORED,
+        });
+        ignored++;
+    }
+    
+    return ignored;
 }
 
 // ============ Connectors ============

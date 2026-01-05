@@ -137,6 +137,12 @@ block content
                                 | Description
                             textarea#description.form-control.text-bg-dark(name="description" rows="2" placeholder="Optional description")
                         
+                        .col-12
+                            label.form-label(for="coverImageUrl")
+                                i.bi.bi-image.me-1
+                                | Cover Image URL
+                            input#coverImageUrl.form-control.text-bg-dark(type="url" name="coverImageUrl" placeholder="https://...")
+                        
                         hr.border-secondary
                         
                         h6.text-white
@@ -170,6 +176,47 @@ block content
                                 label.form-check-label(for="supportsPhysical")
                                     i.bi.bi-dice-5.me-1
                                     | Physical Play
+                        
+                        //- Mode-specific player counts (optional)
+                        .col-12
+                            .accordion#modePlayersAccordion
+                                .accordion-item.bg-dark.border-secondary
+                                    h2.accordion-header
+                                        button.accordion-button.bg-dark.text-white.collapsed(type="button" data-bs-toggle="collapse" data-bs-target="#modePlayersCollapse")
+                                            i.bi.bi-sliders.me-2
+                                            | Mode-Specific Player Counts (Optional)
+                                    #modePlayersCollapse.accordion-collapse.collapse
+                                        .accordion-body.row.g-2
+                                            .col-md-6
+                                                label.form-label.text-primary
+                                                    i.bi.bi-globe.me-1
+                                                    | Online Min
+                                                input.form-control.text-bg-dark(type="number" name="onlineMinPlayers" min="1" placeholder="Leave empty to use overall")
+                                            .col-md-6
+                                                label.form-label.text-primary
+                                                    i.bi.bi-globe.me-1
+                                                    | Online Max
+                                                input.form-control.text-bg-dark(type="number" name="onlineMaxPlayers" min="1" placeholder="Leave empty to use overall")
+                                            .col-md-6
+                                                label.form-label.text-success
+                                                    i.bi.bi-display.me-1
+                                                    | Local Min
+                                                input.form-control.text-bg-dark(type="number" name="localMinPlayers" min="1" placeholder="Leave empty to use overall")
+                                            .col-md-6
+                                                label.form-label.text-success
+                                                    i.bi.bi-display.me-1
+                                                    | Local Max
+                                                input.form-control.text-bg-dark(type="number" name="localMaxPlayers" min="1" placeholder="Leave empty to use overall")
+                                            .col-md-6
+                                                label.form-label.text-warning
+                                                    i.bi.bi-dice-5.me-1
+                                                    | Physical Min
+                                                input.form-control.text-bg-dark(type="number" name="physicalMinPlayers" min="1" placeholder="Leave empty to use overall")
+                                            .col-md-6
+                                                label.form-label.text-warning
+                                                    i.bi.bi-dice-5.me-1
+                                                    | Physical Max
+                                                input.form-control.text-bg-dark(type="number" name="physicalMaxPlayers" min="1" placeholder="Leave empty to use overall")
                 .modal-footer.border-secondary
                     button.btn.btn-secondary(type="button" data-bs-dismiss="modal") Cancel
                     button.btn.btn-primary(type="submit" form="addGameForm")

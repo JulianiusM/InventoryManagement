@@ -105,12 +105,63 @@ block content
                                 .col-12
                                     label.form-label(for="editDescription") Description
                                     textarea#editDescription.form-control.text-bg-dark(name="description" rows="2") #{title.description || ''}
+                                .col-12
+                                    label.form-label(for="editCoverUrl") Cover Image URL
+                                    input#editCoverUrl.form-control.text-bg-dark(type="url" name="coverImageUrl" value=title.coverImageUrl || '' placeholder="https://...")
+                                
+                                hr.border-secondary
+                                h6.text-white
+                                    i.bi.bi-people.me-1
+                                    | Player Settings
+                                    
                                 .col-md-6
                                     label.form-label Overall Min Players
                                     input.form-control.text-bg-dark(type="number" name="overallMinPlayers" value=title.overallMinPlayers min="1" required)
                                 .col-md-6
                                     label.form-label Overall Max Players
                                     input.form-control.text-bg-dark(type="number" name="overallMaxPlayers" value=title.overallMaxPlayers min="1" required)
+                                
+                                .col-12
+                                    label.form-label Multiplayer Modes
+                                .col-md-4
+                                    .form-check
+                                        input.form-check-input(type="checkbox" name="supportsOnline" value="true" id="editSupportsOnline" checked=title.supportsOnline)
+                                        label.form-check-label(for="editSupportsOnline")
+                                            i.bi.bi-globe.me-1
+                                            | Online
+                                .col-md-4
+                                    .form-check
+                                        input.form-check-input(type="checkbox" name="supportsLocal" value="true" id="editSupportsLocal" checked=title.supportsLocal)
+                                        label.form-check-label(for="editSupportsLocal")
+                                            i.bi.bi-display.me-1
+                                            | Local
+                                .col-md-4
+                                    .form-check
+                                        input.form-check-input(type="checkbox" name="supportsPhysical" value="true" id="editSupportsPhysical" checked=title.supportsPhysical)
+                                        label.form-check-label(for="editSupportsPhysical")
+                                            i.bi.bi-dice-5.me-1
+                                            | Physical
+                                
+                                //- Mode-specific player counts
+                                .col-md-3
+                                    label.form-label.small.text-primary Online Min
+                                    input.form-control.form-control-sm.text-bg-dark(type="number" name="onlineMinPlayers" value=title.onlineMinPlayers || '' min="1")
+                                .col-md-3
+                                    label.form-label.small.text-primary Online Max
+                                    input.form-control.form-control-sm.text-bg-dark(type="number" name="onlineMaxPlayers" value=title.onlineMaxPlayers || '' min="1")
+                                .col-md-3
+                                    label.form-label.small.text-success Local Min
+                                    input.form-control.form-control-sm.text-bg-dark(type="number" name="localMinPlayers" value=title.localMinPlayers || '' min="1")
+                                .col-md-3
+                                    label.form-label.small.text-success Local Max
+                                    input.form-control.form-control-sm.text-bg-dark(type="number" name="localMaxPlayers" value=title.localMaxPlayers || '' min="1")
+                                .col-md-3
+                                    label.form-label.small.text-warning Physical Min
+                                    input.form-control.form-control-sm.text-bg-dark(type="number" name="physicalMinPlayers" value=title.physicalMinPlayers || '' min="1")
+                                .col-md-3
+                                    label.form-label.small.text-warning Physical Max
+                                    input.form-control.form-control-sm.text-bg-dark(type="number" name="physicalMaxPlayers" value=title.physicalMaxPlayers || '' min="1")
+                                
                                 .col-12
                                     button.btn.btn-primary(type="submit")
                                         i.bi.bi-check-lg.me-1
@@ -146,8 +197,8 @@ block content
                                                         | Standard Edition
                                                     if rel.region
                                                         span.text-white-50.ms-2 (#{rel.region})
-                                                if rel.copies && rel.copies.length > 0
-                                                    span.badge.text-bg-secondary.ms-2 #{rel.copies.length} copy(ies)
+                                                if rel.items && rel.items.length > 0
+                                                    span.badge.text-bg-secondary.ms-2 #{rel.items.length} copy(ies)
                                             a.btn.btn-sm.btn-outline-light(href=`/games/releases/${rel.id}`)
                                                 i.bi.bi-eye
 
@@ -207,6 +258,22 @@ block content
                             .col-md-6
                                 label.form-label Release Date
                                 input.form-control.text-bg-dark(type="date" name="releaseDate")
+                            
+                            //- Player override section
+                            .col-12
+                                hr.border-secondary
+                                .form-check
+                                    input.form-check-input(type="checkbox" id="usePlayersOverride" data-bs-toggle="collapse" data-bs-target="#playersOverrideFields")
+                                    label.form-check-label(for="usePlayersOverride")
+                                        | Override player counts for this release
+                            #playersOverrideFields.collapse
+                                .row.g-2.mt-2
+                                    .col-md-6
+                                        label.form-label.small Players Min Override
+                                        input.form-control.form-control-sm.text-bg-dark(type="number" name="playersOverrideMin" min="1")
+                                    .col-md-6
+                                        label.form-label.small Players Max Override
+                                        input.form-control.form-control-sm.text-bg-dark(type="number" name="playersOverrideMax" min="1")
                 .modal-footer.border-secondary
                     button.btn.btn-secondary(type="button" data-bs-dismiss="modal") Cancel
                     button.btn.btn-primary(type="submit" form="addReleaseForm")
