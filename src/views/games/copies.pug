@@ -83,6 +83,7 @@ block content
                                     if copy.externalAccount
                                         i.bi.bi-cloud.me-1.text-white-50
                                         | #{copy.externalAccount.accountName}
+                                        span.text-white-50.small.ms-1 (#{copy.externalAccount.provider})
                                     else
                                         span.text-white-50 —
                                 else

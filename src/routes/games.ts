@@ -34,6 +34,25 @@ router.post('/', asyncHandler(async (req: Request, res: Response) => {
     res.redirect(`/games/titles/${title.id}`);
 }));
 
+// ============ Merge Operations ============
+// NOTE: These must be defined BEFORE :id routes to prevent "merge" being parsed as an ID
+
+// Merge game titles
+router.post('/titles/merge', asyncHandler(async (req: Request, res: Response) => {
+    const userId = req.session.user!.id;
+    const releasesMoved = await gamesController.mergeGameTitles(req.body, userId);
+    req.flash('success', `Merge complete: ${releasesMoved} release(s) moved`);
+    res.redirect(`/games/titles/${req.body.targetId}`);
+}));
+
+// Merge game releases
+router.post('/releases/merge', asyncHandler(async (req: Request, res: Response) => {
+    const userId = req.session.user!.id;
+    const copiesMoved = await gamesController.mergeGameReleases(req.body, userId);
+    req.flash('success', `Merge complete: ${copiesMoved} copy(ies) moved`);
+    res.redirect(`/games/releases/${req.body.targetId}`);
+}));
+
 // ============ Game Titles ============
 
 // Get game title detail
@@ -89,6 +108,15 @@ router.post('/releases/:id/delete', asyncHandler(async (req: Request, res: Respo
     await gamesController.deleteGameRelease(id, userId);
     req.flash('success', 'Release deleted successfully');
     res.redirect(`/games/titles/${release.release.gameTitleId}`);
+}));
+
+// Update release
+router.post('/releases/:id/update', asyncHandler(async (req: Request, res: Response) => {
+    const id = req.params.id;
+    const userId = req.session.user!.id;
+    await gamesController.updateGameRelease(id, req.body, userId);
+    req.flash('success', 'Release updated successfully');
+    res.redirect(`/games/releases/${id}`);
 }));
 
 // ============ Game Copies ============
@@ -236,24 +264,6 @@ router.post('/mappings/:id', asyncHandler(async (req: Request, res: Response) =>
     res.redirect('/games/mappings');
 }));
 
-// ============ Merge Operations ============
-
-// Merge game titles
-router.post('/titles/merge', asyncHandler(async (req: Request, res: Response) => {
-    const userId = req.session.user!.id;
-    const releasesMoved = await gamesController.mergeGameTitles(req.body, userId);
-    req.flash('success', `Merge complete: ${releasesMoved} release(s) moved`);
-    res.redirect(`/games/titles/${req.body.targetId}`);
-}));
-
-// Merge game releases
-router.post('/releases/merge', asyncHandler(async (req: Request, res: Response) => {
-    const userId = req.session.user!.id;
-    const copiesMoved = await gamesController.mergeGameReleases(req.body, userId);
-    req.flash('success', `Merge complete: ${copiesMoved} copy(ies) moved`);
-    res.redirect(`/games/releases/${req.body.targetId}`);
-}));
-
 // ============ Manual Account Linking ============
 
 // Link digital copy to external account
@@ -308,6 +318,15 @@ router.post('/platforms/:id/delete', asyncHandler(async (req: Request, res: Resp
     const userId = req.session.user!.id;
     await gamesController.deletePlatform(id, userId);
     req.flash('success', 'Platform deleted successfully');
+    res.redirect('/games/platforms');
+}));
+
+// Update platform
+router.post('/platforms/:id/update', asyncHandler(async (req: Request, res: Response) => {
+    const id = req.params.id;
+    const userId = req.session.user!.id;
+    await gamesController.updatePlatform(id, req.body, userId);
+    req.flash('success', 'Platform updated successfully');
     res.redirect('/games/platforms');
 }));
 

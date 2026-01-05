@@ -62,6 +62,30 @@ export async function deletePlatform(id: string, ownerId: number): Promise<void>
     await repo.delete({id});
 }
 
+export async function updatePlatform(id: string, data: {name?: string; description?: string | null}, ownerId: number): Promise<void> {
+    const repo = AppDataSource.getRepository(Platform);
+    const platform = await getPlatformById(id, ownerId);
+    if (!platform) {
+        throw new Error("Platform not found");
+    }
+    if (platform.isDefault) {
+        throw new Error("Cannot edit a default platform");
+    }
+    
+    // Check for name conflict
+    if (data.name && data.name !== platform.name) {
+        const existing = await getPlatformByName(data.name.trim(), ownerId);
+        if (existing) {
+            throw new Error(`Platform "${data.name}" already exists`);
+        }
+    }
+    
+    await repo.update({id}, {
+        name: data.name?.trim() ?? platform.name,
+        description: data.description?.trim() ?? platform.description,
+    });
+}
+
 export async function ensureDefaultPlatforms(ownerId: number): Promise<void> {
     const repo = AppDataSource.getRepository(Platform);
     for (const defaultPlatform of DEFAULT_PLATFORMS) {

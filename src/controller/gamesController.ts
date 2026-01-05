@@ -270,6 +270,41 @@ export async function deleteGameRelease(id: string, userId: number): Promise<voi
     await gameReleaseService.deleteGameRelease(id);
 }
 
+export async function updateGameRelease(
+    id: string,
+    body: Partial<CreateGameReleaseBody>,
+    userId: number
+): Promise<void> {
+    requireAuthenticatedUser(userId);
+    const release = await gameReleaseService.getGameReleaseById(id);
+    if (!release) {
+        throw new ExpectedError('Game release not found', 'error', 404);
+    }
+    checkOwnership(release, userId);
+    
+    const updates: Record<string, unknown> = {};
+    
+    if (body.platform !== undefined) updates.platform = body.platform.trim() || 'PC';
+    if (body.edition !== undefined) updates.edition = body.edition?.trim() || null;
+    if (body.region !== undefined) updates.region = body.region?.trim() || null;
+    if (body.releaseDate !== undefined) updates.releaseDate = body.releaseDate || null;
+    if (body.playersOverrideMin !== undefined) updates.playersOverrideMin = body.playersOverrideMin ? Number(body.playersOverrideMin) : null;
+    if (body.playersOverrideMax !== undefined) updates.playersOverrideMax = body.playersOverrideMax ? Number(body.playersOverrideMax) : null;
+    
+    // Mode-specific overrides
+    if (body.overrideSupportsOnline !== undefined) updates.overrideSupportsOnline = parseOptionalCheckboxBoolean(body.overrideSupportsOnline);
+    if (body.overrideSupportsLocal !== undefined) updates.overrideSupportsLocal = parseOptionalCheckboxBoolean(body.overrideSupportsLocal);
+    if (body.overrideSupportsPhysical !== undefined) updates.overrideSupportsPhysical = parseOptionalCheckboxBoolean(body.overrideSupportsPhysical);
+    if (body.overrideOnlineMin !== undefined) updates.overrideOnlineMin = body.overrideOnlineMin ? Number(body.overrideOnlineMin) : null;
+    if (body.overrideOnlineMax !== undefined) updates.overrideOnlineMax = body.overrideOnlineMax ? Number(body.overrideOnlineMax) : null;
+    if (body.overrideLocalMin !== undefined) updates.overrideLocalMin = body.overrideLocalMin ? Number(body.overrideLocalMin) : null;
+    if (body.overrideLocalMax !== undefined) updates.overrideLocalMax = body.overrideLocalMax ? Number(body.overrideLocalMax) : null;
+    if (body.overridePhysicalMin !== undefined) updates.overridePhysicalMin = body.overridePhysicalMin ? Number(body.overridePhysicalMin) : null;
+    if (body.overridePhysicalMax !== undefined) updates.overridePhysicalMax = body.overridePhysicalMax ? Number(body.overridePhysicalMax) : null;
+    
+    await gameReleaseService.updateGameRelease(id, updates);
+}
+
 // ============ Game Copies (stored as Items) ============
 
 export async function listGameCopies(ownerId: number, options?: {
@@ -840,6 +875,29 @@ export async function deletePlatform(id: string, userId: number): Promise<void> 
     
     try {
         await platformService.deletePlatform(id, userId);
+    } catch (error) {
+        if (error instanceof Error) {
+            throw new ExpectedError(error.message, 'error', 400);
+        }
+        throw error;
+    }
+}
+
+/**
+ * Update a platform (non-default only)
+ */
+export async function updatePlatform(id: string, body: {name?: string; description?: string}, userId: number): Promise<void> {
+    requireAuthenticatedUser(userId);
+    
+    if (body.name !== undefined && !body.name.trim()) {
+        throw new ExpectedError('Platform name is required', 'error', 400);
+    }
+    
+    try {
+        await platformService.updatePlatform(id, {
+            name: body.name?.trim(),
+            description: body.description?.trim() || null,
+        }, userId);
     } catch (error) {
         if (error instanceof Error) {
             throw new ExpectedError(error.message, 'error', 400);

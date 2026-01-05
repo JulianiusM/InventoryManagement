@@ -77,7 +77,12 @@ block content
                                 dt.col-sm-4
                                     i.bi.bi-cloud.me-1
                                     | Account
-                                dd.col-sm-8 #{copy.externalAccount ? copy.externalAccount.accountName : '—'}
+                                dd.col-sm-8 
+                                    if copy.externalAccount
+                                        | #{copy.externalAccount.accountName} 
+                                        span.text-white-50 (#{copy.externalAccount.provider})
+                                    else
+                                        | —
                                 
                                 if copy.playtimeMinutes
                                     dt.col-sm-4

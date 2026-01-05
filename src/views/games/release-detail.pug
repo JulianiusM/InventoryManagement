@@ -57,7 +57,10 @@ block content
                                                         i.bi.bi-cloud.me-1
                                                         | Digital
                                                     if copy.externalAccount
-                                                        | #{copy.externalAccount.accountName}
+                                                        | #{copy.externalAccount.accountName} 
+                                                        span.text-white-50 (#{copy.externalAccount.provider})
+                                                    else
+                                                        span.text-white-50 Unlinked
                                                 else
                                                     span.badge.text-bg-success.me-2
                                                         i.bi.bi-disc.me-1
@@ -74,10 +77,13 @@ block content
             //- Right column: Release details
             .col-lg-4
                 .card.text-bg-dark.border-secondary.mb-3
-                    .card-header
+                    .card-header.d-flex.justify-content-between.align-items-center
                         h2.h5.mb-0
                             i.bi.bi-info-circle.me-2
                             | Release Details
+                        button.btn.btn-sm.btn-outline-light(type="button" data-bs-toggle="modal" data-bs-target="#editReleaseModal")
+                            i.bi.bi-pencil.me-1
+                            | Edit
                     .card-body
                         dl.row.mb-0
                             dt.col-sm-5
@@ -279,6 +285,50 @@ block content
                         button.btn.btn-warning(type="submit" form="mergeReleaseForm" onclick="return confirm('This will permanently merge the releases. Continue?')")
                             i.bi.bi-arrow-left-right.me-1
                             | Merge
+
+    //- Edit Release Modal
+    - const platforms = (data && data.platforms) ? data.platforms : []
+    if release
+        #editReleaseModal.modal.fade(tabindex="-1")
+            .modal-dialog.modal-lg
+                .modal-content.text-bg-dark
+                    .modal-header.border-secondary
+                        h5.modal-title
+                            i.bi.bi-pencil.me-2
+                            | Edit Release
+                        button.btn-close.btn-close-white(type="button" data-bs-dismiss="modal")
+                    .modal-body
+                        form#editReleaseForm.row.g-3(method="post" action=`/games/releases/${release.id}/update`)
+                            .col-md-6
+                                label.form-label Platform
+                                input.form-control.text-bg-dark(type="text" name="platform" value=release.platform placeholder="e.g., PC, PlayStation 5")
+                            .col-md-6
+                                label.form-label Edition
+                                input.form-control.text-bg-dark(type="text" name="edition" value=release.edition || '' placeholder="e.g., GOTY, Collector's")
+                            .col-md-6
+                                label.form-label Region
+                                input.form-control.text-bg-dark(type="text" name="region" value=release.region || '' placeholder="e.g., US, EU, JP")
+                            .col-md-6
+                                label.form-label Release Date
+                                input.form-control.text-bg-dark(type="date" name="releaseDate" value=release.releaseDate || '')
+                            
+                            //- Player override section
+                            .col-12
+                                hr.border-secondary
+                                h6.text-white-50
+                                    i.bi.bi-people.me-1
+                                    | Player Override
+                            .col-md-6
+                                label.form-label.small Players Min Override
+                                input.form-control.form-control-sm.text-bg-dark(type="number" name="playersOverrideMin" value=release.playersOverrideMin || '' min="1")
+                            .col-md-6
+                                label.form-label.small Players Max Override
+                                input.form-control.form-control-sm.text-bg-dark(type="number" name="playersOverrideMax" value=release.playersOverrideMax || '' min="1")
+                    .modal-footer.border-secondary
+                        button.btn.btn-secondary(type="button" data-bs-dismiss="modal") Cancel
+                        button.btn.btn-primary(type="submit" form="editReleaseForm")
+                            i.bi.bi-check-lg.me-1
+                            | Save Changes
 
 block scripts
     script(type="module" src="/js/stub.gen.js")

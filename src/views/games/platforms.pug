@@ -69,6 +69,8 @@ block content
                                             span.badge.text-bg-secondary Custom
                                     td.text-end
                                         if !platform.isDefault
+                                            button.btn.btn-sm.btn-outline-light.me-1(type="button" title="Edit" data-bs-toggle="modal" data-bs-target=`#editPlatformModal-${platform.id}`)
+                                                i.bi.bi-pencil
                                             form.d-inline(method="post" action=`/games/platforms/${platform.id}/delete`)
                                                 button.btn.btn-sm.btn-outline-danger(type="submit" title="Delete" onclick="return confirm('Delete this platform?')")
                                                     i.bi.bi-trash
@@ -98,3 +100,28 @@ block content
                     button.btn.btn-primary(type="submit" form="addPlatformForm")
                         i.bi.bi-plus-lg.me-1
                         | Add Platform
+
+    //- Edit Platform Modals (one for each non-default platform)
+    each platform in platforms
+        if !platform.isDefault
+            .modal.fade(id=`editPlatformModal-${platform.id}` tabindex="-1")
+                .modal-dialog
+                    .modal-content.text-bg-dark
+                        .modal-header.border-secondary
+                            h5.modal-title
+                                i.bi.bi-pencil.me-2
+                                | Edit Platform
+                            button.btn-close.btn-close-white(type="button" data-bs-dismiss="modal")
+                        .modal-body
+                            form.row.g-3(id=`editPlatformForm-${platform.id}` method="post" action=`/games/platforms/${platform.id}/update`)
+                                .col-12
+                                    label.form-label Platform Name *
+                                    input.form-control.text-bg-dark(type="text" name="name" value=platform.name required)
+                                .col-12
+                                    label.form-label Description
+                                    input.form-control.text-bg-dark(type="text" name="description" value=platform.description || '')
+                        .modal-footer.border-secondary
+                            button.btn.btn-secondary(type="button" data-bs-dismiss="modal") Cancel
+                            button.btn.btn-primary(type="submit" form=`editPlatformForm-${platform.id}`)
+                                i.bi.bi-check-lg.me-1
+                                | Save Changes
