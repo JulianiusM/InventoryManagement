@@ -6,6 +6,8 @@
 import {
     SteamConnector,
     SteamConnectorError,
+    parseTokenRef,
+    createTokenRef,
 } from '../../src/modules/games/connectors/SteamConnector';
 import {
     parseInputTestData,
@@ -363,6 +365,93 @@ describe('SteamConnector', () => {
                 includePlayedFreeGames: true,
             });
             expect(customConnector).toBeDefined();
+        });
+    });
+
+    describe('tokenRef parsing', () => {
+        test('parses simple SteamID64', () => {
+            const result = parseTokenRef(TEST_STEAM_ID);
+            expect(result.steamId).toBe(TEST_STEAM_ID);
+            expect(result.userApiKey).toBeUndefined();
+        });
+
+        test('parses SteamID64 with API key', () => {
+            const tokenRef = `${TEST_STEAM_ID}:my-api-key-123`;
+            const result = parseTokenRef(tokenRef);
+            expect(result.steamId).toBe(TEST_STEAM_ID);
+            expect(result.userApiKey).toBe('my-api-key-123');
+        });
+
+        test('creates tokenRef without API key', () => {
+            const result = createTokenRef(TEST_STEAM_ID);
+            expect(result).toBe(TEST_STEAM_ID);
+        });
+
+        test('creates tokenRef with API key', () => {
+            const result = createTokenRef(TEST_STEAM_ID, 'my-api-key');
+            expect(result).toBe(`${TEST_STEAM_ID}:my-api-key`);
+        });
+    });
+
+    describe('user API key support', () => {
+        test('uses user API key when provided', async () => {
+            mockFetch.mockResolvedValueOnce({
+                ok: true,
+                status: 200,
+                json: async () => mockPlayerSummaryResponse,
+            });
+
+            await connector.getPlayerSummary(TEST_STEAM_ID, 'user-provided-key');
+            
+            expect(mockFetch).toHaveBeenCalledWith(
+                expect.stringContaining('key=user-provided-key')
+            );
+        });
+
+        test('falls back to env key when user key not provided', async () => {
+            mockFetch.mockResolvedValueOnce({
+                ok: true,
+                status: 200,
+                json: async () => mockPlayerSummaryResponse,
+            });
+
+            await connector.getPlayerSummary(TEST_STEAM_ID);
+            
+            expect(mockFetch).toHaveBeenCalledWith(
+                expect.stringContaining('key=test-api-key')
+            );
+        });
+
+        test('syncLibrary uses user API key from tokenRef', async () => {
+            const tokenRefWithKey = `${TEST_STEAM_ID}:user-sync-key`;
+            
+            mockFetch.mockResolvedValueOnce({
+                ok: true,
+                status: 200,
+                json: async () => mockOwnedGamesResponse,
+            });
+
+            await connector.syncLibrary(tokenRefWithKey);
+            
+            expect(mockFetch).toHaveBeenCalledWith(
+                expect.stringContaining('key=user-sync-key')
+            );
+        });
+
+        test('validateCredentials uses user API key from tokenRef', async () => {
+            const tokenRefWithKey = `${TEST_STEAM_ID}:user-validate-key`;
+            
+            mockFetch.mockResolvedValueOnce({
+                ok: true,
+                status: 200,
+                json: async () => mockPlayerSummaryResponse,
+            });
+
+            await connector.validateCredentials(tokenRefWithKey);
+            
+            expect(mockFetch).toHaveBeenCalledWith(
+                expect.stringContaining('key=user-validate-key')
+            );
         });
     });
 });

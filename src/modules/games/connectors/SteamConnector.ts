@@ -37,6 +37,37 @@ export interface SteamConnectorConfig {
     includeExtendedAppInfo?: boolean;
 }
 
+/**
+ * Token reference format for Steam connector
+ * Stores both SteamID64 and optional user-provided API key
+ * Format: "steamId64" or "steamId64:apiKey"
+ */
+export interface SteamTokenRef {
+    steamId: string;
+    userApiKey?: string;
+}
+
+/**
+ * Parse token reference to extract SteamID64 and optional API key
+ */
+export function parseTokenRef(tokenRef: string): SteamTokenRef {
+    const parts = tokenRef.split(':');
+    if (parts.length === 2) {
+        return {steamId: parts[0], userApiKey: parts[1]};
+    }
+    return {steamId: tokenRef};
+}
+
+/**
+ * Create token reference from SteamID64 and optional API key
+ */
+export function createTokenRef(steamId: string, userApiKey?: string): string {
+    if (userApiKey) {
+        return `${steamId}:${userApiKey}`;
+    }
+    return steamId;
+}
+
 const DEFAULT_CONFIG: Required<SteamConnectorConfig> = {
     language: 'en',
     includeAppInfo: true,
@@ -124,17 +155,18 @@ export class SteamConnectorError extends Error {
 const STEAM_MANIFEST: ConnectorManifest = {
     id: 'steam',
     name: 'Steam',
-    description: 'Connect to Steam to sync your game library. Requires a Steam Web API key configured on the server.',
+    description: 'Connect to Steam to sync your game library. Supports user-provided API keys for private profiles.',
     provider: 'steam',
     capabilities: [
         ConnectorCapability.LIBRARY_SYNC,
         ConnectorCapability.PLAYTIME_SYNC,
     ],
-    version: '1.0.0',
+    version: '1.1.0',
     configSchema: {
         type: 'object',
         properties: {
             steamId: {type: 'string', description: 'Steam User ID (64-bit) or profile URL'},
+            apiKey: {type: 'string', description: 'Optional: Your personal Steam Web API key for private profile access'},
         },
         required: ['steamId'],
     },
@@ -149,13 +181,21 @@ export class SteamConnector extends BaseConnector {
     }
 
     /**
-     * Get the Steam Web API key from environment
+     * Get the Steam Web API key
+     * Priority: user-provided key > environment variable
+     * @param userApiKey Optional user-provided API key
      */
-    private getApiKey(): string {
+    private getApiKey(userApiKey?: string): string {
+        // Use user-provided API key if available
+        if (userApiKey) {
+            return userApiKey;
+        }
+        
+        // Fall back to environment variable
         const apiKey = process.env[STEAM_API_KEY_ENV];
         if (!apiKey) {
             throw new SteamConnectorError(
-                'Steam Web API key not configured. Set STEAM_WEB_API_KEY environment variable.',
+                'Steam Web API key not configured. Either provide your own API key or set STEAM_WEB_API_KEY environment variable.',
                 'API_KEY_INVALID'
             );
         }
@@ -204,9 +244,11 @@ export class SteamConnector extends BaseConnector {
 
     /**
      * Resolve a vanity URL to SteamID64
+     * @param vanityUrl The vanity URL to resolve
+     * @param userApiKey Optional user-provided API key for private profiles
      */
-    public async resolveVanityUrl(vanityUrl: string): Promise<string> {
-        const apiKey = this.getApiKey();
+    public async resolveVanityUrl(vanityUrl: string, userApiKey?: string): Promise<string> {
+        const apiKey = this.getApiKey(userApiKey);
         const url = `${STEAM_API_BASE}/ISteamUser/ResolveVanityURL/v1/?key=${encodeURIComponent(apiKey)}&vanityurl=${encodeURIComponent(vanityUrl)}`;
         
         const response = await this.fetchWithRetry(url);
@@ -224,9 +266,11 @@ export class SteamConnector extends BaseConnector {
 
     /**
      * Get player summary for validation and display name
+     * @param steamId The SteamID64 to look up
+     * @param userApiKey Optional user-provided API key for private profiles
      */
-    public async getPlayerSummary(steamId: string): Promise<PlayerSummary> {
-        const apiKey = this.getApiKey();
+    public async getPlayerSummary(steamId: string, userApiKey?: string): Promise<PlayerSummary> {
+        const apiKey = this.getApiKey(userApiKey);
         const url = `${STEAM_API_BASE}/ISteamUser/GetPlayerSummaries/v2/?key=${encodeURIComponent(apiKey)}&steamids=${encodeURIComponent(steamId)}`;
         
         const response = await this.fetchWithRetry(url);
@@ -244,18 +288,20 @@ export class SteamConnector extends BaseConnector {
 
     /**
      * Complete account linking - parse input, resolve vanity if needed, validate
+     * @param input SteamID64, profile URL, or vanity name
+     * @param userApiKey Optional user-provided API key for private profiles
      */
-    public async completeLink(input: string): Promise<SteamLinkResult> {
+    public async completeLink(input: string, userApiKey?: string): Promise<SteamLinkResult> {
         const parsed = this.parseInput(input);
         
         let steamId: string;
         if (parsed.type === 'vanity') {
-            steamId = await this.resolveVanityUrl(parsed.value);
+            steamId = await this.resolveVanityUrl(parsed.value, userApiKey);
         } else {
             steamId = parsed.value;
         }
         
-        const summary = await this.getPlayerSummary(steamId);
+        const summary = await this.getPlayerSummary(steamId, userApiKey);
         
         return {
             steamId: summary.steamid,
@@ -268,10 +314,12 @@ export class SteamConnector extends BaseConnector {
 
     /**
      * Validate link by checking if account exists and is accessible
+     * @param steamId The SteamID64 to validate
+     * @param userApiKey Optional user-provided API key for private profiles
      */
-    public async validateLink(steamId: string): Promise<{valid: boolean; warning?: string}> {
+    public async validateLink(steamId: string, userApiKey?: string): Promise<{valid: boolean; warning?: string}> {
         try {
-            const summary = await this.getPlayerSummary(steamId);
+            const summary = await this.getPlayerSummary(steamId, userApiKey);
             
             if (summary.communityvisibilitystate !== 3) {
                 return {
@@ -291,13 +339,16 @@ export class SteamConnector extends BaseConnector {
 
     /**
      * Sync game library from Steam
+     * @param tokenRef Token reference containing SteamID64 and optional API key (format: "steamId64" or "steamId64:apiKey")
      */
     async syncLibrary(tokenRef: string): Promise<SyncResult> {
         try {
-            const apiKey = this.getApiKey();
+            // Parse token reference to extract SteamID64 and optional user API key
+            const {steamId, userApiKey} = parseTokenRef(tokenRef);
+            const apiKey = this.getApiKey(userApiKey);
             
-            // tokenRef is expected to be the SteamID64
-            if (!tokenRef || !/^\d{17}$/.test(tokenRef)) {
+            // Validate SteamID64 format
+            if (!steamId || !/^\d{17}$/.test(steamId)) {
                 return {
                     success: false,
                     games: [],
@@ -306,16 +357,16 @@ export class SteamConnector extends BaseConnector {
                 };
             }
             
-            const games = await this.getOwnedGames(apiKey, tokenRef);
+            const games = await this.getOwnedGames(apiKey, steamId);
             
             if (games.length === 0) {
                 // Could be empty library or private
-                const summary = await this.getPlayerSummary(tokenRef);
+                const summary = await this.getPlayerSummary(steamId, userApiKey);
                 if (summary.communityvisibilitystate !== 3) {
                     return {
                         success: true,
                         games: [],
-                        error: 'Owned games not visible. Check Steam privacy settings to allow "Game details" visibility.',
+                        error: 'Owned games not visible. Check Steam privacy settings to allow "Game details" visibility, or provide your own Steam API key.',
                         timestamp: new Date(),
                     };
                 }
@@ -348,14 +399,16 @@ export class SteamConnector extends BaseConnector {
 
     /**
      * Validate credentials by checking if the SteamID64 is valid
+     * @param tokenRef Token reference containing SteamID64 and optional API key
      */
     async validateCredentials(tokenRef: string): Promise<boolean> {
         try {
-            if (!tokenRef || !/^\d{17}$/.test(tokenRef)) {
+            const {steamId, userApiKey} = parseTokenRef(tokenRef);
+            if (!steamId || !/^\d{17}$/.test(steamId)) {
                 return false;
             }
             
-            await this.getPlayerSummary(tokenRef);
+            await this.getPlayerSummary(steamId, userApiKey);
             return true;
         } catch {
             return false;
