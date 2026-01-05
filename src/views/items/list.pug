@@ -103,10 +103,15 @@ block content
                                 th.text-end(style="width: 100px") Actions
                         tbody
                             each it in items
+                                - const isGame = (it.type === 'game' || it.type === 'game_digital')
+                                - const itemUrl = isGame && it.gameRelease ? `/games/copies/${it.id}` : `/items/${it.id}`
                                 tr
                                     td
-                                        a.text-white.text-decoration-none(href=`/items/${it.id}`)
-                                            i.bi.bi-box.me-2.text-white-50
+                                        a.text-white.text-decoration-none(href=itemUrl)
+                                            if isGame
+                                                i.bi.bi-controller.me-2.text-info
+                                            else
+                                                i.bi.bi-box.me-2.text-white-50
                                             | #{it.name}
                                         if it.tags && it.tags.length
                                             br
@@ -115,7 +120,12 @@ block content
                                             if it.tags.length > 2
                                                 span.badge.text-bg-secondary.small +#{it.tags.length - 2}
                                     td
-                                        span.badge.text-bg-info #{it.type}
+                                        if isGame
+                                            span.badge.text-bg-info
+                                                i.bi.bi-controller.me-1
+                                                | #{it.type === 'game_digital' ? 'Digital' : 'Physical'}
+                                        else
+                                            span.badge.text-bg-info #{it.type}
                                     td.text-white-50 #{it.condition ? it.condition.replace('_', ' ') : '—'}
                                     td
                                         if it.location
@@ -127,26 +137,37 @@ block content
                                     td.text-white-50.small #{new Date(it.createdAt).toLocaleDateString()}
                                     td.text-end
                                         .btn-group.btn-group-sm
-                                            a.btn.btn-outline-light(href=`/items/${it.id}` title="View details")
+                                            a.btn.btn-outline-light(href=itemUrl title="View details")
                                                 i.bi.bi-eye
-                                            a.btn.btn-outline-primary(href=`/items/${it.id}#move` title="Move item")
-                                                i.bi.bi-arrow-right-square
+                                            if !isGame
+                                                a.btn.btn-outline-primary(href=`/items/${it.id}#move` title="Move item")
+                                                    i.bi.bi-arrow-right-square
                 
                 //- Mobile card view
                 .d-md-none
                     each it in items
+                        - const isGame = (it.type === 'game' || it.type === 'game_digital')
+                        - const itemUrl = isGame && it.gameRelease ? `/games/copies/${it.id}` : `/items/${it.id}`
                         .card.text-bg-dark.border-secondary.mb-3
                             .card-body
                                 .d-flex.justify-content-between.align-items-start.mb-2
                                     div
-                                        a.text-white.text-decoration-none.h6(href=`/items/${it.id}`)
-                                            i.bi.bi-box.me-2
+                                        a.text-white.text-decoration-none.h6(href=itemUrl)
+                                            if isGame
+                                                i.bi.bi-controller.me-2.text-info
+                                            else
+                                                i.bi.bi-box.me-2
                                             | #{it.name}
                                         div.mt-1
-                                            span.badge.text-bg-info.me-1 #{it.type}
+                                            if isGame
+                                                span.badge.text-bg-info.me-1
+                                                    i.bi.bi-controller.me-1
+                                                    | #{it.type === 'game_digital' ? 'Digital' : 'Physical'}
+                                            else
+                                                span.badge.text-bg-info.me-1 #{it.type}
                                             if it.condition
                                                 span.badge.text-bg-secondary #{it.condition.replace('_', ' ')}
-                                    a.btn.btn-sm.btn-outline-light(href=`/items/${it.id}`)
+                                    a.btn.btn-sm.btn-outline-light(href=itemUrl)
                                         i.bi.bi-eye
                                 hr.border-secondary
                                 .row.g-2.small

@@ -1,0 +1,407 @@
+extends ../layout
+
+block meta
+    title Release | Inventory Management
+
+block content
+    - const release = (data && data.release) ? data.release : null
+    - const copies = (data && data.copies) ? data.copies : []
+    - const conditions = ['new', 'like_new', 'good', 'fair', 'poor']
+
+    #liveAlerts
+
+    if !release
+        .alert.alert-danger
+            i.bi.bi-exclamation-triangle.me-2
+            | Release not found.
+    else
+        //- Header
+        .d-flex.justify-content-between.align-items-start.mb-3
+            div
+                h1.h3.mb-1.text-white
+                    i.bi.bi-box.me-2
+                    | #{release.gameTitle ? release.gameTitle.name : 'Release'}
+                .d-flex.flex-wrap.gap-2.align-items-center
+                    span.badge.text-bg-info #{release.platform}
+                    if release.edition
+                        span.badge.text-bg-secondary #{release.edition}
+                    if release.region
+                        span.badge.text-bg-secondary #{release.region}
+
+        .row.g-3
+            //- Left column: Copies
+            .col-lg-8
+                .card.text-bg-dark.border-secondary.mb-3
+                    .card-header.d-flex.justify-content-between.align-items-center
+                        h2.h5.mb-0
+                            i.bi.bi-collection.me-2
+                            | Copies
+                            if copies.length > 0
+                                span.badge.text-bg-secondary.ms-2 #{copies.length}
+                        button.btn.btn-sm.btn-outline-light(type="button" data-bs-toggle="modal" data-bs-target="#addCopyModal")
+                            i.bi.bi-plus.me-1
+                            | Add Copy
+                    .card-body
+                        if copies.length === 0
+                            p.text-white-50.mb-0
+                                i.bi.bi-info-circle.me-1
+                                | No copies yet. Add a physical or digital copy.
+                        else
+                            .list-group.list-group-flush
+                                each copy in copies
+                                    .list-group-item.bg-transparent.text-white.border-secondary
+                                        .d-flex.justify-content-between.align-items-center
+                                            div
+                                                if copy.gameCopyType === 'digital_license'
+                                                    span.badge.text-bg-primary.me-2
+                                                        i.bi.bi-cloud.me-1
+                                                        | Digital
+                                                    if copy.externalAccount
+                                                        | #{copy.externalAccount.accountName} 
+                                                        span.text-white-50 (#{copy.externalAccount.provider})
+                                                    else
+                                                        span.text-white-50 Unlinked
+                                                else
+                                                    span.badge.text-bg-success.me-2
+                                                        i.bi.bi-disc.me-1
+                                                        | Physical
+                                                    if copy.location
+                                                        | #{copy.location.name}
+                                                    else
+                                                        span.text-white-50 Unassigned
+                                                if copy.condition
+                                                    span.badge.text-bg-secondary.ms-2 #{copy.condition.replace('_', ' ')}
+                                            a.btn.btn-sm.btn-outline-light(href=`/games/copies/${copy.id}`)
+                                                i.bi.bi-eye
+
+            //- Right column: Release details
+            .col-lg-4
+                .card.text-bg-dark.border-secondary.mb-3
+                    .card-header.d-flex.justify-content-between.align-items-center
+                        h2.h5.mb-0
+                            i.bi.bi-info-circle.me-2
+                            | Release Details
+                        button.btn.btn-sm.btn-outline-light(type="button" data-bs-toggle="modal" data-bs-target="#editReleaseModal")
+                            i.bi.bi-pencil.me-1
+                            | Edit
+                    .card-body
+                        dl.row.mb-0
+                            dt.col-sm-5
+                                i.bi.bi-cpu.me-1
+                                | Platform
+                            dd.col-sm-7 #{release.platform}
+                            
+                            dt.col-sm-5
+                                i.bi.bi-bookmark.me-1
+                                | Edition
+                            dd.col-sm-7 #{release.edition || 'Standard'}
+                            
+                            dt.col-sm-5
+                                i.bi.bi-globe2.me-1
+                                | Region
+                            dd.col-sm-7 #{release.region || '—'}
+                            
+                            dt.col-sm-5
+                                i.bi.bi-calendar.me-1
+                                | Release Date
+                            dd.col-sm-7 #{release.releaseDate || '—'}
+
+                //- Player Override Card (Issue 7: Show release-specific overrides)
+                - const hasPlayerOverride = release.playersOverrideMin || release.playersOverrideMax || release.overrideSupportsOnline !== null || release.overrideSupportsLocal !== null || release.overrideSupportsPhysical !== null
+                if hasPlayerOverride
+                    .card.text-bg-dark.border-secondary.mb-3
+                        .card-header
+                            h2.h5.mb-0
+                                i.bi.bi-people.me-2
+                                | Player Override
+                                span.badge.text-bg-info.ms-2.small Release-specific
+                        .card-body
+                            dl.row.mb-0
+                                if release.playersOverrideMin || release.playersOverrideMax
+                                    dt.col-sm-5
+                                        i.bi.bi-people.me-1
+                                        | Overall
+                                    dd.col-sm-7 #{release.playersOverrideMin || '?'} - #{release.playersOverrideMax || '?'} players
+                                
+                                if release.overrideSupportsOnline
+                                    dt.col-sm-5.text-primary
+                                        i.bi.bi-globe.me-1
+                                        | Online
+                                    dd.col-sm-7
+                                        if release.overrideOnlineMin || release.overrideOnlineMax
+                                            | #{release.overrideOnlineMin || '?'} - #{release.overrideOnlineMax || '?'} players
+                                        else
+                                            span.text-white-50 Enabled (uses overall)
+                                else if release.overrideSupportsOnline === false
+                                    dt.col-sm-5.text-white-50
+                                        i.bi.bi-globe.me-1
+                                        | Online
+                                    dd.col-sm-7.text-white-50 Disabled
+                                
+                                if release.overrideSupportsLocal
+                                    dt.col-sm-5.text-success
+                                        i.bi.bi-display.me-1
+                                        | Local
+                                    dd.col-sm-7
+                                        if release.overrideLocalMin || release.overrideLocalMax
+                                            | #{release.overrideLocalMin || '?'} - #{release.overrideLocalMax || '?'} players
+                                        else
+                                            span.text-white-50 Enabled (uses overall)
+                                else if release.overrideSupportsLocal === false
+                                    dt.col-sm-5.text-white-50
+                                        i.bi.bi-display.me-1
+                                        | Local
+                                    dd.col-sm-7.text-white-50 Disabled
+                                
+                                if release.overrideSupportsPhysical
+                                    dt.col-sm-5.text-warning
+                                        i.bi.bi-dice-5.me-1
+                                        | Physical
+                                    dd.col-sm-7
+                                        if release.overridePhysicalMin || release.overridePhysicalMax
+                                            | #{release.overridePhysicalMin || '?'} - #{release.overridePhysicalMax || '?'} players
+                                        else
+                                            span.text-white-50 Enabled (uses overall)
+                                else if release.overrideSupportsPhysical === false
+                                    dt.col-sm-5.text-white-50
+                                        i.bi.bi-dice-5.me-1
+                                        | Physical
+                                    dd.col-sm-7.text-white-50 Disabled
+
+                //- Merge actions
+                - const allReleases = (data && data.allReleases) ? data.allReleases : []
+                if allReleases.length > 0
+                    .card.text-bg-dark.border-secondary.mb-3
+                        .card-header
+                            h2.h5.mb-0
+                                i.bi.bi-arrow-left-right.me-2
+                                | Merge
+                        .card-body
+                            button.btn.btn-outline-light.w-100(type="button" data-bs-toggle="modal" data-bs-target="#mergeReleaseModal")
+                                i.bi.bi-arrow-left-right.me-1
+                                | Merge Into Another Release
+
+                //- Danger zone
+                .card.text-bg-dark.border-danger
+                    .card-header.text-danger
+                        h2.h5.mb-0
+                            i.bi.bi-exclamation-triangle.me-2
+                            | Danger Zone
+                    .card-body
+                        form(method="post" action=`/games/releases/${release.id}/delete`)
+                            button.btn.btn-outline-danger.w-100(type="submit" onclick="return confirm('Delete this release and all its copies?')")
+                                i.bi.bi-trash.me-1
+                                | Delete Release
+
+    //- Add Copy Modal
+    #addCopyModal.modal.fade(tabindex="-1")
+        .modal-dialog.modal-lg
+            .modal-content.text-bg-dark
+                .modal-header.border-secondary
+                    h5.modal-title
+                        i.bi.bi-plus-circle.me-2
+                        | Add Copy
+                    button.btn-close.btn-close-white(type="button" data-bs-dismiss="modal")
+                .modal-body
+                    - const locations = (data && data.locations) ? data.locations : []
+                    - const accounts = (data && data.accounts) ? data.accounts : []
+                    if release
+                        form#addCopyForm.row.g-3(method="post" action=`/games/releases/${release.id}/copies`)
+                            .col-12
+                                label.form-label Copy Type *
+                                select#copyTypeSelect.form-select.text-bg-dark(name="copyType" required)
+                                    option(value="physical_copy") Physical Copy
+                                    option(value="digital_license") Digital License
+                            
+                            //- Physical copy fields
+                            #physicalFields
+                                .row.g-3
+                                    .col-md-6
+                                        label.form-label Location
+                                        select.form-select.text-bg-dark(name="locationId")
+                                            option(value="") No location assigned
+                                            each loc in locations
+                                                option(value=loc.id) #{loc.name}
+                                    .col-md-6
+                                        label.form-label Condition
+                                        select.form-select.text-bg-dark(name="condition")
+                                            option(value="") Not specified
+                                            each c in conditions
+                                                option(value=c) #{c.charAt(0).toUpperCase() + c.slice(1).replace('_', ' ')}
+                                    .col-12
+                                        .form-check
+                                            input.form-check-input(type="checkbox" name="lendable" value="true" id="lendableCheck" checked)
+                                            label.form-check-label(for="lendableCheck") Allow lending
+                            
+                            //- Digital copy fields (hidden by default)
+                            #digitalFields.d-none
+                                .row.g-3
+                                    .col-md-6
+                                        label.form-label External Account
+                                        select.form-select.text-bg-dark(name="externalAccountId")
+                                            option(value="") Select account...
+                                            each acc in accounts
+                                                option(value=acc.id) #{acc.accountName} (#{acc.provider})
+                                    .col-md-6
+                                        label.form-label External Game ID
+                                        input.form-control.text-bg-dark(type="text" name="externalGameId" placeholder="Steam App ID, etc.")
+                            
+                            .col-md-6
+                                label.form-label Acquired Date
+                                input.form-control.text-bg-dark(type="date" name="acquiredAt")
+                            .col-12
+                                label.form-label Notes
+                                textarea.form-control.text-bg-dark(name="notes" rows="2" placeholder="Optional notes")
+                .modal-footer.border-secondary
+                    button.btn.btn-secondary(type="button" data-bs-dismiss="modal") Cancel
+                    button.btn.btn-primary(type="submit" form="addCopyForm")
+                        i.bi.bi-plus-lg.me-1
+                        | Add Copy
+
+    //- Merge Release Modal
+    - const allReleases = (data && data.allReleases) ? data.allReleases : []
+    if release && allReleases.length > 0
+        #mergeReleaseModal.modal.fade(tabindex="-1")
+            .modal-dialog
+                .modal-content.text-bg-dark
+                    .modal-header.border-secondary
+                        h5.modal-title
+                            i.bi.bi-arrow-left-right.me-2
+                            | Merge Into Another Release
+                        button.btn-close.btn-close-white(type="button" data-bs-dismiss="modal")
+                    .modal-body
+                        .alert.alert-warning
+                            i.bi.bi-exclamation-triangle.me-2
+                            | This will move all copies from this release to the selected target, then delete this release.
+                        form#mergeReleaseForm(method="post" action="/games/releases/merge")
+                            input(type="hidden" name="sourceId" value=release.id)
+                            label.form-label Target Release
+                            select.form-select.text-bg-dark(name="targetId" required)
+                                option(value="") Select target release...
+                                each r in allReleases
+                                    option(value=r.id) #{r.edition || 'Standard'} (#{r.platform})#{r.region ? ' - ' + r.region : ''}
+                    .modal-footer.border-secondary
+                        button.btn.btn-secondary(type="button" data-bs-dismiss="modal") Cancel
+                        button.btn.btn-warning(type="submit" form="mergeReleaseForm" onclick="return confirm('This will permanently merge the releases. Continue?')")
+                            i.bi.bi-arrow-left-right.me-1
+                            | Merge
+
+    //- Edit Release Modal
+    - const platforms = (data && data.platforms) ? data.platforms : []
+    if release
+        #editReleaseModal.modal.fade(tabindex="-1")
+            .modal-dialog.modal-lg
+                .modal-content.text-bg-dark
+                    .modal-header.border-secondary
+                        h5.modal-title
+                            i.bi.bi-pencil.me-2
+                            | Edit Release
+                        button.btn-close.btn-close-white(type="button" data-bs-dismiss="modal")
+                    .modal-body
+                        form#editReleaseForm.row.g-3(method="post" action=`/games/releases/${release.id}/update`)
+                            .col-md-6
+                                label.form-label Platform
+                                input.form-control.text-bg-dark(type="text" name="platform" value=release.platform placeholder="e.g., PC, PlayStation 5")
+                            .col-md-6
+                                label.form-label Edition
+                                input.form-control.text-bg-dark(type="text" name="edition" value=release.edition || '' placeholder="e.g., GOTY, Collector's")
+                            .col-md-6
+                                label.form-label Region
+                                input.form-control.text-bg-dark(type="text" name="region" value=release.region || '' placeholder="e.g., US, EU, JP")
+                            .col-md-6
+                                label.form-label Release Date
+                                input.form-control.text-bg-dark(type="date" name="releaseDate" value=release.releaseDate || '')
+                            
+                            //- Player override section
+                            .col-12
+                                hr.border-secondary
+                                h6.text-white-50
+                                    i.bi.bi-people.me-1
+                                    | Player Override
+                            .col-md-6
+                                label.form-label.small Players Min Override
+                                input.form-control.form-control-sm.text-bg-dark(type="number" name="playersOverrideMin" value=release.playersOverrideMin || '' min="1")
+                            .col-md-6
+                                label.form-label.small Players Max Override
+                                input.form-control.form-control-sm.text-bg-dark(type="number" name="playersOverrideMax" value=release.playersOverrideMax || '' min="1")
+                            
+                            //- Mode support overrides
+                            .col-12
+                                h6.text-white-50.small.mt-2 Mode Support Override
+                            .col-md-4
+                                .form-check
+                                    input.form-check-input(type="checkbox" name="overrideSupportsOnline" value="true" id="editOverrideOnline" checked=release.overrideSupportsOnline)
+                                    label.form-check-label.text-primary(for="editOverrideOnline")
+                                        i.bi.bi-globe.me-1
+                                        | Online
+                            .col-md-4
+                                .form-check
+                                    input.form-check-input(type="checkbox" name="overrideSupportsLocal" value="true" id="editOverrideLocal" checked=release.overrideSupportsLocal)
+                                    label.form-check-label.text-success(for="editOverrideLocal")
+                                        i.bi.bi-display.me-1
+                                        | Local
+                            .col-md-4
+                                .form-check
+                                    input.form-check-input(type="checkbox" name="overrideSupportsPhysical" value="true" id="editOverridePhysical" checked=release.overrideSupportsPhysical)
+                                    label.form-check-label.text-warning(for="editOverridePhysical")
+                                        i.bi.bi-dice-5.me-1
+                                        | Physical
+                            
+                            //- Mode-specific player counts
+                            .col-12
+                                h6.text-white-50.small.mt-2 Mode Player Counts
+                            .col-md-3
+                                label.form-label.small.text-primary Online Min
+                                input.form-control.form-control-sm.text-bg-dark(type="number" name="overrideOnlineMin" value=release.overrideOnlineMin || '' min="1")
+                            .col-md-3
+                                label.form-label.small.text-primary Online Max
+                                input.form-control.form-control-sm.text-bg-dark(type="number" name="overrideOnlineMax" value=release.overrideOnlineMax || '' min="1")
+                            .col-md-3
+                                label.form-label.small.text-success Local Min
+                                input.form-control.form-control-sm.text-bg-dark(type="number" name="overrideLocalMin" value=release.overrideLocalMin || '' min="1")
+                            .col-md-3
+                                label.form-label.small.text-success Local Max
+                                input.form-control.form-control-sm.text-bg-dark(type="number" name="overrideLocalMax" value=release.overrideLocalMax || '' min="1")
+                            .col-md-3
+                                label.form-label.small.text-warning Physical Min
+                                input.form-control.form-control-sm.text-bg-dark(type="number" name="overridePhysicalMin" value=release.overridePhysicalMin || '' min="1")
+                            .col-md-3
+                                label.form-label.small.text-warning Physical Max
+                                input.form-control.form-control-sm.text-bg-dark(type="number" name="overridePhysicalMax" value=release.overridePhysicalMax || '' min="1")
+                    .modal-footer.border-secondary
+                        button.btn.btn-secondary(type="button" data-bs-dismiss="modal") Cancel
+                        button.btn.btn-primary(type="submit" form="editReleaseForm")
+                            i.bi.bi-check-lg.me-1
+                            | Save Changes
+
+block scripts
+    script(type="module" src="/js/stub.gen.js")
+    script.
+        // Toggle between physical and digital fields
+        document.getElementById('copyTypeSelect')?.addEventListener('change', function() {
+            const isDigital = this.value === 'digital_license';
+            document.getElementById('physicalFields')?.classList.toggle('d-none', isDigital);
+            document.getElementById('digitalFields')?.classList.toggle('d-none', !isDigital);
+        });
+        
+        // Initialize Select2 for merge dropdown
+        $(document).ready(function() {
+            $('select[name="targetId"]').select2({
+                theme: 'bootstrap-5',
+                placeholder: 'Search releases...',
+                allowClear: true,
+                dropdownParent: $('#mergeReleaseModal')
+            });
+            $('select[name="locationId"]').select2({
+                theme: 'bootstrap-5',
+                placeholder: 'Select location...',
+                allowClear: true,
+                dropdownParent: $('#addCopyModal')
+            });
+            $('select[name="externalAccountId"]').select2({
+                theme: 'bootstrap-5',
+                placeholder: 'Select account...',
+                allowClear: true,
+                dropdownParent: $('#addCopyModal')
+            });
+        });

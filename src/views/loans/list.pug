@@ -126,7 +126,7 @@ block content
                                                     span.text-white-50 —
                                             td.text-end
                                                 .btn-group.btn-group-sm
-                                                    button.btn.btn-outline-success.loan-return(type="button" data-loan-id=l.id title="Mark as returned")
+                                                    button.btn.btn-outline-success.loan-return-modal(type="button" data-loan-id=l.id data-item-name=l.item.name data-bs-toggle="modal" data-bs-target="#returnModal" title="Mark as returned")
                                                         i.bi.bi-check-lg.me-1
                                                         | Return
 
@@ -246,6 +246,35 @@ block content
                         i.bi.bi-check-lg.me-1
                         | Create Loan
 
+    //- Return Loan Modal (with condition selection)
+    #returnModal.modal.fade(tabindex="-1" aria-labelledby="returnModalLabel" aria-hidden="true")
+        .modal-dialog
+            .modal-content.text-bg-dark
+                .modal-header.border-secondary
+                    h5.modal-title#returnModalLabel
+                        i.bi.bi-check-circle.me-2
+                        | Return Item
+                    button.btn-close.btn-close-white(type="button" data-bs-dismiss="modal" aria-label="Close")
+                .modal-body
+                    p.text-white-50
+                        | Returning: 
+                        strong#returnItemName 
+                    form#returnLoanForm.row.g-3(method="post" action="")
+                        .col-12
+                            label.form-label(for="returnConditionIn")
+                                i.bi.bi-heart.me-1
+                                | Condition on return
+                            select#returnConditionIn.form-select.text-bg-dark(name="conditionIn")
+                                option(value="") Not specified
+                                each c in conditions
+                                    option(value=c) #{c.charAt(0).toUpperCase() + c.slice(1).replace('_', ' ')}
+                            .form-text.text-white-50 This will update the item's condition.
+                .modal-footer.border-secondary
+                    button.btn.btn-secondary(type="button" data-bs-dismiss="modal") Cancel
+                    button.btn.btn-success(type="submit" form="returnLoanForm")
+                        i.bi.bi-check-lg.me-1
+                        | Mark as Returned
+
 block scripts
     script(type="module" src="/js/loans/list.gen.js")
     script.
@@ -259,4 +288,18 @@ block scripts
                     width: '100%'
                 });
             }
+            
+            // Return modal handling
+            const returnModalBtns = document.querySelectorAll('.loan-return-modal');
+            const returnForm = document.getElementById('returnLoanForm');
+            const returnItemName = document.getElementById('returnItemName');
+            
+            returnModalBtns.forEach(function(btn) {
+                btn.addEventListener('click', function() {
+                    const loanId = this.dataset.loanId;
+                    const itemName = this.dataset.itemName;
+                    returnForm.action = '/api/loans/' + loanId + '/return';
+                    returnItemName.textContent = itemName;
+                });
+            });
         });

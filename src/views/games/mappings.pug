@@ -1,0 +1,104 @@
+extends ../layout
+
+block meta
+    title Mapping Queue | Inventory Management
+
+block content
+    - const mappings = (data && data.mappings) ? data.mappings : []
+    - const titles = (data && data.titles) ? data.titles : []
+    - const providerLabels = {steam: 'Steam', epic: 'Epic Games', gog: 'GOG', xbox: 'Xbox', playstation: 'PlayStation', nintendo: 'Nintendo', origin: 'Origin', ubisoft: 'Ubisoft', other: 'Other'}
+
+    #liveAlerts
+
+    .d-flex.justify-content-between.align-items-center.mb-3.flex-wrap.gap-2
+        h1.h3.mb-0.text-white
+            i.bi.bi-link-45deg.me-2
+            | Mapping Queue
+            if mappings.length > 0
+                span.badge.text-bg-warning.ms-2.fs-6 #{mappings.length} pending
+            else
+                span.badge.text-bg-success.ms-2.fs-6 All good
+        
+        if mappings.length > 0
+            .d-flex.gap-2
+                form(method="post" action="/games/mappings/bulk-create")
+                    button.btn.btn-primary(type="submit" onclick="return confirm('This will create new game titles for all pending mappings. Continue?')")
+                        i.bi.bi-plus-circle.me-1
+                        | Auto-Create All
+                form(method="post" action="/games/mappings/bulk-ignore")
+                    button.btn.btn-outline-secondary(type="submit" onclick="return confirm('Ignore all pending mappings?')")
+                        i.bi.bi-x-circle.me-1
+                        | Ignore All
+
+    //- Info card
+    .card.text-bg-dark.border-info.mb-3
+        .card-body
+            .d-flex.align-items-start
+                i.bi.bi-info-circle.text-info.me-2.fs-5
+                div
+                    p.mb-2
+                        strong Note:
+                        |  Connectors now automatically create game titles during sync. This queue only contains edge cases that couldn't be auto-mapped (rare).
+                    if mappings.length === 0
+                        p.text-success.mb-0
+                            i.bi.bi-check-circle.me-1
+                            | Your library is fully synchronized!
+                    else
+                        | Options for pending mappings:
+                        ul.mb-0.mt-2
+                            li 
+                                strong Auto-Create All
+                                |  - Creates new game titles for each pending mapping
+                            li 
+                                strong Map to existing
+                                |  - Link to an existing game title (useful for duplicates)
+                            li 
+                                strong Ignore
+                                |  - Skip this game permanently
+
+    //- Mappings list
+    if mappings.length === 0
+        .card.text-bg-dark.border-secondary
+            .card-body.text-center.py-5
+                i.bi.bi-check-circle.display-1.text-success.mb-3.d-block
+                h4.text-white All synced!
+                p.text-white-50.mb-3 No pending mappings. All games from your connected accounts have been imported.
+                a.btn.btn-outline-light(href="/games/accounts")
+                    i.bi.bi-cloud.me-1
+                    | Manage Accounts
+    else
+        .table-responsive
+            table.table.table-dark.table-hover.align-middle
+                thead
+                    tr
+                        th Provider
+                        th External Game
+                        th Map To / Create
+                        th.text-end Actions
+                tbody
+                    each mapping in mappings
+                        tr
+                            td
+                                span.badge.text-bg-info #{providerLabels[mapping.provider] || mapping.provider}
+                            td
+                                strong.text-white #{mapping.externalGameName || mapping.externalGameId}
+                                .small.text-white-50 ID: #{mapping.externalGameId}
+                            td
+                                form.d-flex.gap-2.align-items-center(method="post" action=`/games/mappings/${mapping.id}` id=`mapForm-${mapping.id}`)
+                                    input(type="hidden" name="action" value="map")
+                                    select.form-select.form-select-sm.text-bg-dark.border-secondary(name="gameTitleId" style="max-width: 200px")
+                                        option(value="") Select existing...
+                                        each t in titles
+                                            option(value=t.id) #{t.name}
+                            td.text-end
+                                .btn-group.btn-group-sm
+                                    button.btn.btn-outline-success(type="submit" form=`mapForm-${mapping.id}` title="Map to selected game")
+                                        i.bi.bi-link-45deg
+                                    form.d-inline(method="post" action=`/games/mappings/${mapping.id}`)
+                                        input(type="hidden" name="action" value="create")
+                                        button.btn.btn-outline-primary(type="submit" title="Create new game title")
+                                            i.bi.bi-plus-lg
+                                    form.d-inline(method="post" action=`/games/mappings/${mapping.id}`)
+                                        input(type="hidden" name="action" value="ignore")
+                                        button.btn.btn-outline-secondary(type="submit" title="Ignore this game")
+                                            i.bi.bi-x-lg

@@ -1,0 +1,304 @@
+extends ../layout
+
+block meta
+    title Game Copy | Inventory Management
+
+block content
+    - const copy = (data && data.copy) ? data.copy : null
+    - const loans = (data && data.loans) ? data.loans : []
+    - const barcodes = (data && data.barcodes) ? data.barcodes : []
+    - const locations = (data && data.locations) ? data.locations : []
+    - const parties = (data && data.parties) ? data.parties : []
+    - const accounts = (data && data.accounts) ? data.accounts : []
+    - const conditions = ['new', 'like_new', 'good', 'fair', 'poor']
+    - const platformLabels = {pc: 'PC', ps5: 'PS5', ps4: 'PS4', xbox_series: 'Xbox Series', xbox_one: 'Xbox One', switch: 'Switch', mobile: 'Mobile', physical_only: 'Physical Only', other: 'Other'}
+    - const providerLabels = {steam: 'Steam', epic: 'Epic Games', gog: 'GOG', xbox: 'Xbox', playstation: 'PlayStation', nintendo: 'Nintendo', origin: 'Origin', ubisoft: 'Ubisoft', other: 'Other'}
+
+    #liveAlerts
+
+    if !copy
+        .alert.alert-danger
+            i.bi.bi-exclamation-triangle.me-2
+            | Copy not found.
+    else
+        //- Header
+        .d-flex.justify-content-between.align-items-start.mb-3
+            div
+                h1.h3.mb-1.text-white
+                    if copy.gameCopyType === 'digital_license'
+                        i.bi.bi-cloud.me-2
+                    else
+                        i.bi.bi-disc.me-2
+                    | #{copy.gameRelease && copy.gameRelease.gameTitle ? copy.gameRelease.gameTitle.name : 'Game Copy'}
+                .d-flex.flex-wrap.gap-2.align-items-center
+                    if copy.gameCopyType === 'digital_license'
+                        span.badge.text-bg-primary
+                            i.bi.bi-cloud.me-1
+                            | Digital License
+                    else
+                        span.badge.text-bg-success
+                            i.bi.bi-disc.me-1
+                            | Physical Copy
+                    if copy.gameRelease
+                        span.badge.text-bg-info #{platformLabels[copy.gameRelease.platform] || copy.gameRelease.platform}
+                    if copy.condition
+                        span.badge.text-bg-secondary #{copy.condition.replace('_', ' ')}
+
+        .row.g-3
+            //- Left column
+            .col-lg-7
+                //- Copy details
+                .card.text-bg-dark.border-secondary.mb-3
+                    .card-header
+                        h2.h5.mb-0
+                            i.bi.bi-info-circle.me-2
+                            | Copy Details
+                    .card-body
+                        dl.row.mb-0
+                            dt.col-sm-4
+                                i.bi.bi-controller.me-1
+                                | Game
+                            dd.col-sm-8
+                                if copy.gameRelease && copy.gameRelease.gameTitle
+                                    a.text-white.text-decoration-none(href=`/games/titles/${copy.gameRelease.gameTitle.id}`)
+                                        | #{copy.gameRelease.gameTitle.name}
+                            
+                            dt.col-sm-4
+                                i.bi.bi-cpu.me-1
+                                | Platform
+                            dd.col-sm-8 #{copy.gameRelease ? (platformLabels[copy.gameRelease.platform] || copy.gameRelease.platform) : '—'}
+                            
+                            dt.col-sm-4
+                                i.bi.bi-tag.me-1
+                                | Type
+                            dd.col-sm-8 #{copy.gameCopyType === 'digital_license' ? 'Digital License' : 'Physical Copy'}
+                            
+                            if copy.gameCopyType === 'digital_license'
+                                dt.col-sm-4
+                                    i.bi.bi-cloud.me-1
+                                    | Account
+                                dd.col-sm-8 
+                                    if copy.externalAccount
+                                        | #{copy.externalAccount.accountName} 
+                                        span.text-white-50 (#{copy.externalAccount.provider})
+                                    else
+                                        | —
+                                
+                                if copy.playtimeMinutes
+                                    dt.col-sm-4
+                                        i.bi.bi-clock.me-1
+                                        | Playtime
+                                    dd.col-sm-8 #{Math.floor(copy.playtimeMinutes / 60)}h #{copy.playtimeMinutes % 60}m
+                                
+                                if copy.lastPlayedAt
+                                    dt.col-sm-4
+                                        i.bi.bi-calendar.me-1
+                                        | Last Played
+                                    dd.col-sm-8 #{new Date(copy.lastPlayedAt).toLocaleDateString()}
+                            else
+                                dt.col-sm-4
+                                    i.bi.bi-geo-alt.me-1
+                                    | Location
+                                dd.col-sm-8
+                                    if copy.location
+                                        a.text-white.text-decoration-none(href=`/locations/${copy.location.id}`)
+                                            | #{copy.location.name}
+                                    else
+                                        span.text-white-50 Unassigned
+                                
+                                dt.col-sm-4
+                                    i.bi.bi-heart.me-1
+                                    | Condition
+                                dd.col-sm-8 #{copy.condition ? copy.condition.replace('_', ' ') : '—'}
+                                
+                                dt.col-sm-4
+                                    i.bi.bi-hand-index.me-1
+                                    | Lendable
+                                dd.col-sm-8 #{copy.lendable ? 'Yes' : 'No'}
+                            
+                            if copy.notes
+                                dt.col-12.mt-2
+                                    i.bi.bi-sticky.me-1
+                                    | Notes
+                                dd.col-12.text-white-50 #{copy.notes}
+
+                //- Barcodes (physical only)
+                if copy.gameCopyType === 'physical_copy'
+                    .card.text-bg-dark.border-secondary.mb-3
+                        .card-header
+                            h2.h5.mb-0
+                                i.bi.bi-upc.me-2
+                                | Barcodes
+                                if barcodes.length > 0
+                                    span.badge.text-bg-secondary.ms-2 #{barcodes.length}
+                        .card-body
+                            if barcodes.length === 0
+                                p.text-white-50.mb-3
+                                    i.bi.bi-info-circle.me-1
+                                    | No barcodes assigned yet.
+                            else
+                                .list-group.list-group-flush.mb-3
+                                    each b in barcodes
+                                        .list-group-item.d-flex.justify-content-between.align-items-center.bg-transparent.text-white.border-secondary
+                                            div
+                                                code.text-info.fs-6 #{b.code}
+                                                span.badge.text-bg-secondary.ms-2 #{b.symbology}
+                            
+                            h6.mb-2 Add Barcode
+                            form#barcodeForm.row.g-2
+                                .col-md-8
+                                    input#barcodeInput.form-control.text-bg-dark(type="text" placeholder="Scan or enter barcode" autocomplete="off")
+                                .col-md-4
+                                    button#barcodeMapBtn.btn.btn-primary.w-100(type="submit")
+                                        i.bi.bi-link.me-1
+                                        | Map
+                            #barcodeMsg.mt-2
+
+                //- Loan history (physical only)
+                if copy.gameCopyType === 'physical_copy'
+                    .card.text-bg-dark.border-secondary.mb-3
+                        .card-header.d-flex.justify-content-between.align-items-center
+                            h2.h5.mb-0
+                                i.bi.bi-arrow-left-right.me-2
+                                | Loan History
+                            a.btn.btn-sm.btn-outline-light(href="/loans")
+                                i.bi.bi-arrow-up-right.me-1
+                                | View All
+                        .card-body
+                            if loans.length === 0
+                                p.text-white-50.mb-0
+                                    i.bi.bi-info-circle.me-1
+                                    | No loan history for this copy.
+                            else
+                                .list-group.list-group-flush
+                                    each l in loans
+                                        .list-group-item.bg-transparent.text-white.border-secondary
+                                            .d-flex.justify-content-between.align-items-start
+                                                div
+                                                    if l.direction === 'lend'
+                                                        span.badge.text-bg-primary.me-2 Lent
+                                                    else
+                                                        span.badge.text-bg-secondary.me-2 Borrowed
+                                                    strong #{l.party ? l.party.name : 'Unknown'}
+                                                    if l.status === 'returned'
+                                                        span.badge.text-bg-success.ms-2 Returned
+                                                    else if l.status === 'overdue'
+                                                        span.badge.text-bg-danger.ms-2 Overdue
+                                                    else
+                                                        span.badge.text-bg-warning.ms-2 Active
+                                                .text-white-50.small
+                                                    | #{new Date(l.startAt).toLocaleDateString()}
+
+            //- Right column
+            .col-lg-5
+                //- Move copy (physical only)
+                if copy.gameCopyType === 'physical_copy'
+                    .card.text-bg-dark.border-secondary.mb-3
+                        .card-header
+                            h2.h5.mb-0
+                                i.bi.bi-arrow-right-square.me-2
+                                | Move Copy
+                        .card-body
+                            form(method="post" action=`/games/copies/${copy.id}/move`)
+                                .mb-3
+                                    label.form-label New Location
+                                    select.form-select.text-bg-dark(name="locationId")
+                                        option(value="" selected=(!copy.locationId)) Unassigned
+                                        each loc in locations
+                                            option(value=loc.id selected=(copy.locationId && copy.locationId === loc.id)) #{loc.name}
+                                button.btn.btn-outline-light.w-100(type="submit")
+                                    i.bi.bi-arrow-right.me-1
+                                    | Move
+
+                //- Lending (physical only) - use unified lending UI
+                if copy.gameCopyType === 'physical_copy' && copy.lendable
+                    .card.text-bg-dark.border-secondary.mb-3
+                        .card-header
+                            h2.h5.mb-0
+                                i.bi.bi-hand-index.me-2
+                                | Lending
+                        .card-body
+                            p.text-white-50.mb-3
+                                i.bi.bi-info-circle.me-1
+                                | Use the unified lending UI to lend or return this item.
+                            a.btn.btn-outline-primary.w-100(href="/loans")
+                                i.bi.bi-arrow-left-right.me-1
+                                | Go to Lending
+                
+                //- Link to account (digital only)
+                if copy.gameCopyType === 'digital_license'
+                    .card.text-bg-dark.border-secondary.mb-3
+                        .card-header
+                            h2.h5.mb-0
+                                i.bi.bi-link-45deg.me-2
+                                | Link to External Account
+                        .card-body
+                            if copy.externalAccount
+                                .alert.alert-info.mb-3
+                                    i.bi.bi-check-circle.me-2
+                                    | Currently linked to: 
+                                    strong #{copy.externalAccount.accountName}
+                                    |  (#{providerLabels[copy.externalAccount.provider] || copy.externalAccount.provider})
+                            else
+                                p.text-white-50.small.mb-3 Manually link this digital license to an external account.
+                            
+                            form(method="post" action=`/games/copies/${copy.id}/link-account`)
+                                .mb-3
+                                    label.form-label External Account
+                                    select.form-select.text-bg-dark(name="externalAccountId" required)
+                                        option(value="") Select account...
+                                        each acc in accounts
+                                            option(value=acc.id selected=(copy.externalAccountId && copy.externalAccountId === acc.id)) #{acc.accountName} (#{providerLabels[acc.provider] || acc.provider})
+                                .mb-3
+                                    label.form-label External Game ID
+                                    input.form-control.text-bg-dark(type="text" name="externalGameId" value=(copy.externalGameId || '') placeholder="Optional: Platform-specific game ID")
+                                    .form-text.text-white-50 Used for identifying the game on the external platform
+                                button.btn.btn-outline-primary.w-100(type="submit")
+                                    i.bi.bi-link-45deg.me-1
+                                    | Link to Account
+
+                //- Danger zone
+                .card.text-bg-dark.border-danger
+                    .card-header.text-danger
+                        h2.h5.mb-0
+                            i.bi.bi-exclamation-triangle.me-2
+                            | Danger Zone
+                    .card-body
+                        form(method="post" action=`/games/copies/${copy.id}/delete`)
+                            button.btn.btn-outline-danger.w-100(type="submit" onclick="return confirm('Delete this copy?')")
+                                i.bi.bi-trash.me-1
+                                | Delete Copy
+
+block scripts
+    script.
+        // Barcode mapping
+        document.addEventListener('DOMContentLoaded', function() {
+            const form = document.getElementById('barcodeForm');
+            const input = document.getElementById('barcodeInput');
+            const msg = document.getElementById('barcodeMsg');
+            
+            if (form && input) {
+                form.addEventListener('submit', async function(e) {
+                    e.preventDefault();
+                    const code = input.value.trim();
+                    if (!code) return;
+                    
+                    try {
+                        const res = await fetch('/api/games/copies/!{copy.id}/barcode', {
+                            method: 'POST',
+                            headers: {'Content-Type': 'application/json'},
+                            body: JSON.stringify({code, symbology: 'UNKNOWN'})
+                        });
+                        const data = await res.json();
+                        msg.innerHTML = data.status === 'success' 
+                            ? '<div class="alert alert-success">' + data.message + '</div>'
+                            : '<div class="alert alert-danger">' + data.message + '</div>';
+                        if (data.status === 'success') {
+                            setTimeout(() => location.reload(), 1000);
+                        }
+                    } catch (err) {
+                        msg.innerHTML = '<div class="alert alert-danger">Error mapping barcode</div>';
+                    }
+                });
+            }
+        });

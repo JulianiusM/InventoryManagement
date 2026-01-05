@@ -8,7 +8,9 @@ import {
 } from "typeorm";
 import {Location} from "../location/Location";
 import {User} from "../user/User";
-import {ItemType, ItemCondition} from "../../../../types/InventoryEnums";
+import {GameRelease} from "../gameRelease/GameRelease";
+import {ExternalAccount} from "../externalAccount/ExternalAccount";
+import {ItemType, ItemCondition, GameCopyType} from "../../../../types/InventoryEnums";
 
 @Entity("items")
 export class Item {
@@ -54,6 +56,52 @@ export class Item {
 
     @RelationId((item: Item) => item.owner)
     ownerId!: number;
+
+    // Game-specific fields (for type=GAME or type=GAME_DIGITAL)
+    @ManyToOne(() => GameRelease, (release) => release.items, {onDelete: "SET NULL", nullable: true})
+    @JoinColumn({name: "game_release_id"})
+    gameRelease?: GameRelease | null;
+
+    @RelationId((item: Item) => item.gameRelease)
+    gameReleaseId?: string | null;
+
+    @Column({
+        type: "enum",
+        enum: GameCopyType,
+        name: "game_copy_type",
+        nullable: true,
+    })
+    gameCopyType?: GameCopyType | null;
+
+    // Digital license fields
+    @ManyToOne(() => ExternalAccount, (account) => account.items, {onDelete: "SET NULL", nullable: true})
+    @JoinColumn({name: "external_account_id"})
+    externalAccount?: ExternalAccount | null;
+
+    @RelationId((item: Item) => item.externalAccount)
+    externalAccountId?: string | null;
+
+    @Column("varchar", {name: "external_game_id", length: 255, nullable: true})
+    externalGameId?: string | null;
+
+    @Column("varchar", {name: "entitlement_id", length: 255, nullable: true})
+    entitlementId?: string | null;
+
+    @Column("int", {name: "playtime_minutes", nullable: true})
+    playtimeMinutes?: number | null;
+
+    @Column("timestamp", {name: "last_played_at", nullable: true})
+    lastPlayedAt?: Date | null;
+
+    @Column("boolean", {name: "is_installed", nullable: true})
+    isInstalled?: boolean | null;
+
+    // Lending fields
+    @Column("boolean", {name: "lendable", default: true})
+    lendable!: boolean;
+
+    @Column("date", {name: "acquired_at", nullable: true})
+    acquiredAt?: string | null;
 
     @Column("timestamp", {
         name: "created_at",

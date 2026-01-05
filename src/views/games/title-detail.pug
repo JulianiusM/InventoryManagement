@@ -1,0 +1,373 @@
+extends ../layout
+
+block meta
+    title #{data && data.title ? data.title.name : 'Game'} | Inventory Management
+
+block content
+    - const title = (data && data.title) ? data.title : null
+    - const releases = (data && data.releases) ? data.releases : []
+    - const allTitles = (data && data.allTitles) ? data.allTitles : []
+    - const gameTypes = ['video_game', 'board_game', 'card_game', 'tabletop_rpg', 'other_physical_game']
+    - const typeLabels = {video_game: 'Video Game', board_game: 'Board Game', card_game: 'Card Game', tabletop_rpg: 'Tabletop RPG', other_physical_game: 'Other Physical'}
+    //- Common platform suggestions (user can enter custom values)
+    - const platformSuggestions = ['PC', 'PlayStation 5', 'PlayStation 4', 'Xbox Series X|S', 'Xbox One', 'Nintendo Switch', 'Mobile', 'Physical Only']
+    - const platforms = (data && data.platforms) ? data.platforms : []
+
+    #liveAlerts
+
+    if !title
+        .alert.alert-danger
+            i.bi.bi-exclamation-triangle.me-2
+            | Game not found.
+    else
+        //- Header
+        .d-flex.justify-content-between.align-items-start.mb-3
+            div
+                h1.h3.mb-1.text-white
+                    i.bi.bi-controller.me-2
+                    | #{title.name}
+                .d-flex.flex-wrap.gap-2.align-items-center
+                    span.badge.text-bg-info #{typeLabels[title.type] || title.type}
+                    span.badge.text-bg-secondary
+                        i.bi.bi-people.me-1
+                        | #{title.overallMinPlayers}-#{title.overallMaxPlayers} players
+                    if title.supportsOnline
+                        span.badge.text-bg-primary
+                            i.bi.bi-globe.me-1
+                            | Online
+                    if title.supportsLocal
+                        span.badge.text-bg-success
+                            i.bi.bi-display.me-1
+                            | Local
+                    if title.supportsPhysical
+                        span.badge.text-bg-warning.text-dark
+                            i.bi.bi-dice-5.me-1
+                            | Physical
+
+        .row.g-3
+            //- Left column: Details
+            .col-lg-7
+                //- Game details card
+                .card.text-bg-dark.border-secondary.mb-3
+                    .card-header.d-flex.justify-content-between.align-items-center
+                        h2.h5.mb-0
+                            i.bi.bi-info-circle.me-2
+                            | Details
+                        button.btn.btn-sm.btn-outline-light(type="button" data-bs-toggle="collapse" data-bs-target="#editDetailsForm")
+                            i.bi.bi-pencil.me-1
+                            | Edit
+                    .card-body
+                        if title.description
+                            p.text-white-50.mb-3 #{title.description}
+                        
+                        dl.row.mb-0
+                            dt.col-sm-4
+                                i.bi.bi-grid.me-1
+                                | Type
+                            dd.col-sm-8 #{typeLabels[title.type] || title.type}
+                            
+                            dt.col-sm-4
+                                i.bi.bi-people.me-1
+                                | Overall Players
+                            dd.col-sm-8 #{title.overallMinPlayers} - #{title.overallMaxPlayers}
+                            
+                            if title.supportsOnline
+                                dt.col-sm-4.text-primary
+                                    i.bi.bi-globe.me-1
+                                    | Online
+                                dd.col-sm-8
+                                    | #{title.onlineMinPlayers || title.overallMinPlayers} - #{title.onlineMaxPlayers || title.overallMaxPlayers} players
+                            
+                            if title.supportsLocal
+                                dt.col-sm-4.text-success
+                                    i.bi.bi-display.me-1
+                                    | Local Co-op
+                                dd.col-sm-8
+                                    | #{title.localMinPlayers || title.overallMinPlayers} - #{title.localMaxPlayers || title.overallMaxPlayers} players
+                            
+                            if title.supportsPhysical
+                                dt.col-sm-4.text-warning
+                                    i.bi.bi-dice-5.me-1
+                                    | Physical
+                                dd.col-sm-8
+                                    | #{title.physicalMinPlayers || title.overallMinPlayers} - #{title.physicalMaxPlayers || title.overallMaxPlayers} players
+
+                    //- Edit form (collapsible)
+                    #editDetailsForm.collapse
+                        .card-body.border-top.border-secondary
+                            form.row.g-3(method="post" action=`/games/titles/${title.id}`)
+                                .col-md-8
+                                    label.form-label(for="editName") Name
+                                    input#editName.form-control.text-bg-dark(type="text" name="name" value=title.name required)
+                                .col-md-4
+                                    label.form-label(for="editType") Type
+                                    select#editType.form-select.text-bg-dark(name="type")
+                                        each t in gameTypes
+                                            option(value=t selected=(title.type === t)) #{typeLabels[t]}
+                                .col-12
+                                    label.form-label(for="editDescription") Description
+                                    textarea#editDescription.form-control.text-bg-dark(name="description" rows="2") #{title.description || ''}
+                                .col-12
+                                    label.form-label(for="editCoverUrl") Cover Image URL
+                                    input#editCoverUrl.form-control.text-bg-dark(type="url" name="coverImageUrl" value=title.coverImageUrl || '' placeholder="https://...")
+                                
+                                hr.border-secondary
+                                h6.text-white
+                                    i.bi.bi-people.me-1
+                                    | Player Settings
+                                    
+                                .col-md-6
+                                    label.form-label Overall Min Players
+                                    input.form-control.text-bg-dark(type="number" name="overallMinPlayers" value=title.overallMinPlayers min="1" required)
+                                .col-md-6
+                                    label.form-label Overall Max Players
+                                    input.form-control.text-bg-dark(type="number" name="overallMaxPlayers" value=title.overallMaxPlayers min="1" required)
+                                
+                                .col-12
+                                    label.form-label Multiplayer Modes
+                                .col-md-4
+                                    .form-check
+                                        input.form-check-input(type="checkbox" name="supportsOnline" value="true" id="editSupportsOnline" checked=title.supportsOnline)
+                                        label.form-check-label(for="editSupportsOnline")
+                                            i.bi.bi-globe.me-1
+                                            | Online
+                                .col-md-4
+                                    .form-check
+                                        input.form-check-input(type="checkbox" name="supportsLocal" value="true" id="editSupportsLocal" checked=title.supportsLocal)
+                                        label.form-check-label(for="editSupportsLocal")
+                                            i.bi.bi-display.me-1
+                                            | Local
+                                .col-md-4
+                                    .form-check
+                                        input.form-check-input(type="checkbox" name="supportsPhysical" value="true" id="editSupportsPhysical" checked=title.supportsPhysical)
+                                        label.form-check-label(for="editSupportsPhysical")
+                                            i.bi.bi-dice-5.me-1
+                                            | Physical
+                                
+                                //- Mode-specific player counts
+                                .col-md-3
+                                    label.form-label.small.text-primary Online Min
+                                    input.form-control.form-control-sm.text-bg-dark(type="number" name="onlineMinPlayers" value=title.onlineMinPlayers || '' min="1")
+                                .col-md-3
+                                    label.form-label.small.text-primary Online Max
+                                    input.form-control.form-control-sm.text-bg-dark(type="number" name="onlineMaxPlayers" value=title.onlineMaxPlayers || '' min="1")
+                                .col-md-3
+                                    label.form-label.small.text-success Local Min
+                                    input.form-control.form-control-sm.text-bg-dark(type="number" name="localMinPlayers" value=title.localMinPlayers || '' min="1")
+                                .col-md-3
+                                    label.form-label.small.text-success Local Max
+                                    input.form-control.form-control-sm.text-bg-dark(type="number" name="localMaxPlayers" value=title.localMaxPlayers || '' min="1")
+                                .col-md-3
+                                    label.form-label.small.text-warning Physical Min
+                                    input.form-control.form-control-sm.text-bg-dark(type="number" name="physicalMinPlayers" value=title.physicalMinPlayers || '' min="1")
+                                .col-md-3
+                                    label.form-label.small.text-warning Physical Max
+                                    input.form-control.form-control-sm.text-bg-dark(type="number" name="physicalMaxPlayers" value=title.physicalMaxPlayers || '' min="1")
+                                
+                                .col-12
+                                    button.btn.btn-primary(type="submit")
+                                        i.bi.bi-check-lg.me-1
+                                        | Save Changes
+
+                //- Releases card
+                .card.text-bg-dark.border-secondary.mb-3
+                    .card-header.d-flex.justify-content-between.align-items-center
+                        h2.h5.mb-0
+                            i.bi.bi-box.me-2
+                            | Releases
+                            if releases.length > 0
+                                span.badge.text-bg-secondary.ms-2 #{releases.length}
+                        button.btn.btn-sm.btn-outline-light(type="button" data-bs-toggle="modal" data-bs-target="#addReleaseModal")
+                            i.bi.bi-plus.me-1
+                            | Add Release
+                    .card-body
+                        if releases.length === 0
+                            p.text-white-50.mb-0
+                                i.bi.bi-info-circle.me-1
+                                | No releases yet. Add a release to start tracking copies.
+                        else
+                            .list-group.list-group-flush
+                                each rel in releases
+                                    .list-group-item.bg-transparent.text-white.border-secondary
+                                        .d-flex.justify-content-between.align-items-center
+                                            div
+                                                a.text-white.text-decoration-none(href=`/games/releases/${rel.id}`)
+                                                    span.badge.text-bg-info.me-2 #{rel.platform}
+                                                    if rel.edition
+                                                        | #{rel.edition}
+                                                    else
+                                                        | Standard Edition
+                                                    if rel.region
+                                                        span.text-white-50.ms-2 (#{rel.region})
+                                                if rel.items && rel.items.length > 0
+                                                    span.badge.text-bg-secondary.ms-2 #{rel.items.length} copy(ies)
+                                            a.btn.btn-sm.btn-outline-light(href=`/games/releases/${rel.id}`)
+                                                i.bi.bi-eye
+
+            //- Right column: Actions
+            .col-lg-5
+                //- Quick actions
+                .card.text-bg-dark.border-secondary.mb-3
+                    .card-header
+                        h2.h5.mb-0
+                            i.bi.bi-lightning.me-2
+                            | Quick Actions
+                    .card-body
+                        .d-grid.gap-2
+                            button.btn.btn-outline-light(type="button" data-bs-toggle="modal" data-bs-target="#addReleaseModal")
+                                i.bi.bi-plus.me-1
+                                | Add Release
+                            a.btn.btn-outline-light(href="/games/copies")
+                                i.bi.bi-collection.me-1
+                                | View All Copies
+                            button.btn.btn-outline-light(type="button" data-bs-toggle="modal" data-bs-target="#mergeModal")
+                                i.bi.bi-arrow-left-right.me-1
+                                | Merge Into Another Title
+
+                //- Danger zone
+                .card.text-bg-dark.border-danger
+                    .card-header.text-danger
+                        h2.h5.mb-0
+                            i.bi.bi-exclamation-triangle.me-2
+                            | Danger Zone
+                    .card-body
+                        p.text-white-50.small.mb-2 Deleting this game will also remove all releases and copies.
+                        form(method="post" action=`/games/titles/${title.id}/delete`)
+                            button.btn.btn-outline-danger.w-100(type="submit" onclick="return confirm('Are you sure you want to delete this game?')")
+                                i.bi.bi-trash.me-1
+                                | Delete Game
+
+    //- Add Release Modal
+    #addReleaseModal.modal.fade(tabindex="-1")
+        .modal-dialog
+            .modal-content.text-bg-dark
+                .modal-header.border-secondary
+                    h5.modal-title
+                        i.bi.bi-plus-circle.me-2
+                        | Add Release
+                    button.btn-close.btn-close-white(type="button" data-bs-dismiss="modal")
+                .modal-body
+                    if title
+                        form#addReleaseForm.row.g-3(method="post" action=`/games/titles/${title.id}/releases`)
+                            .col-md-6
+                                label.form-label Platform *
+                                select.form-select.text-bg-dark(name="platform" required)
+                                    each p in platforms
+                                        option(value=p.name selected=(p.name === 'PC')) #{p.name}
+                            .col-md-6
+                                label.form-label Edition
+                                input.form-control.text-bg-dark(type="text" name="edition" placeholder="e.g., GOTY, Collector's")
+                            .col-md-6
+                                label.form-label Region
+                                input.form-control.text-bg-dark(type="text" name="region" placeholder="e.g., US, EU, JP")
+                            .col-md-6
+                                label.form-label Release Date
+                                input.form-control.text-bg-dark(type="date" name="releaseDate")
+                            
+                            //- Player override section
+                            .col-12
+                                hr.border-secondary
+                                .form-check
+                                    input.form-check-input(type="checkbox" id="usePlayersOverride" data-bs-toggle="collapse" data-bs-target="#playersOverrideFields")
+                                    label.form-check-label(for="usePlayersOverride")
+                                        | Override player settings for this release
+                            #playersOverrideFields.collapse
+                                .row.g-2.mt-2
+                                    h6.col-12.text-white-50.small Overall Override
+                                    .col-md-6
+                                        label.form-label.small Players Min
+                                        input.form-control.form-control-sm.text-bg-dark(type="number" name="playersOverrideMin" min="1")
+                                    .col-md-6
+                                        label.form-label.small Players Max
+                                        input.form-control.form-control-sm.text-bg-dark(type="number" name="playersOverrideMax" min="1")
+                                    
+                                    h6.col-12.text-white-50.small.mt-2 Mode Support Override
+                                    .col-md-4
+                                        .form-check
+                                            input.form-check-input(type="checkbox" name="overrideSupportsOnline" value="true" id="overrideOnline")
+                                            label.form-check-label.text-primary(for="overrideOnline")
+                                                i.bi.bi-globe.me-1
+                                                | Online
+                                    .col-md-4
+                                        .form-check
+                                            input.form-check-input(type="checkbox" name="overrideSupportsLocal" value="true" id="overrideLocal")
+                                            label.form-check-label.text-success(for="overrideLocal")
+                                                i.bi.bi-display.me-1
+                                                | Local
+                                    .col-md-4
+                                        .form-check
+                                            input.form-check-input(type="checkbox" name="overrideSupportsPhysical" value="true" id="overridePhysical")
+                                            label.form-check-label.text-warning(for="overridePhysical")
+                                                i.bi.bi-dice-5.me-1
+                                                | Physical
+                                    
+                                    h6.col-12.text-white-50.small.mt-2 Mode Player Counts
+                                    .col-md-3
+                                        label.form-label.small.text-primary Online Min
+                                        input.form-control.form-control-sm.text-bg-dark(type="number" name="overrideOnlineMin" min="1")
+                                    .col-md-3
+                                        label.form-label.small.text-primary Online Max
+                                        input.form-control.form-control-sm.text-bg-dark(type="number" name="overrideOnlineMax" min="1")
+                                    .col-md-3
+                                        label.form-label.small.text-success Local Min
+                                        input.form-control.form-control-sm.text-bg-dark(type="number" name="overrideLocalMin" min="1")
+                                    .col-md-3
+                                        label.form-label.small.text-success Local Max
+                                        input.form-control.form-control-sm.text-bg-dark(type="number" name="overrideLocalMax" min="1")
+                                    .col-md-3
+                                        label.form-label.small.text-warning Physical Min
+                                        input.form-control.form-control-sm.text-bg-dark(type="number" name="overridePhysicalMin" min="1")
+                                    .col-md-3
+                                        label.form-label.small.text-warning Physical Max
+                                        input.form-control.form-control-sm.text-bg-dark(type="number" name="overridePhysicalMax" min="1")
+                .modal-footer.border-secondary
+                    button.btn.btn-secondary(type="button" data-bs-dismiss="modal") Cancel
+                    button.btn.btn-primary(type="submit" form="addReleaseForm")
+                        i.bi.bi-plus-lg.me-1
+                        | Add Release
+    
+    //- Merge Modal
+    if title
+        #mergeModal.modal.fade(tabindex="-1")
+            .modal-dialog
+                .modal-content.text-bg-dark
+                    .modal-header.border-secondary
+                        h5.modal-title
+                            i.bi.bi-arrow-left-right.me-2
+                            | Merge Into Another Title
+                        button.btn-close.btn-close-white(type="button" data-bs-dismiss="modal")
+                    .modal-body
+                        .alert.alert-warning
+                            i.bi.bi-exclamation-triangle.me-2
+                            | This will move all releases and copies from "#{title.name}" to the selected target, then delete this title.
+                        form#mergeForm(method="post" action="/games/titles/merge")
+                            input(type="hidden" name="sourceId" value=title.id)
+                            label.form-label Target Game Title
+                            select#mergeTargetSelect.form-select.text-bg-dark(name="targetId" required)
+                                option(value="") Select target game...
+                                each t in allTitles
+                                    option(value=t.id) #{t.name}
+                    .modal-footer.border-secondary
+                        button.btn.btn-secondary(type="button" data-bs-dismiss="modal") Cancel
+                        button.btn.btn-warning(type="submit" form="mergeForm" onclick="return confirm('This will permanently merge the titles. Continue?')")
+                            i.bi.bi-arrow-left-right.me-1
+                            | Merge
+
+block scripts
+    script(type="module" src="/js/stub.gen.js")
+    script.
+        // Initialize Select2 for merge dropdown
+        $(document).ready(function() {
+            $('#mergeTargetSelect').select2({
+                theme: 'bootstrap-5',
+                placeholder: 'Search games...',
+                allowClear: true,
+                dropdownParent: $('#mergeModal')
+            });
+            // Platform dropdown
+            $('select[name="platform"]').select2({
+                theme: 'bootstrap-5',
+                placeholder: 'Select platform...',
+                dropdownParent: $('#addReleaseModal')
+            });
+        });

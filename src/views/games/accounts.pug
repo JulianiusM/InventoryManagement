@@ -1,0 +1,257 @@
+extends ../layout
+
+block meta
+    title External Accounts | Inventory Management
+
+block content
+    - const accounts = (data && data.accounts) ? data.accounts : []
+    - const connectors = (data && data.connectors) ? data.connectors : []
+    //- Generate provider list from registered connectors
+    - const connectorProviders = connectors.map(c => c.provider)
+
+    #liveAlerts
+
+    .d-flex.justify-content-between.align-items-center.mb-3.flex-wrap.gap-2
+        h1.h3.mb-0.text-white
+            i.bi.bi-cloud.me-2
+            | External Accounts
+            if accounts.length > 0
+                span.badge.text-bg-secondary.ms-2.fs-6 #{accounts.length}
+        
+        button.btn.btn-primary(type="button" data-bs-toggle="modal" data-bs-target="#addAccountModal")
+            i.bi.bi-plus-lg.me-1
+            | Link Account
+
+    //- Info card
+    .card.text-bg-dark.border-secondary.mb-3
+        .card-body
+            i.bi.bi-info-circle.me-2
+            | Link your gaming accounts to sync your library.
+            ul.mb-0.mt-2
+                li 
+                    strong Automatic import
+                    |  - Games are automatically imported with metadata (player counts, multiplayer support, etc.)
+                li 
+                    strong Automatic copies
+                    |  - Digital licenses are created automatically for each synced game
+                li 
+                    strong Scheduled sync
+                    |  - Set up periodic syncs to keep your library up to date
+                li 
+                    strong No manual mapping
+                    |  - Everything is handled automatically
+
+    //- Accounts list
+    if accounts.length === 0
+        .card.text-bg-dark.border-secondary
+            .card-body.text-center.py-5
+                i.bi.bi-cloud.display-1.text-white-50.mb-3.d-block
+                p.text-white-50.mb-3 No external accounts linked yet.
+                button.btn.btn-outline-light(type="button" data-bs-toggle="modal" data-bs-target="#addAccountModal")
+                    i.bi.bi-plus-lg.me-1
+                    | Link Your First Account
+    else
+        //- Check which providers have connectors (case-insensitive match)
+        - const connectorProviderNames = connectors.map(c => c.provider.toLowerCase())
+        .row.g-3
+            each account in accounts
+                - const hasConnector = connectorProviderNames.includes(account.provider.toLowerCase())
+                .col-md-6.col-lg-4
+                    .card.text-bg-dark.border-secondary.h-100
+                        .card-body
+                            .d-flex.justify-content-between.align-items-start.mb-3
+                                div
+                                    h5.mb-1.text-white
+                                        i.bi.bi-cloud.me-2
+                                        | #{account.accountName}
+                                    span.badge.text-bg-info #{account.provider}
+                                    if !hasConnector
+                                        span.badge.text-bg-warning.ms-1 Manual
+                                .dropdown
+                                    button.btn.btn-sm.btn-outline-secondary.dropdown-toggle(type="button" data-bs-toggle="dropdown")
+                                        i.bi.bi-three-dots-vertical
+                                    ul.dropdown-menu.dropdown-menu-dark.dropdown-menu-end
+                                        if hasConnector
+                                            li
+                                                form(method="post" action=`/games/accounts/${account.id}/sync`)
+                                                    button.dropdown-item(type="submit")
+                                                        i.bi.bi-arrow-repeat.me-2
+                                                        | Sync Now
+                                            li
+                                                button.dropdown-item(type="button" data-bs-toggle="modal" data-bs-target=`#scheduleModal-${account.id}`)
+                                                    i.bi.bi-clock.me-2
+                                                    | Schedule Sync
+                                            li
+                                                form(method="post" action=`/games/accounts/${account.id}/unschedule`)
+                                                    button.dropdown-item(type="submit")
+                                                        i.bi.bi-clock-history.me-2
+                                                        | Cancel Schedule
+                                            li
+                                                hr.dropdown-divider
+                                        li
+                                            form(method="post" action=`/games/accounts/${account.id}/delete`)
+                                                button.dropdown-item.text-danger(type="submit" onclick="return confirm('Remove this account?')")
+                                                    i.bi.bi-trash.me-2
+                                                    | Remove
+                            
+                            .small.text-white-50
+                                if !hasConnector
+                                    i.bi.bi-info-circle.me-1
+                                    | Manual account (no connector) - use to track games without auto-sync
+                                else if account.lastSyncedAt
+                                    i.bi.bi-clock.me-1
+                                    | Last synced: #{new Date(account.lastSyncedAt).toLocaleString()}
+                                else
+                                    i.bi.bi-exclamation-circle.me-1
+                                    | Never synced
+                        .card-footer.bg-transparent.border-secondary
+                            if hasConnector
+                                .d-flex.gap-2
+                                    form.flex-grow-1(method="post" action=`/games/accounts/${account.id}/sync`)
+                                        button.btn.btn-sm.btn-outline-primary.w-100(type="submit")
+                                            i.bi.bi-arrow-repeat.me-1
+                                            | Sync Library
+                            else
+                                .text-center.text-white-50.small
+                                    i.bi.bi-hand-index.me-1
+                                    | Link games manually from the copy detail page
+                    
+                    //- Schedule Modal for this account
+                    .modal.fade(id=`scheduleModal-${account.id}` tabindex="-1")
+                        .modal-dialog
+                            .modal-content.text-bg-dark
+                                .modal-header.border-secondary
+                                    h5.modal-title
+                                        i.bi.bi-clock.me-2
+                                        | Schedule Periodic Sync
+                                    button.btn-close.btn-close-white(type="button" data-bs-dismiss="modal")
+                                .modal-body
+                                    form(id=`scheduleForm-${account.id}` method="post" action=`/games/accounts/${account.id}/schedule`)
+                                        label.form-label Sync Interval
+                                        select.form-select.text-bg-dark(name="intervalMinutes" required)
+                                            option(value="60") Every hour
+                                            option(value="360") Every 6 hours
+                                            option(value="720") Every 12 hours
+                                            option(value="1440" selected) Daily
+                                            option(value="10080") Weekly
+                                        .form-text.text-white-50 Automatically sync your library at regular intervals.
+                                .modal-footer.border-secondary
+                                    button.btn.btn-secondary(type="button" data-bs-dismiss="modal") Cancel
+                                    button.btn.btn-primary(type="submit" form=`scheduleForm-${account.id}`)
+                                        i.bi.bi-check-lg.me-1
+                                        | Enable Schedule
+
+    //- Available connectors
+    .card.text-bg-dark.border-secondary.mt-4
+        .card-header
+            h5.mb-0
+                i.bi.bi-plug.me-2
+                | Available Connectors
+        .card-body
+            if connectors.length === 0
+                p.text-white-50.mb-0 No connectors available.
+            else
+                .row.g-2
+                    each conn in connectors
+                        .col-md-6.col-lg-4
+                            .card.text-bg-dark.border-secondary
+                                .card-body.py-2
+                                    h6.mb-1 #{conn.name}
+                                    p.small.text-white-50.mb-1 #{conn.description}
+                                    .d-flex.flex-wrap.gap-1
+                                        each cap in conn.capabilities
+                                            span.badge.text-bg-secondary.small #{cap.replace('_', ' ')}
+
+    //- Add Account Modal
+    #addAccountModal.modal.fade(tabindex="-1")
+        .modal-dialog
+            .modal-content.text-bg-dark
+                .modal-header.border-secondary
+                    h5.modal-title
+                        i.bi.bi-plus-circle.me-2
+                        | Link External Account
+                    button.btn-close.btn-close-white(type="button" data-bs-dismiss="modal")
+                .modal-body
+                    //- Provider list generated from registered connectors
+                    form#addAccountForm.row.g-3(method="post" action="/games/accounts")
+                        .col-12
+                            label.form-label Provider *
+                            select#providerSelect.form-select.text-bg-dark(name="provider" required)
+                                //- Options from registered connectors
+                                each p in connectorProviders
+                                    option(value=p selected=(p === connectorProviders[0])) #{p}
+                                option(value="Other") Other (Manual only)
+                        
+                        //- Custom provider name (only visible when "Other" selected)
+                        #customProviderField.col-12.d-none
+                            label.form-label Custom Provider Name *
+                            input#customProviderInput.form-control.text-bg-dark(type="text" placeholder="e.g., My Custom Store")
+                            .form-text.text-white-50 No connector available. Games must be added manually.
+                        
+                        .col-12
+                            label.form-label Account Name *
+                            input.form-control.text-bg-dark(type="text" name="accountName" required placeholder="e.g., My Steam Account")
+                        
+                        //- Credential fields (hidden for "Other")
+                        #credentialFields
+                            .col-12
+                                label.form-label User ID / Steam ID
+                                input.form-control.text-bg-dark(type="text" name="externalUserId" placeholder="Your external user ID")
+                            .col-12.mt-2
+                                label.form-label API Key / Token (optional)
+                                input.form-control.text-bg-dark(type="password" name="tokenRef" placeholder="API key or token if required")
+                                .form-text.text-white-50 This will be stored securely and used for syncing.
+                        
+                        //- Manual account notice (only visible when "Other" selected)
+                        #manualAccountNotice.col-12.d-none
+                            .alert.alert-warning.mb-0
+                                i.bi.bi-hand-index.me-2
+                                strong Manual Account:
+                                |  No automatic sync available. You can manually link games to this account from the copy detail page.
+                .modal-footer.border-secondary
+                    button.btn.btn-secondary(type="button" data-bs-dismiss="modal") Cancel
+                    button.btn.btn-primary(type="submit" form="addAccountForm")
+                        i.bi.bi-link-45deg.me-1
+                        | Link Account
+
+block scripts
+    script.
+        document.addEventListener('DOMContentLoaded', function() {
+            const providerSelect = document.getElementById('providerSelect');
+            const customProviderField = document.getElementById('customProviderField');
+            const customProviderInput = document.getElementById('customProviderInput');
+            const credentialFields = document.getElementById('credentialFields');
+            const manualAccountNotice = document.getElementById('manualAccountNotice');
+            const addAccountForm = document.getElementById('addAccountForm');
+            
+            if (providerSelect) {
+                providerSelect.addEventListener('change', function() {
+                    const isOther = this.value === 'Other';
+                    
+                    if (isOther) {
+                        customProviderField.classList.remove('d-none');
+                        credentialFields.classList.add('d-none');
+                        manualAccountNotice.classList.remove('d-none');
+                        customProviderInput.required = true;
+                    } else {
+                        customProviderField.classList.add('d-none');
+                        credentialFields.classList.remove('d-none');
+                        manualAccountNotice.classList.add('d-none');
+                        customProviderInput.required = false;
+                    }
+                });
+                
+                // On form submit, if "Other" is selected, use custom provider name
+                addAccountForm.addEventListener('submit', function(e) {
+                    if (providerSelect.value === 'Other') {
+                        // Replace the select value with custom provider input
+                        providerSelect.name = '';
+                        const hiddenInput = document.createElement('input');
+                        hiddenInput.type = 'hidden';
+                        hiddenInput.name = 'provider';
+                        hiddenInput.value = customProviderInput.value.trim() || 'Other';
+                        addAccountForm.appendChild(hiddenInput);
+                    }
+                });
+            }
+        });
