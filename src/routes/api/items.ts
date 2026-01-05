@@ -22,4 +22,17 @@ router.post('/:id/barcode', asyncHandler(async (req: Request, res: Response) => 
     }
 }));
 
+// Delete barcode from item
+router.delete('/:id/barcode/:barcodeId', asyncHandler(async (req: Request, res: Response) => {
+    const itemId = req.params.id;
+    const barcodeId = req.params.barcodeId;
+    const userId = req.session.user!.id;
+    const result = await itemController.deleteBarcodeFromItem(itemId, barcodeId, userId);
+    if (result.success) {
+        renderer.respondWithSuccessJson(res, result.message);
+    } else {
+        renderer.respondWithErrorJson(res, result.message);
+    }
+}));
+
 export default router;

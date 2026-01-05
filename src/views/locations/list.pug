@@ -3,163 +3,218 @@ extends ../layout
 block meta
     title Locations | Inventory Management
 
-//- Improved tree mixin with proper styling
-mixin treeNode(node, depth)
+//- Simpler tree node with minimal borders
+mixin treeNodeSimple(node, depth)
     - depth = depth || 0
-    .location-node(style=`margin-left: ${depth * 1.5}rem`)
-        .d-flex.align-items-center.py-2.border-bottom.border-secondary
-            //- Expand/collapse indicator
-            if node.childrenNodes && node.childrenNodes.length
-                i.bi.bi-chevron-down.me-2.text-white-50.small
-            else
-                i.bi.bi-dot.me-2.text-white-50
-            //- Location icon based on kind
-            case node.kind
-                when 'room'
-                    i.bi.bi-house.me-2.text-info
-                when 'shelf'
-                    i.bi.bi-columns-gap.me-2.text-info
-                when 'box'
-                    i.bi.bi-box.me-2.text-info
-                when 'bin'
-                    i.bi.bi-archive.me-2.text-info
-                when 'drawer'
-                    i.bi.bi-layout-sidebar.me-2.text-info
-                when 'cabinet'
-                    i.bi.bi-grid.me-2.text-info
-                default
-                    i.bi.bi-geo.me-2.text-info
-            //- Location link
-            a.text-white.text-decoration-none.flex-grow-1(href=`/locations/${node.id}`)
-                | #{node.name}
+    - const hasChildren = node.childrenNodes && node.childrenNodes.length > 0
+    - const nodeId = `location-${node.id}`
+    
+    .location-tree-node.py-2(style=depth > 0 ? `padding-left: ${depth * 2}rem` : '')
+        .d-flex.align-items-center.justify-content-between
+            .d-flex.align-items-center.flex-grow-1.gap-2
+                //- Collapse indicator
+                if hasChildren
+                    button.btn.btn-sm.btn-link.text-white-50.p-0(
+                        type="button"
+                        data-bs-toggle="collapse"
+                        data-bs-target=`#${nodeId}`
+                        aria-expanded="true"
+                        aria-controls=nodeId
+                        style="width: 1.5rem; text-decoration: none;"
+                    )
+                        i.bi.bi-chevron-down
+                else
+                    span(style="width: 1.5rem; display: inline-block;")
+                
+                //- Location icon based on kind
+                case node.kind
+                    when 'room'
+                        i.bi.bi-house.text-info
+                    when 'shelf'
+                        i.bi.bi-columns-gap.text-info
+                    when 'box'
+                        i.bi.bi-box.text-info
+                    when 'bin'
+                        i.bi.bi-archive.text-info
+                    when 'drawer'
+                        i.bi.bi-layout-sidebar.text-info
+                    when 'cabinet'
+                        i.bi.bi-grid.text-info
+                    default
+                        i.bi.bi-geo.text-info
+                
+                //- Location link
+                a.text-white.text-decoration-none(href=`/locations/${node.id}`)
+                    | #{node.name}
+            
             //- Badges
-            span.badge.text-bg-secondary.me-2 #{node.kind}
-            if node.qrCode
-                span.badge.text-bg-dark.border.border-secondary.me-2
-                    i.bi.bi-qr-code.me-1
-                    | QR
-        //- Children
-        if node.childrenNodes && node.childrenNodes.length
+            .d-flex.align-items-center.gap-2
+                span.badge.text-bg-secondary.small #{node.kind}
+                if node.qrCode
+                    span.badge.text-bg-dark.border.border-secondary.small
+                        i.bi.bi-qr-code.me-1
+                        | QR
+    
+    //- Children
+    if hasChildren
+        .collapse.show(id=nodeId)
             each child in node.childrenNodes
-                +treeNode(child, depth + 1)
+                +treeNodeSimple(child, depth + 1)
 
 block content
     - const locations = (data && data.locations) ? data.locations : []
     - const tree = (data && data.tree) ? data.tree : []
+    - const pagination = (data && data.pagination) ? data.pagination : {page: 1, totalPages: 1, totalItems: locations.length, perPage: 50}
+    - const filters = (data && data.filters) ? data.filters : {search: ''}
     - const locationKinds = ['room', 'shelf', 'box', 'bin', 'drawer', 'cabinet', 'other']
+
+    include ../modules/module_pagination
 
     #liveAlerts
 
-    //- Breadcrumb navigation
-    nav.mb-2(aria-label="breadcrumb")
-        ol.breadcrumb.mb-0
-            li.breadcrumb-item
-                a.text-white(href="/") Home
-            li.breadcrumb-item.active.text-white-50(aria-current="page") Locations
-
-    .d-flex.justify-content-between.align-items-center.mb-3
+    .d-flex.justify-content-between.align-items-center.mb-3.flex-wrap.gap-2
         h1.h3.mb-0.text-white
             i.bi.bi-geo-alt.me-2
             | Locations
-            if locations.length > 0
-                span.badge.text-bg-secondary.ms-2.fs-6 #{locations.length}
+            if pagination.totalItems > 0
+                span.badge.text-bg-secondary.ms-2.fs-6 #{pagination.totalItems}
+        
+        .d-flex.gap-2.align-items-center.flex-wrap
+            //- Items per page selector on desktop
+            .d-none.d-md-block
+                +itemsPerPageSelector(pagination.perPage, '/locations')
+            //- Add button to open modal
+            button.btn.btn-primary(type="button" data-bs-toggle="modal" data-bs-target="#addLocationModal")
+                i.bi.bi-plus-lg.me-1
+                | Add Location
 
     //- Search box
-    if locations.length > 5
-        .card.text-bg-dark.border-secondary.mb-3
-            .card-body.py-2
-                .input-group
-                    span.input-group-text.text-bg-dark.border-secondary
-                        i.bi.bi-search
-                    input#locationSearch.form-control.text-bg-dark.border-secondary(type="text" placeholder="Search locations..." autocomplete="off")
-
-    //- Add location form (collapsible)
-    .card.text-bg-dark.border-secondary.mb-4
-        .card-header.d-flex.justify-content-between.align-items-center(data-bs-toggle="collapse" data-bs-target="#addLocationForm" style="cursor: pointer")
-            h2.h5.mb-0
-                i.bi.bi-plus-circle.me-2
-                | Add New Location
-            i.bi.bi-chevron-down
-        #addLocationForm.collapse.show
-            .card-body
-                form.row.g-3(method="post" action="/locations")
-                    .col-md-5
-                        label.form-label(for="name")
-                            i.bi.bi-tag.me-1
-                            | Name *
-                        input#name.form-control.text-bg-dark(type="text" name="name" required placeholder="e.g. Garage Shelf A")
-                    .col-md-3
-                        label.form-label(for="kind")
-                            i.bi.bi-grid.me-1
-                            | Kind
-                        select#kind.form-select.text-bg-dark(name="kind")
-                            each k in locationKinds
-                                option(value=k selected=(k === 'other')) #{k.charAt(0).toUpperCase() + k.slice(1)}
-                    .col-md-4
-                        label.form-label(for="parentId")
-                            i.bi.bi-diagram-3.me-1
-                            | Parent Location
-                        select#parentId.form-select.text-bg-dark(name="parentId")
-                            option(value="") None (top-level)
-                            each loc in locations
-                                option(value=loc.id) #{loc.name}
-                    .col-md-8
-                        label.form-label(for="qrCode")
-                            i.bi.bi-qr-code.me-1
-                            | QR Code (optional)
-                        input#qrCode.form-control.text-bg-dark(type="text" name="qrCode" placeholder="e.g. LOC:garage-shelf-1")
-                        .form-text.text-white-50 Assign a unique code for scanning. Use prefix like LOC: to identify locations.
-                    .col-md-4.d-flex.align-items-end
+    .card.text-bg-dark.border-secondary.mb-3
+        .card-body.py-2
+            form(method="get" action="/locations")
+                .row.g-2.align-items-center
+                    .col-md-10
+                        .input-group
+                            span.input-group-text.text-bg-dark.border-secondary
+                                i.bi.bi-search
+                            input#locationSearch.form-control.text-bg-dark.border-secondary(
+                                type="text"
+                                name="search"
+                                placeholder="Search by name, QR code, or kind..."
+                                value=filters.search
+                                autocomplete="off"
+                            )
+                            if filters.search
+                                button.btn.btn-outline-secondary(type="button" data-search-clear)
+                                    i.bi.bi-x-lg
+                    .col-md-2
                         button.btn.btn-primary.w-100(type="submit")
-                            i.bi.bi-plus-lg.me-1
-                            | Create Location
+                            i.bi.bi-funnel.me-1
+                            | Search
+                        if filters.search
+                            a.btn.btn-outline-secondary.w-100.mt-1(href="/locations")
+                                i.bi.bi-arrow-counterclockwise.me-1
+                                | Reset
 
-    //- Location tree
-    .card.text-bg-dark.border-secondary
-        .card-header
-            h2.h5.mb-0
-                i.bi.bi-diagram-3.me-2
-                | Location Tree
-        .card-body
-            if tree.length === 0
-                .text-center.py-4
-                    i.bi.bi-geo-alt.display-1.text-white-50.mb-3.d-block
-                    p.text-white-50.mb-0 No locations yet. Create your first location above!
-            else
-                #locationTree
+    //- Items per page selector on mobile
+    .d-md-none.mb-3
+        +itemsPerPageSelector(pagination.perPage, '/locations')
+
+    //- Location display - single full-width view
+    //- Location display - single full-width view
+    if tree.length === 0 && pagination.totalItems === 0
+        .card.text-bg-dark.border-secondary
+            .card-body.text-center.py-5
+                i.bi.bi-geo-alt.display-1.text-white-50.mb-3.d-block
+                if filters.search
+                    p.text-white-50.mb-3 No locations match your search.
+                    a.btn.btn-outline-light(href="/locations") Clear search
+                else
+                    p.text-white-50.mb-3 No locations yet.
+                    button.btn.btn-primary(type="button" data-bs-toggle="modal" data-bs-target="#addLocationModal")
+                        i.bi.bi-plus-lg.me-1
+                        | Create your first location
+    else
+        .card.text-bg-dark.border-secondary
+            .card-header
+                h2.h5.mb-0
+                    i.bi.bi-diagram-3.me-2
+                    | Location Hierarchy
+            .card-body(style="max-height: 70vh; overflow-y: auto;")
+                if tree.length > 0
                     each root in tree
-                        +treeNode(root, 0)
+                        +treeNodeSimple(root, 0)
+                else
+                    .text-center.py-4
+                        i.bi.bi-search.display-4.text-white-50.mb-2.d-block
+                        p.text-white-50.mb-0 No locations match your search.
 
 block scripts
     script.
-        // Location search
+        // Enhanced search
         document.addEventListener('DOMContentLoaded', function() {
             const searchInput = document.getElementById('locationSearch');
-            const tree = document.getElementById('locationTree');
+            const clearBtn = document.querySelector('[data-search-clear]');
             
-            if (searchInput && tree) {
-                searchInput.addEventListener('input', function() {
-                    const query = this.value.toLowerCase();
-                    const nodes = tree.querySelectorAll('.location-node');
-                    
-                    nodes.forEach(node => {
-                        const link = node.querySelector('a');
-                        const name = link ? link.textContent.toLowerCase() : '';
-                        
-                        if (!query || name.includes(query)) {
-                            node.style.display = '';
-                            // Show all parent nodes
-                            let parent = node.parentElement;
-                            while (parent && parent !== tree) {
-                                if (parent.classList.contains('location-node')) {
-                                    parent.style.display = '';
-                                }
-                                parent = parent.parentElement;
-                            }
-                        } else {
-                            node.style.display = 'none';
-                        }
-                    });
+            // Clear button handler
+            if (clearBtn) {
+                clearBtn.addEventListener('click', function() {
+                    searchInput.value = '';
+                    searchInput.focus();
+                });
+            }
+            
+            // Initialize Select2 for parent location dropdown in modal
+            if (typeof $ !== 'undefined' && $.fn.select2) {
+                $('.select2-parent-location').select2({
+                    theme: 'bootstrap-5',
+                    dropdownParent: $('#addLocationModal'),
+                    placeholder: 'None (top-level)',
+                    allowClear: true,
+                    width: '100%'
                 });
             }
         });
+
+    //- Add Location Modal
+    #addLocationModal.modal.fade(tabindex="-1" aria-labelledby="addLocationModalLabel" aria-hidden="true")
+        .modal-dialog.modal-lg
+            .modal-content.text-bg-dark
+                .modal-header.border-secondary
+                    h5.modal-title#addLocationModalLabel
+                        i.bi.bi-plus-circle.me-2
+                        | Add New Location
+                    button.btn-close.btn-close-white(type="button" data-bs-dismiss="modal" aria-label="Close")
+                .modal-body
+                    form#addLocationForm.row.g-3(method="post" action="/locations")
+                        .col-md-6
+                            label.form-label(for="modalName")
+                                i.bi.bi-tag.me-1
+                                | Name *
+                            input#modalName.form-control.text-bg-dark(type="text" name="name" required placeholder="e.g. Garage Shelf A")
+                        .col-md-6
+                            label.form-label(for="modalKind")
+                                i.bi.bi-grid.me-1
+                                | Kind
+                            select#modalKind.form-select.text-bg-dark(name="kind")
+                                each k in locationKinds
+                                    option(value=k selected=(k === 'other')) #{k.charAt(0).toUpperCase() + k.slice(1)}
+                        .col-md-12
+                            label.form-label(for="modalParentId")
+                                i.bi.bi-diagram-3.me-1
+                                | Parent Location
+                            select#modalParentId.form-select.text-bg-dark.select2-parent-location(name="parentId")
+                                option(value="") None (top-level)
+                                each loc in locations
+                                    option(value=loc.id) #{loc.name}
+                        .col-md-12
+                            label.form-label(for="modalQrCode")
+                                i.bi.bi-qr-code.me-1
+                                | QR Code (optional)
+                            input#modalQrCode.form-control.text-bg-dark(type="text" name="qrCode" placeholder="e.g. LOC:garage-shelf-1")
+                            .form-text.text-white-50 Assign a unique code for scanning. Use prefix like LOC: to identify locations.
+                .modal-footer.border-secondary
+                    button.btn.btn-secondary(type="button" data-bs-dismiss="modal") Cancel
+                    button.btn.btn-primary(type="submit" form="addLocationForm")
+                        i.bi.bi-plus-lg.me-1
+                        | Create Location

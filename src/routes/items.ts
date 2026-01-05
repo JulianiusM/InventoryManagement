@@ -9,10 +9,22 @@ const router = express.Router();
 // Apply auth middleware to all item routes
 router.use(requireAuth);
 
-// List all items (only user's items)
+// List all items (only user's items) with pagination
 router.get('/', asyncHandler(async (req: Request, res: Response) => {
     const ownerId = req.session.user!.id;
-    const data = await itemController.listItems(ownerId);
+    const page = parseInt(req.query.page as string) || 1;
+    const perPage = parseInt(req.query.perPage as string) || 30;
+    const search = (req.query.search as string) || '';
+    const typeFilter = (req.query.type as string) || '';
+    const locationFilter = (req.query.location as string) || '';
+    
+    const data = await itemController.listItems(ownerId, {
+        page,
+        perPage,
+        search,
+        typeFilter,
+        locationFilter
+    });
     renderer.renderWithData(res, 'items/list', data);
 }));
 

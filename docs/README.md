@@ -15,6 +15,7 @@ Welcome to the Inventory Management documentation. This directory contains compr
 - **[CODING_STANDARDS.md](CODING_STANDARDS.md)** - TypeScript, code style, and best practices
 - **[DATABASE.md](DATABASE.md)** - Database entities, migrations, and patterns
 - **[FRONTEND.md](FRONTEND.md)** - Frontend architecture and modular structure
+- **[UI_REDESIGN_SUMMARY.md](UI_REDESIGN_SUMMARY.md)** - UI redesign documentation and patterns
 
 #### Testing
 - **[TESTING_GUIDE.md](TESTING_GUIDE.md)** - Complete testing guide (data-driven & keyword-driven)

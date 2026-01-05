@@ -8,13 +8,6 @@ block content
 
     #liveAlerts
 
-    //- Breadcrumb navigation
-    nav.mb-2(aria-label="breadcrumb")
-        ol.breadcrumb.mb-0
-            li.breadcrumb-item
-                a.text-white(href="/") Home
-            li.breadcrumb-item.active.text-white-50(aria-current="page") Scan
-
     .d-flex.justify-content-between.align-items-center.mb-3
         h1.h3.mb-0.text-white
             i.bi.bi-upc-scan.me-2
@@ -85,7 +78,7 @@ block content
                 .card-body
                     form#manualForm
                         .input-group
-                            input#manualCode.form-control.text-bg-dark.form-control-lg(type="text" placeholder="Enter barcode or QR code" autocomplete="off")
+                            input#manualCode.form-control.text-bg-dark.form-control-lg(type="text" placeholder="Enter barcode or QR code" autocomplete="off" autofocus)
                             button.btn.btn-primary(type="submit")
                                 i.bi.bi-search.me-1
                                 | Lookup

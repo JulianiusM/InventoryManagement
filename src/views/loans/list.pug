@@ -7,26 +7,22 @@ block content
     - const items = (data && data.items) ? data.items : []
     - const loans = (data && data.loans) ? data.loans : []
     - const allLoans = (data && data.allLoans) ? data.allLoans : []
+    - const paginatedLoans = (data && data.paginatedLoans) ? data.paginatedLoans : null
+    - const pagination = (data && data.pagination) ? data.pagination : {page: 1, totalPages: 1, totalItems: 0, perPage: 30, tab: 'active'}
     - const overdueLoans = loans.filter(l => l.status === 'overdue' || (l.dueAt && new Date(l.dueAt) < new Date() && l.status === 'active'))
     - const conditions = ['new', 'like_new', 'good', 'fair', 'poor']
 
-    #liveAlerts
+    include ../modules/module_pagination
 
-    //- Breadcrumb navigation
-    nav.mb-2(aria-label="breadcrumb")
-        ol.breadcrumb.mb-0
-            li.breadcrumb-item
-                a.text-white(href="/") Home
-            li.breadcrumb-item.active.text-white-50(aria-current="page") Lending
+    #liveAlerts
 
     .d-flex.justify-content-between.align-items-center.mb-3
         h1.h3.mb-0.text-white
             i.bi.bi-arrow-left-right.me-2
             | Lending
-        .btn-group
-            button.btn.btn-outline-light(type="button" data-bs-toggle="collapse" data-bs-target="#newLoanForm")
-                i.bi.bi-plus-lg.me-1
-                | New Loan
+        button.btn.btn-primary(type="button" data-bs-toggle="modal" data-bs-target="#newLoanModal")
+            i.bi.bi-plus-lg.me-1
+            | New Loan
 
     //- Stats row
     .row.row-cols-2.row-cols-md-4.g-3.mb-4
@@ -51,85 +47,22 @@ block content
                     h3.h4.mb-0 #{loans.filter(l => l.direction === 'borrow').length}
                     small.text-white-50 Borrowing
 
-    //- New loan form (collapsible)
-    .card.text-bg-dark.border-secondary.mb-4
-        #newLoanForm.collapse
-            .card-header
-                h2.h5.mb-0
-                    i.bi.bi-plus-circle.me-2
-                    | New Loan
-            .card-body
-                if items.length === 0
-                    .alert.alert-warning.mb-0
-                        i.bi.bi-exclamation-triangle.me-2
-                        | You need to 
-                        a.alert-link(href="/items") add some items
-                        |  before you can create a loan.
-                else
-                    form.row.g-3(method="post" action="/loans")
-                        .col-md-5
-                            label.form-label(for="itemId")
-                                i.bi.bi-box.me-1
-                                | Item *
-                            select#itemId.form-select.text-bg-dark(name="itemId" required)
-                                option(value="" disabled selected) Select an item...
-                                each it in items
-                                    option(value=it.id) #{it.name} (#{it.type})
-                        .col-md-3
-                            label.form-label(for="direction")
-                                i.bi.bi-arrow-left-right.me-1
-                                | Type *
-                            select#direction.form-select.text-bg-dark(name="direction")
-                                option(value="lend" selected) Lending out
-                                option(value="borrow") Borrowing
-                        .col-md-4
-                            label.form-label(for="conditionOut")
-                                i.bi.bi-heart.me-1
-                                | Condition at handoff
-                            select#conditionOut.form-select.text-bg-dark(name="conditionOut")
-                                option(value="") Not specified
-                                each c in conditions
-                                    option(value=c) #{c.charAt(0).toUpperCase() + c.slice(1).replace('_', ' ')}
-                        .col-md-4
-                            label.form-label(for="partyName")
-                                i.bi.bi-person.me-1
-                                | Counterparty Name *
-                            input#partyName.form-control.text-bg-dark(type="text" name="partyName" required placeholder="Who are you lending to / borrowing from?")
-                        .col-md-4
-                            label.form-label(for="partyEmail")
-                                i.bi.bi-envelope.me-1
-                                | Email (optional)
-                            input#partyEmail.form-control.text-bg-dark(type="email" name="partyEmail" placeholder="For reminders")
-                        .col-md-4
-                            label.form-label(for="partyPhone")
-                                i.bi.bi-phone.me-1
-                                | Phone (optional)
-                            input#partyPhone.form-control.text-bg-dark(type="tel" name="partyPhone")
-                        .col-md-4
-                            label.form-label(for="dueAt")
-                                i.bi.bi-calendar.me-1
-                                | Due Date (optional)
-                            input#dueAt.form-control.text-bg-dark(type="date" name="dueAt")
-                        .col-md-8
-                            label.form-label(for="notes")
-                                i.bi.bi-sticky.me-1
-                                | Notes (optional)
-                            input#notes.form-control.text-bg-dark(type="text" name="notes" placeholder="Any additional notes about this loan...")
-                        .col-12
-                            button.btn.btn-primary(type="submit")
-                                i.bi.bi-check-lg.me-1
-                                | Create Loan
-
     //- Tabs for active and history
     ul.nav.nav-tabs.mb-0(role="tablist")
         li.nav-item
-            button.nav-link.active.text-bg-dark.border-secondary(data-bs-toggle="tab" data-bs-target="#activeLoans" type="button")
+            a.nav-link.text-bg-dark.border-secondary(
+                href="/loans?tab=active"
+                class=pagination.tab === 'active' ? 'active' : ''
+            )
                 i.bi.bi-clock.me-1
                 | Active
                 if loans.length > 0
                     span.badge.text-bg-primary.ms-2 #{loans.length}
         li.nav-item
-            button.nav-link.text-bg-dark.border-secondary(data-bs-toggle="tab" data-bs-target="#loanHistory" type="button")
+            a.nav-link.text-bg-dark.border-secondary(
+                href="/loans?tab=history"
+                class=pagination.tab === 'history' ? 'active' : ''
+            )
                 i.bi.bi-clock-history.me-1
                 | History
                 if allLoans.length > loans.length
@@ -137,14 +70,14 @@ block content
 
     .tab-content
         //- Active loans tab
-        #activeLoans.tab-pane.fade.show.active
+        if pagination.tab === 'active'
             .card.text-bg-dark.border-secondary.border-top-0.rounded-top-0
                 .card-body
                     if loans.length === 0
                         .text-center.py-4
                             i.bi.bi-inbox.display-4.text-white-50.mb-2.d-block
                             p.text-white-50.mb-2 No active loans.
-                            button.btn.btn-outline-light(type="button" data-bs-toggle="collapse" data-bs-target="#newLoanForm")
+                            button.btn.btn-outline-light(type="button" data-bs-toggle="modal" data-bs-target="#newLoanModal")
                                 i.bi.bi-plus-lg.me-1
                                 | Create your first loan
                     else
@@ -198,10 +131,10 @@ block content
                                                         | Return
 
         //- History tab
-        #loanHistory.tab-pane.fade
+        if pagination.tab === 'history'
             .card.text-bg-dark.border-secondary.border-top-0.rounded-top-0
                 .card-body
-                    - const returnedLoans = allLoans.filter(l => l.status === 'returned')
+                    - const returnedLoans = paginatedLoans || allLoans.filter(l => l.status === 'returned')
                     if returnedLoans.length === 0
                         .text-center.py-4
                             i.bi.bi-clock-history.display-4.text-white-50.mb-2.d-block
@@ -237,6 +170,93 @@ block content
                                                 | #{new Date(l.startAt).toLocaleDateString()}
                                                 | →
                                                 | #{l.returnedAt ? new Date(l.returnedAt).toLocaleDateString() : '—'}
+                        
+                        //- Pagination for history
+                        +pagination(pagination.page, pagination.totalPages, '/loans?tab=history')
+
+    //- New Loan Modal
+    #newLoanModal.modal.fade(tabindex="-1" aria-labelledby="newLoanModalLabel" aria-hidden="true")
+        .modal-dialog.modal-lg
+            .modal-content.text-bg-dark
+                .modal-header.border-secondary
+                    h5.modal-title#newLoanModalLabel
+                        i.bi.bi-plus-circle.me-2
+                        | New Loan
+                    button.btn-close.btn-close-white(type="button" data-bs-dismiss="modal" aria-label="Close")
+                .modal-body
+                    if items.length === 0
+                        .alert.alert-warning.mb-0
+                            i.bi.bi-exclamation-triangle.me-2
+                            | You need to 
+                            a.alert-link(href="/items") add some items
+                            |  before you can create a loan.
+                    else
+                        form#newLoanForm.row.g-3(method="post" action="/loans")
+                            .col-md-6
+                                label.form-label(for="modalItemId")
+                                    i.bi.bi-box.me-1
+                                    | Item *
+                                select#modalItemId.form-select.text-bg-dark.select2-item(name="itemId" required)
+                                    option(value="" disabled selected) Select an item...
+                                    each it in items
+                                        option(value=it.id) #{it.name} (#{it.type})
+                            .col-md-6
+                                label.form-label(for="modalDirection")
+                                    i.bi.bi-arrow-left-right.me-1
+                                    | Type *
+                                select#modalDirection.form-select.text-bg-dark(name="direction")
+                                    option(value="lend" selected) Lending out
+                                    option(value="borrow") Borrowing
+                            .col-md-6
+                                label.form-label(for="modalConditionOut")
+                                    i.bi.bi-heart.me-1
+                                    | Condition at handoff
+                                select#modalConditionOut.form-select.text-bg-dark(name="conditionOut")
+                                    option(value="") Not specified
+                                    each c in conditions
+                                        option(value=c) #{c.charAt(0).toUpperCase() + c.slice(1).replace('_', ' ')}
+                            .col-md-6
+                                label.form-label(for="modalDueAt")
+                                    i.bi.bi-calendar.me-1
+                                    | Due Date (optional)
+                                input#modalDueAt.form-control.text-bg-dark(type="date" name="dueAt")
+                            .col-md-12
+                                label.form-label(for="modalPartyName")
+                                    i.bi.bi-person.me-1
+                                    | Counterparty Name *
+                                input#modalPartyName.form-control.text-bg-dark(type="text" name="partyName" required placeholder="Who are you lending to / borrowing from?")
+                            .col-md-6
+                                label.form-label(for="modalPartyEmail")
+                                    i.bi.bi-envelope.me-1
+                                    | Email (optional)
+                                input#modalPartyEmail.form-control.text-bg-dark(type="email" name="partyEmail" placeholder="For reminders")
+                            .col-md-6
+                                label.form-label(for="modalPartyPhone")
+                                    i.bi.bi-phone.me-1
+                                    | Phone (optional)
+                                input#modalPartyPhone.form-control.text-bg-dark(type="tel" name="partyPhone")
+                            .col-md-12
+                                label.form-label(for="modalNotes")
+                                    i.bi.bi-sticky.me-1
+                                    | Notes (optional)
+                                input#modalNotes.form-control.text-bg-dark(type="text" name="notes" placeholder="Any additional notes about this loan...")
+                .modal-footer.border-secondary
+                    button.btn.btn-secondary(type="button" data-bs-dismiss="modal") Cancel
+                    button.btn.btn-primary(type="submit" form="newLoanForm")
+                        i.bi.bi-check-lg.me-1
+                        | Create Loan
 
 block scripts
     script(type="module" src="/js/loans/list.gen.js")
+    script.
+        // Initialize Select2 for item dropdown in modal
+        document.addEventListener('DOMContentLoaded', function() {
+            if (typeof $ !== 'undefined' && $.fn.select2) {
+                $('.select2-item').select2({
+                    theme: 'bootstrap-5',
+                    dropdownParent: $('#newLoanModal'),
+                    placeholder: 'Select an item',
+                    width: '100%'
+                });
+            }
+        });

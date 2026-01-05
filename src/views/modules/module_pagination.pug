@@ -1,0 +1,70 @@
+//- Pagination mixin for list pages
+//- Usage: +pagination(currentPage, totalPages, baseUrl)
+mixin pagination(currentPage, totalPages, baseUrl)
+    - currentPage = currentPage || 1
+    - totalPages = totalPages || 1
+    - const maxVisible = 5
+    
+    if totalPages > 1
+        nav.d-flex.justify-content-between.align-items-center.flex-wrap.gap-2.mt-3(aria-label="Page navigation")
+            .text-white-50.small
+                | Page #{currentPage} of #{totalPages}
+            
+            ul.pagination.pagination-sm.mb-0
+                //- Previous button
+                li.page-item(class=currentPage === 1 ? 'disabled' : '')
+                    if currentPage === 1
+                        span.page-link.text-bg-dark.border-secondary
+                            i.bi.bi-chevron-left
+                    else
+                        a.page-link.text-bg-dark.border-secondary(href=`${baseUrl}?page=${currentPage - 1}`)
+                            i.bi.bi-chevron-left
+                
+                //- Page numbers with ellipsis
+                - let startPage = Math.max(1, currentPage - Math.floor(maxVisible / 2))
+                - let endPage = Math.min(totalPages, startPage + maxVisible - 1)
+                - if (endPage - startPage < maxVisible - 1) startPage = Math.max(1, endPage - maxVisible + 1)
+                
+                //- First page
+                if startPage > 1
+                    li.page-item
+                        a.page-link.text-bg-dark.border-secondary(href=`${baseUrl}?page=1`) 1
+                    if startPage > 2
+                        li.page-item.disabled
+                            span.page-link.text-bg-dark.border-secondary ...
+                
+                //- Page numbers
+                - for (let i = startPage; i <= endPage; i++)
+                    li.page-item(class=i === currentPage ? 'active' : '')
+                        if i === currentPage
+                            span.page-link.bg-primary.border-primary #{i}
+                        else
+                            a.page-link.text-bg-dark.border-secondary(href=`${baseUrl}?page=${i}`) #{i}
+                
+                //- Last page
+                if endPage < totalPages
+                    if endPage < totalPages - 1
+                        li.page-item.disabled
+                            span.page-link.text-bg-dark.border-secondary ...
+                    li.page-item
+                        a.page-link.text-bg-dark.border-secondary(href=`${baseUrl}?page=${totalPages}`) #{totalPages}
+                
+                //- Next button
+                li.page-item(class=currentPage === totalPages ? 'disabled' : '')
+                    if currentPage === totalPages
+                        span.page-link.text-bg-dark.border-secondary
+                            i.bi.bi-chevron-right
+                    else
+                        a.page-link.text-bg-dark.border-secondary(href=`${baseUrl}?page=${currentPage + 1}`)
+                            i.bi.bi-chevron-right
+
+//- Items per page selector
+mixin itemsPerPageSelector(currentPerPage, baseUrl)
+    - currentPerPage = currentPerPage || 30
+    .d-flex.align-items-center.gap-2
+        label.text-white-50.small.mb-0(for="itemsPerPage") Items per page:
+        select#itemsPerPage.form-select.form-select-sm.text-bg-dark.border-secondary(style="width: auto" onchange=`window.location.href='${baseUrl}?perPage=' + this.value`)
+            option(value="10" selected=currentPerPage === 10) 10
+            option(value="25" selected=currentPerPage === 25) 25
+            option(value="50" selected=currentPerPage === 50) 50
+            option(value="100" selected=currentPerPage === 100) 100

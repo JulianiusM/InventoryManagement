@@ -8,11 +8,66 @@ import {checkOwnership, requireAuthenticatedUser} from '../middleware/authMiddle
 import {Item} from '../modules/database/entities/item/Item';
 import {ItemType, ItemCondition} from '../types/InventoryEnums';
 
-export async function listItems(ownerId: number) {
+export async function listItems(ownerId: number, options?: {
+    page?: number;
+    perPage?: number;
+    search?: string;
+    typeFilter?: string;
+    locationFilter?: string;
+}) {
     requireAuthenticatedUser(ownerId);
-    const items = await itemService.getAllItems(ownerId);
+    const page = options?.page || 1;
+    const perPage = Math.min(options?.perPage || 30, 100); // Max 100 items per page
+    const skip = (page - 1) * perPage;
+    
+    // Get all items first (we'll add pagination to service layer later)
+    let items = await itemService.getAllItems(ownerId);
     const locations = await locationService.getAllLocations(ownerId);
-    return {items, locations};
+    
+    // Apply filters
+    if (options?.search) {
+        const searchLower = options.search.toLowerCase();
+        items = items.filter(item => 
+            item.name.toLowerCase().includes(searchLower) ||
+            (item.description && item.description.toLowerCase().includes(searchLower)) ||
+            (item.tags && item.tags.some(tag => tag.toLowerCase().includes(searchLower)))
+        );
+    }
+    
+    if (options?.typeFilter) {
+        items = items.filter(item => item.type === options.typeFilter);
+    }
+    
+    if (options?.locationFilter) {
+        if (options.locationFilter === 'unassigned') {
+            items = items.filter(item => !item.locationId);
+        } else {
+            items = items.filter(item => item.locationId === options.locationFilter);
+        }
+    }
+    
+    // Calculate pagination
+    const totalItems = items.length;
+    const totalPages = Math.ceil(totalItems / perPage);
+    const paginatedItems = items.slice(skip, skip + perPage);
+    
+    return {
+        items: paginatedItems,
+        locations,
+        pagination: {
+            page,
+            perPage,
+            totalItems,
+            totalPages,
+            hasNext: page < totalPages,
+            hasPrev: page > 1
+        },
+        filters: {
+            search: options?.search || '',
+            type: options?.typeFilter || '',
+            location: options?.locationFilter || ''
+        }
+    };
 }
 
 export async function getItemDetail(id: string, userId: number) {
@@ -210,4 +265,22 @@ export async function mapBarcodeToItem(
     
     await barcodeService.mapBarcodeToItem(code.trim(), itemId, symbology);
     return {success: true, message: 'Barcode mapped successfully'};
+}
+
+export async function deleteBarcodeFromItem(
+    itemId: string,
+    barcodeId: string,
+    userId: number
+): Promise<{success: boolean; message: string}> {
+    requireAuthenticatedUser(userId);
+    
+    const item = await itemService.getItemById(itemId);
+    if (!item) {
+        throw new ExpectedError('Item not found', 'error', 404);
+    }
+    checkOwnership(item, userId);
+    
+    // Delete the barcode
+    await barcodeService.deleteBarcode(barcodeId);
+    return {success: true, message: 'Barcode removed successfully'};
 }

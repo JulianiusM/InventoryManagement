@@ -9,10 +9,18 @@ const router = express.Router();
 // Apply auth middleware to all loan routes
 router.use(requireAuth);
 
-// List all loans (only user's loans)
+// List all loans (only user's loans) with pagination
 router.get('/', asyncHandler(async (req: Request, res: Response) => {
     const ownerId = req.session.user!.id;
-    const data = await loanController.listLoans(ownerId);
+    const page = parseInt(req.query.page as string) || 1;
+    const perPage = parseInt(req.query.perPage as string) || 30;
+    const tab = (req.query.tab as 'active' | 'history') || 'active';
+    
+    const data = await loanController.listLoans(ownerId, {
+        page,
+        perPage,
+        tab
+    });
     renderer.renderWithData(res, 'loans/list', data);
 }));
 
