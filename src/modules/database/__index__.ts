@@ -14,11 +14,9 @@ import { Platform } from "./entities/platform/Platform";
 import { Session } from "./entities/session/Session";
 import { SyncJob } from "./entities/syncJob/SyncJob";
 import { User } from "./entities/user/User";
-import { CreateInventoryTables1735993200000 } from "../../migrations/1735993200000-CreateInventoryTables";
-import { CreateGamesTables1736092800000 } from "../../migrations/1736092800000-CreateGamesTables";
 
 export const entities = [Barcode, ExternalAccount, ExternalLibraryEntry, GameExternalMapping, GameRelease, GameTitle, Item, ItemMovement, Loan, Location, Party, Platform, Session, SyncJob, User];
 
-export const migrations = [CreateInventoryTables1735993200000, CreateGamesTables1736092800000];
+export const migrations = [];
 
 export const subscribers = [];
