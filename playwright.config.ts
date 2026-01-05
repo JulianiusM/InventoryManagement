@@ -25,7 +25,7 @@ export default defineConfig({
     expect: {timeout: 5_000},
     fullyParallel: true,
     forbidOnly: !!IS_CI,
-    retries: IS_CI ? 2 : 0,
+    retries: 0,
     reporter: reporters,
     use: {
         baseURL: BASE_URL,
