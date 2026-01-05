@@ -12,6 +12,16 @@ export interface CreateGameReleaseData {
     releaseDate?: string | null;
     playersOverrideMin?: number | null;
     playersOverrideMax?: number | null;
+    // Mode-specific overrides
+    overrideSupportsOnline?: boolean | null;
+    overrideSupportsLocal?: boolean | null;
+    overrideSupportsPhysical?: boolean | null;
+    overrideOnlineMin?: number | null;
+    overrideOnlineMax?: number | null;
+    overrideLocalMin?: number | null;
+    overrideLocalMax?: number | null;
+    overridePhysicalMin?: number | null;
+    overridePhysicalMax?: number | null;
     ownerId: number;
 }
 
@@ -25,6 +35,16 @@ export async function createGameRelease(data: CreateGameReleaseData): Promise<Ga
     release.releaseDate = data.releaseDate ?? null;
     release.playersOverrideMin = data.playersOverrideMin ?? null;
     release.playersOverrideMax = data.playersOverrideMax ?? null;
+    // Mode-specific overrides
+    release.overrideSupportsOnline = data.overrideSupportsOnline ?? null;
+    release.overrideSupportsLocal = data.overrideSupportsLocal ?? null;
+    release.overrideSupportsPhysical = data.overrideSupportsPhysical ?? null;
+    release.overrideOnlineMin = data.overrideOnlineMin ?? null;
+    release.overrideOnlineMax = data.overrideOnlineMax ?? null;
+    release.overrideLocalMin = data.overrideLocalMin ?? null;
+    release.overrideLocalMax = data.overrideLocalMax ?? null;
+    release.overridePhysicalMin = data.overridePhysicalMin ?? null;
+    release.overridePhysicalMax = data.overridePhysicalMax ?? null;
     release.owner = {id: data.ownerId} as User;
     return await repo.save(release);
 }

@@ -28,6 +28,16 @@ export interface CreateGameReleaseBody {
     releaseDate?: string;
     playersOverrideMin?: number;
     playersOverrideMax?: number;
+    // Mode-specific overrides
+    overrideSupportsOnline?: boolean;
+    overrideSupportsLocal?: boolean;
+    overrideSupportsPhysical?: boolean;
+    overrideOnlineMin?: number;
+    overrideOnlineMax?: number;
+    overrideLocalMin?: number;
+    overrideLocalMax?: number;
+    overridePhysicalMin?: number;
+    overridePhysicalMax?: number;
 }
 
 export interface CreateGameCopyBody {

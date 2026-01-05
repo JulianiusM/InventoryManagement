@@ -207,6 +207,16 @@ export async function createGameRelease(body: CreateGameReleaseBody, ownerId: nu
         releaseDate: body.releaseDate || null,
         playersOverrideMin: body.playersOverrideMin ? Number(body.playersOverrideMin) : null,
         playersOverrideMax: body.playersOverrideMax ? Number(body.playersOverrideMax) : null,
+        // Mode-specific overrides
+        overrideSupportsOnline: body.overrideSupportsOnline !== undefined ? Boolean(body.overrideSupportsOnline) : null,
+        overrideSupportsLocal: body.overrideSupportsLocal !== undefined ? Boolean(body.overrideSupportsLocal) : null,
+        overrideSupportsPhysical: body.overrideSupportsPhysical !== undefined ? Boolean(body.overrideSupportsPhysical) : null,
+        overrideOnlineMin: body.overrideOnlineMin ? Number(body.overrideOnlineMin) : null,
+        overrideOnlineMax: body.overrideOnlineMax ? Number(body.overrideOnlineMax) : null,
+        overrideLocalMin: body.overrideLocalMin ? Number(body.overrideLocalMin) : null,
+        overrideLocalMax: body.overrideLocalMax ? Number(body.overrideLocalMax) : null,
+        overridePhysicalMin: body.overridePhysicalMin ? Number(body.overridePhysicalMin) : null,
+        overridePhysicalMax: body.overridePhysicalMax ? Number(body.overridePhysicalMax) : null,
         ownerId,
     });
 }

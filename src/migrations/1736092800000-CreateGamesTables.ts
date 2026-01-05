@@ -70,9 +70,20 @@ export class CreateGamesTables1736092800000 implements MigrationInterface {
                 region VARCHAR(50) NULL,
                 release_date DATE NULL,
                 
-                -- Optional player count override
+                -- Optional player count override (overall)
                 players_override_min INT NULL,
                 players_override_max INT NULL,
+                
+                -- Mode-specific overrides
+                override_supports_online BOOLEAN NULL,
+                override_supports_local BOOLEAN NULL,
+                override_supports_physical BOOLEAN NULL,
+                override_online_min INT NULL,
+                override_online_max INT NULL,
+                override_local_min INT NULL,
+                override_local_max INT NULL,
+                override_physical_min INT NULL,
+                override_physical_max INT NULL,
                 
                 owner_id INT NOT NULL,
                 created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,

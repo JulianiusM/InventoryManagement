@@ -154,21 +154,12 @@ export class SteamStubConnector extends BaseConnector {
         super(STEAM_STUB_MANIFEST);
     }
     
-    async syncLibrary(tokenRef: string): Promise<SyncResult> {
+    async syncLibrary(_tokenRef: string): Promise<SyncResult> {
         // Simulate API delay
         await new Promise(resolve => setTimeout(resolve, 500));
         
-        // For stub, any non-empty token is valid
-        if (!tokenRef) {
-            return {
-                success: false,
-                games: [],
-                error: 'No Steam ID provided',
-                timestamp: new Date(),
-            };
-        }
-        
-        // Return sample games
+        // Stub connector always returns sample games for testing
+        // In a real connector, tokenRef would be validated
         return {
             success: true,
             games: SAMPLE_GAMES,

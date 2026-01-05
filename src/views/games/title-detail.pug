@@ -269,15 +269,56 @@ block content
                                 .form-check
                                     input.form-check-input(type="checkbox" id="usePlayersOverride" data-bs-toggle="collapse" data-bs-target="#playersOverrideFields")
                                     label.form-check-label(for="usePlayersOverride")
-                                        | Override player counts for this release
+                                        | Override player settings for this release
                             #playersOverrideFields.collapse
                                 .row.g-2.mt-2
+                                    h6.col-12.text-white-50.small Overall Override
                                     .col-md-6
-                                        label.form-label.small Players Min Override
+                                        label.form-label.small Players Min
                                         input.form-control.form-control-sm.text-bg-dark(type="number" name="playersOverrideMin" min="1")
                                     .col-md-6
-                                        label.form-label.small Players Max Override
+                                        label.form-label.small Players Max
                                         input.form-control.form-control-sm.text-bg-dark(type="number" name="playersOverrideMax" min="1")
+                                    
+                                    h6.col-12.text-white-50.small.mt-2 Mode Support Override
+                                    .col-md-4
+                                        .form-check
+                                            input.form-check-input(type="checkbox" name="overrideSupportsOnline" value="true" id="overrideOnline")
+                                            label.form-check-label.text-primary(for="overrideOnline")
+                                                i.bi.bi-globe.me-1
+                                                | Online
+                                    .col-md-4
+                                        .form-check
+                                            input.form-check-input(type="checkbox" name="overrideSupportsLocal" value="true" id="overrideLocal")
+                                            label.form-check-label.text-success(for="overrideLocal")
+                                                i.bi.bi-display.me-1
+                                                | Local
+                                    .col-md-4
+                                        .form-check
+                                            input.form-check-input(type="checkbox" name="overrideSupportsPhysical" value="true" id="overridePhysical")
+                                            label.form-check-label.text-warning(for="overridePhysical")
+                                                i.bi.bi-dice-5.me-1
+                                                | Physical
+                                    
+                                    h6.col-12.text-white-50.small.mt-2 Mode Player Counts
+                                    .col-md-3
+                                        label.form-label.small.text-primary Online Min
+                                        input.form-control.form-control-sm.text-bg-dark(type="number" name="overrideOnlineMin" min="1")
+                                    .col-md-3
+                                        label.form-label.small.text-primary Online Max
+                                        input.form-control.form-control-sm.text-bg-dark(type="number" name="overrideOnlineMax" min="1")
+                                    .col-md-3
+                                        label.form-label.small.text-success Local Min
+                                        input.form-control.form-control-sm.text-bg-dark(type="number" name="overrideLocalMin" min="1")
+                                    .col-md-3
+                                        label.form-label.small.text-success Local Max
+                                        input.form-control.form-control-sm.text-bg-dark(type="number" name="overrideLocalMax" min="1")
+                                    .col-md-3
+                                        label.form-label.small.text-warning Physical Min
+                                        input.form-control.form-control-sm.text-bg-dark(type="number" name="overridePhysicalMin" min="1")
+                                    .col-md-3
+                                        label.form-label.small.text-warning Physical Max
+                                        input.form-control.form-control-sm.text-bg-dark(type="number" name="overridePhysicalMax" min="1")
                 .modal-footer.border-secondary
                     button.btn.btn-secondary(type="button" data-bs-dismiss="modal") Cancel
                     button.btn.btn-primary(type="submit" form="addReleaseForm")

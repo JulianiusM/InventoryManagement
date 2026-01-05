@@ -40,12 +40,40 @@ export class GameRelease {
     @Column("date", {name: "release_date", nullable: true})
     releaseDate?: string | null;
 
-    // Optional player count override
+    // Optional player count override (overall)
     @Column("int", {name: "players_override_min", nullable: true})
     playersOverrideMin?: number | null;
 
     @Column("int", {name: "players_override_max", nullable: true})
     playersOverrideMax?: number | null;
+
+    // Mode-specific player overrides
+    @Column("boolean", {name: "override_supports_online", nullable: true})
+    overrideSupportsOnline?: boolean | null;
+
+    @Column("boolean", {name: "override_supports_local", nullable: true})
+    overrideSupportsLocal?: boolean | null;
+
+    @Column("boolean", {name: "override_supports_physical", nullable: true})
+    overrideSupportsPhysical?: boolean | null;
+
+    @Column("int", {name: "override_online_min", nullable: true})
+    overrideOnlineMin?: number | null;
+
+    @Column("int", {name: "override_online_max", nullable: true})
+    overrideOnlineMax?: number | null;
+
+    @Column("int", {name: "override_local_min", nullable: true})
+    overrideLocalMin?: number | null;
+
+    @Column("int", {name: "override_local_max", nullable: true})
+    overrideLocalMax?: number | null;
+
+    @Column("int", {name: "override_physical_min", nullable: true})
+    overridePhysicalMin?: number | null;
+
+    @Column("int", {name: "override_physical_max", nullable: true})
+    overridePhysicalMax?: number | null;
 
     @OneToMany(() => Item, (item) => item.gameRelease)
     items?: Item[];
