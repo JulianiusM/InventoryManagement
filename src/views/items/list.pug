@@ -15,13 +15,6 @@ block content
 
     #liveAlerts
 
-    //- Breadcrumb
-    nav.mb-2(aria-label="breadcrumb")
-        ol.breadcrumb.mb-0
-            li.breadcrumb-item
-                a.text-white(href="/") Home
-            li.breadcrumb-item.active.text-white-50(aria-current="page") Items
-
     .d-flex.justify-content-between.align-items-center.mb-3.flex-wrap.gap-2
         h1.h3.mb-0.text-white
             i.bi.bi-box-seam.me-2
@@ -29,16 +22,21 @@ block content
             if pagination.totalItems > 0
                 span.badge.text-bg-secondary.ms-2.fs-6 #{pagination.totalItems}
         
-        //- Items per page selector on desktop
-        .d-none.d-md-block
-            +itemsPerPageSelector(pagination.perPage, '/items')
+        .d-flex.gap-2.align-items-center.flex-wrap
+            //- Items per page selector on desktop
+            .d-none.d-md-block
+                +itemsPerPageSelector(pagination.perPage, '/items')
+            //- Add button to open modal
+            button.btn.btn-primary(type="button" data-bs-toggle="modal" data-bs-target="#addItemModal")
+                i.bi.bi-plus-lg.me-1
+                | Add Item
 
     //- Enhanced search and filter row
     .card.text-bg-dark.border-secondary.mb-3
         .card-body.py-2
             form(method="get" action="/items")
                 .row.g-2.align-items-center
-                    .col-md-4
+                    .col-md-5
                         .input-group
                             span.input-group-text.text-bg-dark.border-secondary
                                 i.bi.bi-search
@@ -56,8 +54,8 @@ block content
                             option(value="" selected=!filters.type) All types
                             each t in itemTypes
                                 option(value=t selected=filters.type === t) #{t.charAt(0).toUpperCase() + t.slice(1)}
-                    .col-md-3
-                        select#filterLocation.form-select.text-bg-dark.border-secondary(name="location")
+                    .col-md-2
+                        select#filterLocation.form-select.text-bg-dark.border-secondary.select2-filter-location(name="location")
                             option(value="" selected=!filters.location) All locations
                             option(value="unassigned" selected=filters.location === 'unassigned') Unassigned
                             each loc in locations
@@ -75,64 +73,6 @@ block content
     //- Items per page selector on mobile
     .d-md-none.mb-3
         +itemsPerPageSelector(pagination.perPage, '/items')
-
-    //- Add item form (collapsible)
-    .card.text-bg-dark.border-secondary.mb-4
-        .card-header.d-flex.justify-content-between.align-items-center(data-bs-toggle="collapse" data-bs-target="#addItemForm" style="cursor: pointer")
-            h2.h5.mb-0
-                i.bi.bi-plus-circle.me-2
-                | Add New Item
-            i.bi.bi-chevron-down
-        #addItemForm.collapse
-            .card-body
-                form.row.g-3(method="post" action="/items")
-                    .col-md-5
-                        label.form-label(for="name")
-                            i.bi.bi-tag.me-1
-                            | Name *
-                        input#name.form-control.text-bg-dark(type="text" name="name" required placeholder="Enter item name")
-                    .col-md-3
-                        label.form-label(for="type")
-                            i.bi.bi-grid.me-1
-                            | Type
-                        select#type.form-select.text-bg-dark(name="type")
-                            each t in itemTypes
-                                option(value=t selected=(t === 'other')) #{t.charAt(0).toUpperCase() + t.slice(1).replace('_', ' ')}
-                    .col-md-4
-                        label.form-label(for="locationId")
-                            i.bi.bi-geo-alt.me-1
-                            | Location
-                        select#locationId.form-select.text-bg-dark(name="locationId")
-                            option(value="") Unassigned
-                            each loc in locations
-                                option(value=loc.id) #{loc.name}
-                    .col-md-3
-                        label.form-label(for="condition")
-                            i.bi.bi-heart.me-1
-                            | Condition
-                        select#condition.form-select.text-bg-dark(name="condition")
-                            option(value="") Not specified
-                            each c in conditions
-                                option(value=c) #{c.charAt(0).toUpperCase() + c.slice(1).replace('_', ' ')}
-                    .col-md-3
-                        label.form-label(for="serialNumber")
-                            i.bi.bi-hash.me-1
-                            | Serial Number
-                        input#serialNumber.form-control.text-bg-dark(type="text" name="serialNumber" placeholder="Optional")
-                    .col-md-6
-                        label.form-label(for="tags")
-                            i.bi.bi-tags.me-1
-                            | Tags
-                        input#tags.form-control.text-bg-dark(type="text" name="tags" placeholder="Comma-separated tags, e.g. electronics, red, vintage")
-                    .col-12
-                        label.form-label(for="description")
-                            i.bi.bi-text-left.me-1
-                            | Description
-                        textarea#description.form-control.text-bg-dark(name="description" rows="2" placeholder="Optional notes about this item")
-                    .col-12
-                        button.btn.btn-primary(type="submit")
-                            i.bi.bi-plus-lg.me-1
-                            | Create Item
 
     //- Items list
     if pagination.totalItems === 0
@@ -229,6 +169,66 @@ block content
                 //- Pagination
                 +pagination(pagination.page, pagination.totalPages, '/items')
 
+    //- Add Item Modal
+    #addItemModal.modal.fade(tabindex="-1" aria-labelledby="addItemModalLabel" aria-hidden="true")
+        .modal-dialog.modal-lg
+            .modal-content.text-bg-dark
+                .modal-header.border-secondary
+                    h5.modal-title#addItemModalLabel
+                        i.bi.bi-plus-circle.me-2
+                        | Add New Item
+                    button.btn-close.btn-close-white(type="button" data-bs-dismiss="modal" aria-label="Close")
+                .modal-body
+                    form#addItemForm.row.g-3(method="post" action="/items")
+                        .col-md-6
+                            label.form-label(for="modalName")
+                                i.bi.bi-tag.me-1
+                                | Name *
+                            input#modalName.form-control.text-bg-dark(type="text" name="name" required placeholder="Enter item name")
+                        .col-md-6
+                            label.form-label(for="modalType")
+                                i.bi.bi-grid.me-1
+                                | Type
+                            select#modalType.form-select.text-bg-dark(name="type")
+                                each t in itemTypes
+                                    option(value=t selected=(t === 'other')) #{t.charAt(0).toUpperCase() + t.slice(1).replace('_', ' ')}
+                        .col-md-6
+                            label.form-label(for="modalLocationId")
+                                i.bi.bi-geo-alt.me-1
+                                | Location
+                            select#modalLocationId.form-select.text-bg-dark.select2-location(name="locationId")
+                                option(value="") Unassigned
+                                each loc in locations
+                                    option(value=loc.id) #{loc.name}
+                        .col-md-6
+                            label.form-label(for="modalCondition")
+                                i.bi.bi-heart.me-1
+                                | Condition
+                            select#modalCondition.form-select.text-bg-dark(name="condition")
+                                option(value="") Not specified
+                                each c in conditions
+                                    option(value=c) #{c.charAt(0).toUpperCase() + c.slice(1).replace('_', ' ')}
+                        .col-md-6
+                            label.form-label(for="modalSerialNumber")
+                                i.bi.bi-hash.me-1
+                                | Serial Number
+                            input#modalSerialNumber.form-control.text-bg-dark(type="text" name="serialNumber" placeholder="Optional")
+                        .col-md-6
+                            label.form-label(for="modalTags")
+                                i.bi.bi-tags.me-1
+                                | Tags
+                            input#modalTags.form-control.text-bg-dark(type="text" name="tags" placeholder="Comma-separated tags")
+                        .col-12
+                            label.form-label(for="modalDescription")
+                                i.bi.bi-text-left.me-1
+                                | Description
+                            textarea#modalDescription.form-control.text-bg-dark(name="description" rows="3" placeholder="Optional notes about this item")
+                .modal-footer.border-secondary
+                    button.btn.btn-secondary(type="button" data-bs-dismiss="modal") Cancel
+                    button.btn.btn-primary(type="submit" form="addItemForm")
+                        i.bi.bi-plus-lg.me-1
+                        | Create Item
+
 block scripts
     script(src="/js/enhanced-search.js")
     script.
@@ -247,6 +247,25 @@ block scripts
                     searchInput.value = '';
                     this.style.display = 'none';
                     searchInput.focus();
+                });
+            }
+            
+            // Initialize Select2 for location dropdown in modal
+            if (typeof $ !== 'undefined' && $.fn.select2) {
+                $('.select2-location').select2({
+                    theme: 'bootstrap-5',
+                    dropdownParent: $('#addItemModal'),
+                    placeholder: 'Select a location',
+                    allowClear: true,
+                    width: '100%'
+                });
+                
+                // Initialize Select2 for filter location dropdown
+                $('.select2-filter-location').select2({
+                    theme: 'bootstrap-5',
+                    placeholder: 'All locations',
+                    allowClear: true,
+                    width: '100%'
                 });
             }
         });

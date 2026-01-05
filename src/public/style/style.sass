@@ -227,3 +227,44 @@
   
   &:hover
     background: #6c757d
+
+/* Select2 dark theme customization */
+.select2-container--bootstrap-5
+  .select2-selection
+    background-color: #212529 !important
+    border-color: #495057 !important
+    color: #dee2e6 !important
+  
+  .select2-selection__rendered
+    color: #dee2e6 !important
+  
+  .select2-selection__placeholder
+    color: #6c757d !important
+  
+  .select2-dropdown
+    background-color: #212529 !important
+    border-color: #495057 !important
+  
+  .select2-results__option
+    background-color: #212529 !important
+    color: #dee2e6 !important
+    
+    &:hover,
+    &--highlighted
+      background-color: #343a40 !important
+      color: #fff !important
+  
+  .select2-search__field
+    background-color: #212529 !important
+    border-color: #495057 !important
+    color: #dee2e6 !important
+    
+    &::placeholder
+      color: #6c757d !important
+
+/* Collapsible accordion for location cards */
+.card .bi-chevron-down
+  transition: transform 0.2s ease
+  
+.collapsed .bi-chevron-down
+  transform: rotate(-90deg)
