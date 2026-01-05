@@ -23,13 +23,13 @@ block content
         .d-flex.justify-content-between.align-items-start.mb-3
             div
                 h1.h3.mb-1.text-white
-                    if copy.copyType === 'digital_license'
+                    if copy.gameCopyType === 'digital_license'
                         i.bi.bi-cloud.me-2
                     else
                         i.bi.bi-disc.me-2
                     | #{copy.gameRelease && copy.gameRelease.gameTitle ? copy.gameRelease.gameTitle.name : 'Game Copy'}
                 .d-flex.flex-wrap.gap-2.align-items-center
-                    if copy.copyType === 'digital_license'
+                    if copy.gameCopyType === 'digital_license'
                         span.badge.text-bg-primary
                             i.bi.bi-cloud.me-1
                             | Digital License
@@ -69,9 +69,9 @@ block content
                             dt.col-sm-4
                                 i.bi.bi-tag.me-1
                                 | Type
-                            dd.col-sm-8 #{copy.copyType === 'digital_license' ? 'Digital License' : 'Physical Copy'}
+                            dd.col-sm-8 #{copy.gameCopyType === 'digital_license' ? 'Digital License' : 'Physical Copy'}
                             
-                            if copy.copyType === 'digital_license'
+                            if copy.gameCopyType === 'digital_license'
                                 dt.col-sm-4
                                     i.bi.bi-cloud.me-1
                                     | Account
@@ -116,7 +116,7 @@ block content
                                 dd.col-12.text-white-50 #{copy.notes}
 
                 //- Barcodes (physical only)
-                if copy.copyType === 'physical_copy'
+                if copy.gameCopyType === 'physical_copy'
                     .card.text-bg-dark.border-secondary.mb-3
                         .card-header
                             h2.h5.mb-0
@@ -148,7 +148,7 @@ block content
                             #barcodeMsg.mt-2
 
                 //- Loan history (physical only)
-                if copy.copyType === 'physical_copy'
+                if copy.gameCopyType === 'physical_copy'
                     .card.text-bg-dark.border-secondary.mb-3
                         .card-header
                             h2.h5.mb-0
@@ -184,7 +184,7 @@ block content
             //- Right column
             .col-lg-5
                 //- Move copy (physical only)
-                if copy.copyType === 'physical_copy'
+                if copy.gameCopyType === 'physical_copy'
                     .card.text-bg-dark.border-secondary.mb-3
                         .card-header
                             h2.h5.mb-0
@@ -203,7 +203,7 @@ block content
                                     | Move
 
                 //- Lend copy (physical only)
-                if copy.copyType === 'physical_copy' && copy.lendable
+                if copy.gameCopyType === 'physical_copy' && copy.lendable
                     .card.text-bg-dark.border-secondary.mb-3
                         .card-header
                             h2.h5.mb-0

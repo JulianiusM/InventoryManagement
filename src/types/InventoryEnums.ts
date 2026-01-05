@@ -17,6 +17,7 @@ export enum ItemType {
     BOOK = 'book',
     TOOL = 'tool',
     GAME = 'game',
+    GAME_DIGITAL = 'game_digital',  // Digital game license
     ELECTRONICS = 'electronics',
     CLOTHING = 'clothing',
     COLLECTIBLE = 'collectible',

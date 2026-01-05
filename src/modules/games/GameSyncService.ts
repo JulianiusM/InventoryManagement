@@ -1,6 +1,9 @@
 /**
  * Game Sync Service
  * Handles synchronization of game libraries from external providers
+ * 
+ * Game copies are now stored as Items with type=GAME_DIGITAL,
+ * using the existing Item entity instead of a separate GameCopy entity.
  */
 
 import {connectorRegistry} from './connectors/ConnectorRegistry';
@@ -8,7 +11,7 @@ import {ExternalGame} from './connectors/ConnectorInterface';
 import * as externalAccountService from '../database/services/ExternalAccountService';
 import * as externalLibraryEntryService from '../database/services/ExternalLibraryEntryService';
 import * as gameMappingService from '../database/services/GameExternalMappingService';
-import * as gameCopyService from '../database/services/GameCopyService';
+import * as itemService from '../database/services/ItemService';
 import * as syncJobService from '../database/services/SyncJobService';
 import {GameProvider, GameCopyType, MappingStatus} from '../../types/InventoryEnums';
 
@@ -92,6 +95,7 @@ export async function syncExternalAccount(
 
 /**
  * Process synced games and update library entries
+ * Creates game items (not separate GameCopy entities) for digital licenses
  */
 async function processGames(
     accountId: string,
@@ -135,17 +139,18 @@ async function processGames(
         );
         
         if (mapping && mapping.status === MappingStatus.MAPPED && mapping.gameReleaseId) {
-            // Check if we already have a copy for this game
-            const existingCopy = await gameCopyService.findGameCopyByExternalId(
+            // Check if we already have an item for this game
+            const existingItem = await itemService.findGameItemByExternalId(
                 accountId,
                 game.externalGameId
             );
             
-            if (!existingCopy) {
-                // Create digital copy
-                await gameCopyService.createGameCopy({
+            if (!existingItem) {
+                // Create digital game item
+                await itemService.createGameItem({
+                    name: game.name,
                     gameReleaseId: mapping.gameReleaseId,
-                    copyType: GameCopyType.DIGITAL_LICENSE,
+                    gameCopyType: GameCopyType.DIGITAL_LICENSE,
                     externalAccountId: accountId,
                     externalGameId: game.externalGameId,
                     playtimeMinutes: game.playtimeMinutes,
@@ -155,8 +160,8 @@ async function processGames(
                     ownerId: ownerId,
                 });
             } else {
-                // Update existing copy with latest data
-                await gameCopyService.updateGameCopy(existingCopy.id, {
+                // Update existing item with latest data
+                await itemService.updateItem(existingItem.id, {
                     playtimeMinutes: game.playtimeMinutes,
                     lastPlayedAt: game.lastPlayedAt,
                     isInstalled: game.isInstalled,

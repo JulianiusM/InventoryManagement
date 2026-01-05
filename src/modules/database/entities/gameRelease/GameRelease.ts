@@ -9,7 +9,7 @@ import {
 } from "typeorm";
 import {User} from "../user/User";
 import {GameTitle} from "../gameTitle/GameTitle";
-import {GameCopy} from "../gameCopy/GameCopy";
+import {Item} from "../item/Item";
 import {GamePlatform} from "../../../../types/InventoryEnums";
 
 @Entity("game_releases")
@@ -47,8 +47,8 @@ export class GameRelease {
     @Column("int", {name: "players_override_max", nullable: true})
     playersOverrideMax?: number | null;
 
-    @OneToMany(() => GameCopy, (copy) => copy.gameRelease)
-    copies?: GameCopy[];
+    @OneToMany(() => Item, (item) => item.gameRelease)
+    items?: Item[];
 
     @ManyToOne(() => User, {onDelete: "CASCADE"})
     @JoinColumn({name: "owner_id"})

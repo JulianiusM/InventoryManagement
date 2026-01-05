@@ -1,15 +1,18 @@
 /**
  * Games Controller
  * Business logic for games module
+ * 
+ * Game copies are now stored as Items with type=GAME or GAME_DIGITAL,
+ * using the existing Barcode and Loan entities for integration.
  */
 
 import * as gameTitleService from '../modules/database/services/GameTitleService';
 import * as gameReleaseService from '../modules/database/services/GameReleaseService';
-import * as gameCopyService from '../modules/database/services/GameCopyService';
+import * as itemService from '../modules/database/services/ItemService';
+import * as barcodeService from '../modules/database/services/BarcodeService';
+import * as loanService from '../modules/database/services/LoanService';
 import * as externalAccountService from '../modules/database/services/ExternalAccountService';
 import * as gameMappingService from '../modules/database/services/GameExternalMappingService';
-import * as gameCopyLoanService from '../modules/database/services/GameCopyLoanService';
-import * as gameCopyBarcodeService from '../modules/database/services/GameCopyBarcodeService';
 import * as locationService from '../modules/database/services/LocationService';
 import * as partyService from '../modules/database/services/PartyService';
 import * as gameSyncService from '../modules/games/GameSyncService';
@@ -19,13 +22,14 @@ import {ExpectedError} from '../modules/lib/errors';
 import {checkOwnership, requireAuthenticatedUser} from '../middleware/authMiddleware';
 import {GameTitle} from '../modules/database/entities/gameTitle/GameTitle';
 import {GameRelease} from '../modules/database/entities/gameRelease/GameRelease';
-import {GameCopy} from '../modules/database/entities/gameCopy/GameCopy';
+import {Item} from '../modules/database/entities/item/Item';
 import {
     GameType, 
     GamePlatform, 
     GameCopyType, 
     GameProvider, 
     ItemCondition,
+    ItemType,
     LoanDirection,
     MappingStatus
 } from '../types/InventoryEnums';
@@ -208,7 +212,8 @@ export async function getGameReleaseDetail(id: string, userId: number) {
     }
     checkOwnership(release, userId);
     
-    const copies = await gameCopyService.getGameCopiesByReleaseId(id);
+    // Use itemService to get game items linked to this release
+    const copies = await itemService.getGameItemsByReleaseId(id);
     return {release, copies};
 }
 
@@ -222,7 +227,7 @@ export async function deleteGameRelease(id: string, userId: number): Promise<voi
     await gameReleaseService.deleteGameRelease(id);
 }
 
-// ============ Game Copies ============
+// ============ Game Copies (stored as Items) ============
 
 export async function listGameCopies(ownerId: number, options?: {
     copyType?: string;
@@ -230,13 +235,13 @@ export async function listGameCopies(ownerId: number, options?: {
     providerFilter?: string;
 }) {
     requireAuthenticatedUser(ownerId);
-    let copies = await gameCopyService.getAllGameCopies(ownerId);
+    let copies = await itemService.getGameItems(ownerId);
     const locations = await locationService.getAllLocations(ownerId);
     const accounts = await externalAccountService.getAllExternalAccounts(ownerId);
     
     // Apply filters
     if (options?.copyType) {
-        copies = copies.filter(c => c.copyType === options.copyType);
+        copies = copies.filter(c => c.gameCopyType === options.copyType);
     }
     
     if (options?.locationFilter) {
@@ -258,21 +263,22 @@ export async function listGameCopies(ownerId: number, options?: {
 
 export async function getGameCopyDetail(id: string, userId: number) {
     requireAuthenticatedUser(userId);
-    const copy = await gameCopyService.getGameCopyById(id);
+    const copy = await itemService.getItemById(id);
     if (!copy) {
         throw new ExpectedError('Game copy not found', 'error', 404);
     }
     checkOwnership(copy, userId);
     
-    const loans = await gameCopyLoanService.getLoansByGameCopyId(id);
-    const barcodes = await gameCopyBarcodeService.getBarcodesByGameCopyId(id);
+    // Use existing Loan and Barcode services since items integrate with them
+    const loans = await loanService.getLoansByItemId(id);
+    const barcodes = await barcodeService.getBarcodesByItemId(id);
     const locations = await locationService.getAllLocations(userId);
     const parties = await partyService.getAllParties(userId);
     
     return {copy, loans, barcodes, locations, parties};
 }
 
-export async function createGameCopy(body: CreateGameCopyBody, ownerId: number): Promise<GameCopy> {
+export async function createGameCopy(body: CreateGameCopyBody, ownerId: number): Promise<Item> {
     requireAuthenticatedUser(ownerId);
     
     // Verify release ownership
@@ -282,15 +288,20 @@ export async function createGameCopy(body: CreateGameCopyBody, ownerId: number):
     }
     checkOwnership(release, ownerId);
     
-    return await gameCopyService.createGameCopy({
+    // Get the game title name for the item name
+    const gameName = release.gameTitle?.name || 'Game Copy';
+    
+    // Create game item using itemService
+    return await itemService.createGameItem({
+        name: gameName,
         gameReleaseId: body.gameReleaseId,
-        copyType: body.copyType as GameCopyType,
+        gameCopyType: body.copyType as GameCopyType,
         externalAccountId: body.externalAccountId || null,
         externalGameId: body.externalGameId || null,
         locationId: body.locationId || null,
         condition: (body.condition as ItemCondition) || null,
-        notes: body.notes?.trim() || null,
-        lendable: body.lendable !== undefined ? body.lendable : undefined,
+        description: body.notes?.trim() || null,
+        lendable: body.lendable,
         acquiredAt: body.acquiredAt || null,
         ownerId,
     });
@@ -302,44 +313,44 @@ export async function moveGameCopy(
     userId: number
 ): Promise<void> {
     requireAuthenticatedUser(userId);
-    const copy = await gameCopyService.getGameCopyById(id);
+    const copy = await itemService.getItemById(id);
     if (!copy) {
         throw new ExpectedError('Game copy not found', 'error', 404);
     }
     checkOwnership(copy, userId);
     
-    if (copy.copyType !== GameCopyType.PHYSICAL_COPY) {
+    if (copy.gameCopyType !== GameCopyType.PHYSICAL_COPY) {
         throw new ExpectedError('Cannot move a digital copy', 'error', 400);
     }
     
-    await gameCopyService.updateGameCopyLocation(id, body.locationId || null);
+    await itemService.updateItemLocation(id, body.locationId || null);
 }
 
 export async function deleteGameCopy(id: string, userId: number): Promise<void> {
     requireAuthenticatedUser(userId);
-    const copy = await gameCopyService.getGameCopyById(id);
+    const copy = await itemService.getItemById(id);
     if (!copy) {
         throw new ExpectedError('Game copy not found', 'error', 404);
     }
     checkOwnership(copy, userId);
     
-    // Delete associated barcodes
-    await gameCopyBarcodeService.deleteBarcodesByGameCopyId(id);
-    await gameCopyService.deleteGameCopy(id);
+    // Delete associated barcodes (using existing Barcode service)
+    await barcodeService.deleteBarcodesByItemId(id);
+    await itemService.deleteItem(id);
 }
 
-// ============ Physical Copy Lending ============
+// ============ Physical Copy Lending (uses existing Loan entity) ============
 
 export async function lendGameCopy(body: LendGameCopyBody, ownerId: number) {
     requireAuthenticatedUser(ownerId);
     
-    const copy = await gameCopyService.getGameCopyById(body.gameCopyId);
+    const copy = await itemService.getItemById(body.gameCopyId);
     if (!copy) {
         throw new ExpectedError('Game copy not found', 'error', 404);
     }
     checkOwnership(copy, ownerId);
     
-    if (copy.copyType !== GameCopyType.PHYSICAL_COPY) {
+    if (copy.gameCopyType !== GameCopyType.PHYSICAL_COPY) {
         throw new ExpectedError('Cannot lend a digital copy', 'error', 400);
     }
     
@@ -347,14 +358,15 @@ export async function lendGameCopy(body: LendGameCopyBody, ownerId: number) {
         throw new ExpectedError('This copy is not lendable', 'error', 400);
     }
     
-    // Check for active loan
-    const activeLoan = await gameCopyLoanService.getActiveLoanByGameCopyId(body.gameCopyId);
+    // Check for active loan using existing LoanService
+    const activeLoan = await loanService.getActiveLoanByItemId(body.gameCopyId);
     if (activeLoan) {
         throw new ExpectedError('This copy is already on loan', 'error', 400);
     }
     
-    return await gameCopyLoanService.createGameCopyLoan({
-        gameCopyId: body.gameCopyId,
+    // Use existing LoanService to create the loan
+    return await loanService.createLoan({
+        itemId: body.gameCopyId,
         partyId: body.partyId,
         direction: LoanDirection.LEND,
         dueAt: body.dueAt || null,
@@ -367,16 +379,16 @@ export async function lendGameCopy(body: LendGameCopyBody, ownerId: number) {
 export async function returnGameCopy(loanId: string, conditionIn: string | undefined, userId: number) {
     requireAuthenticatedUser(userId);
     
-    const loan = await gameCopyLoanService.getGameCopyLoanById(loanId);
+    const loan = await loanService.getLoanById(loanId);
     if (!loan) {
         throw new ExpectedError('Loan not found', 'error', 404);
     }
     checkOwnership(loan, userId);
     
-    await gameCopyLoanService.returnGameCopyLoan(loanId, (conditionIn as ItemCondition) || null);
+    await loanService.returnLoan(loanId, (conditionIn as ItemCondition) || null);
 }
 
-// ============ Barcode Management ============
+// ============ Barcode Management (uses existing Barcode entity) ============
 
 export async function mapBarcodeToGameCopy(
     gameCopyId: string,
@@ -390,26 +402,27 @@ export async function mapBarcodeToGameCopy(
         throw new ExpectedError('Barcode is required', 'error', 400);
     }
     
-    const copy = await gameCopyService.getGameCopyById(gameCopyId);
+    const copy = await itemService.getItemById(gameCopyId);
     if (!copy) {
         throw new ExpectedError('Game copy not found', 'error', 404);
     }
     checkOwnership(copy, userId);
     
-    if (copy.copyType !== GameCopyType.PHYSICAL_COPY) {
+    if (copy.gameCopyType !== GameCopyType.PHYSICAL_COPY) {
         throw new ExpectedError('Cannot add barcode to a digital copy', 'error', 400);
     }
     
-    // Check if barcode is already mapped
-    const existing = await gameCopyBarcodeService.getGameCopyBarcodeByCode(code.trim());
-    if (existing && existing.gameCopyId && existing.gameCopyId !== gameCopyId) {
+    // Check if barcode is already mapped using existing BarcodeService
+    const existing = await barcodeService.getBarcodeByCode(code.trim());
+    if (existing && existing.itemId && existing.itemId !== gameCopyId) {
         return {
             success: false,
-            message: `Barcode already mapped to another game copy`,
+            message: `Barcode already mapped to another item`,
         };
     }
     
-    await gameCopyBarcodeService.mapBarcodeToGameCopy(code.trim(), gameCopyId, symbology);
+    // Use existing BarcodeService to map barcode to item
+    await barcodeService.mapBarcodeToItem(code.trim(), gameCopyId, symbology);
     return {success: true, message: 'Barcode mapped successfully'};
 }
 

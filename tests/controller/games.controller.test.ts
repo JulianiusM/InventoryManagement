@@ -81,9 +81,9 @@ describe('GameValidationService', () => {
 // Mock the services for controller tests
 jest.mock('../../src/modules/database/services/GameTitleService');
 jest.mock('../../src/modules/database/services/GameReleaseService');
-jest.mock('../../src/modules/database/services/GameCopyService');
-jest.mock('../../src/modules/database/services/GameCopyLoanService');
-jest.mock('../../src/modules/database/services/GameCopyBarcodeService');
+jest.mock('../../src/modules/database/services/ItemService');
+jest.mock('../../src/modules/database/services/LoanService');
+jest.mock('../../src/modules/database/services/BarcodeService');
 jest.mock('../../src/modules/database/services/ExternalAccountService');
 jest.mock('../../src/modules/database/services/GameExternalMappingService');
 jest.mock('../../src/modules/database/services/LocationService');
@@ -91,8 +91,8 @@ jest.mock('../../src/modules/database/services/PartyService');
 jest.mock('../../src/modules/games/GameSyncService');
 
 import * as gameTitleService from '../../src/modules/database/services/GameTitleService';
-import * as gameCopyService from '../../src/modules/database/services/GameCopyService';
-import * as gameCopyLoanService from '../../src/modules/database/services/GameCopyLoanService';
+import * as itemService from '../../src/modules/database/services/ItemService';
+import * as loanService from '../../src/modules/database/services/LoanService';
 import * as gamesController from '../../src/controller/gamesController';
 
 describe('gamesController', () => {
@@ -122,7 +122,7 @@ describe('gamesController', () => {
 
     describe('lendGameCopy', () => {
         test('throws error when copy not found', async () => {
-            setupMock(gameCopyService.getGameCopyById as jest.Mock, null);
+            setupMock(itemService.getItemById as jest.Mock, null);
 
             await verifyThrowsError(
                 () => gamesController.lendGameCopy({
@@ -140,7 +140,12 @@ describe('gamesController', () => {
             ownerId,
             errorMessage
         }) => {
-            setupMock(gameCopyService.getGameCopyById as jest.Mock, existingCopy);
+            // Map copyType to gameCopyType for the new Item-based structure
+            const mappedCopy = {
+                ...existingCopy,
+                gameCopyType: existingCopy.copyType,
+            };
+            setupMock(itemService.getItemById as jest.Mock, mappedCopy);
 
             await verifyThrowsError(
                 () => gamesController.lendGameCopy({
@@ -154,14 +159,14 @@ describe('gamesController', () => {
         test('throws error when copy is already on loan', async () => {
             const existingCopy = {
                 id: 'uuid-copy-1',
-                copyType: 'physical_copy',
+                gameCopyType: 'physical_copy',
                 lendable: true,
                 ownerId: TEST_USER_ID,
             };
             const existingLoan = {id: 'uuid-loan-1', status: 'active'};
 
-            setupMock(gameCopyService.getGameCopyById as jest.Mock, existingCopy);
-            setupMock(gameCopyLoanService.getActiveLoanByGameCopyId as jest.Mock, existingLoan);
+            setupMock(itemService.getItemById as jest.Mock, existingCopy);
+            setupMock(loanService.getActiveLoanByItemId as jest.Mock, existingLoan);
 
             await verifyThrowsError(
                 () => gamesController.lendGameCopy({

@@ -70,7 +70,7 @@ block content
                                 if copy.gameRelease
                                     span.badge.text-bg-info #{platformLabels[copy.gameRelease.platform] || copy.gameRelease.platform}
                             td
-                                if copy.copyType === 'digital_license'
+                                if copy.gameCopyType === 'digital_license'
                                     span.badge.text-bg-primary
                                         i.bi.bi-cloud.me-1
                                         | Digital
@@ -79,7 +79,7 @@ block content
                                         i.bi.bi-disc.me-1
                                         | Physical
                             td
-                                if copy.copyType === 'digital_license'
+                                if copy.gameCopyType === 'digital_license'
                                     if copy.externalAccount
                                         i.bi.bi-cloud.me-1.text-white-50
                                         | #{copy.externalAccount.accountName}

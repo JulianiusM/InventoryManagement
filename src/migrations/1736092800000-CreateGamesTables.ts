@@ -4,6 +4,27 @@ export class CreateGamesTables1736092800000 implements MigrationInterface {
     name = 'CreateGamesTables1736092800000';
 
     public async up(queryRunner: QueryRunner): Promise<void> {
+        // Update items table type enum to include game_digital
+        await queryRunner.query(`
+            ALTER TABLE items 
+            MODIFY COLUMN type ENUM('book', 'tool', 'game', 'game_digital', 'electronics', 'clothing', 'collectible', 'other') NOT NULL DEFAULT 'other'
+        `);
+
+        // Add game-specific columns to items table
+        await queryRunner.query(`
+            ALTER TABLE items
+            ADD COLUMN game_release_id VARCHAR(36) NULL,
+            ADD COLUMN game_copy_type ENUM('digital_license', 'physical_copy') NULL,
+            ADD COLUMN external_account_id VARCHAR(36) NULL,
+            ADD COLUMN external_game_id VARCHAR(255) NULL,
+            ADD COLUMN entitlement_id VARCHAR(255) NULL,
+            ADD COLUMN playtime_minutes INT NULL,
+            ADD COLUMN last_played_at TIMESTAMP NULL,
+            ADD COLUMN is_installed BOOLEAN NULL,
+            ADD COLUMN lendable BOOLEAN NOT NULL DEFAULT TRUE,
+            ADD COLUMN acquired_at DATE NULL
+        `);
+
         // Create game_titles table
         await queryRunner.query(`
             CREATE TABLE IF NOT EXISTS game_titles (
@@ -84,84 +105,13 @@ export class CreateGamesTables1736092800000 implements MigrationInterface {
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
         `);
 
-        // Create game_copies table
+        // Add foreign keys to items table for game-specific relations
         await queryRunner.query(`
-            CREATE TABLE IF NOT EXISTS game_copies (
-                id VARCHAR(36) NOT NULL,
-                game_release_id VARCHAR(36) NOT NULL,
-                copy_type ENUM('digital_license', 'physical_copy') NOT NULL,
-                
-                -- Digital license fields
-                external_account_id VARCHAR(36) NULL,
-                external_game_id VARCHAR(255) NULL,
-                entitlement_id VARCHAR(255) NULL,
-                playtime_minutes INT NULL,
-                last_played_at TIMESTAMP NULL,
-                is_installed BOOLEAN NULL,
-                
-                -- Physical copy fields
-                location_id VARCHAR(36) NULL,
-                \`condition\` ENUM('new', 'like_new', 'good', 'fair', 'poor') NULL,
-                notes TEXT NULL,
-                
-                -- Common fields
-                lendable BOOLEAN NOT NULL DEFAULT TRUE,
-                acquired_at DATE NULL,
-                
-                owner_id INT NOT NULL,
-                created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-                updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-                PRIMARY KEY (id),
-                INDEX FK_game_copy_release (game_release_id),
-                INDEX FK_game_copy_external_account (external_account_id),
-                INDEX FK_game_copy_location (location_id),
-                INDEX FK_game_copy_owner (owner_id),
-                CONSTRAINT FK_game_copy_release FOREIGN KEY (game_release_id) REFERENCES game_releases(id) ON DELETE CASCADE,
-                CONSTRAINT FK_game_copy_external_account FOREIGN KEY (external_account_id) REFERENCES external_accounts(id) ON DELETE SET NULL,
-                CONSTRAINT FK_game_copy_location FOREIGN KEY (location_id) REFERENCES locations(id) ON DELETE SET NULL,
-                CONSTRAINT FK_game_copy_owner FOREIGN KEY (owner_id) REFERENCES users(id) ON DELETE CASCADE
-            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
-        `);
-
-        // Create game_copy_barcodes table (physical copies can have barcodes)
-        await queryRunner.query(`
-            CREATE TABLE IF NOT EXISTS game_copy_barcodes (
-                id VARCHAR(36) NOT NULL,
-                code VARCHAR(255) NOT NULL,
-                symbology ENUM('EAN13', 'EAN8', 'UPC_A', 'UPC_E', 'QR', 'CODE128', 'CODE39', 'UNKNOWN') NOT NULL DEFAULT 'UNKNOWN',
-                game_copy_id VARCHAR(36) NULL,
-                created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-                PRIMARY KEY (id),
-                UNIQUE INDEX game_copy_barcode_code (code),
-                INDEX FK_game_copy_barcode_copy (game_copy_id),
-                CONSTRAINT FK_game_copy_barcode_copy FOREIGN KEY (game_copy_id) REFERENCES game_copies(id) ON DELETE SET NULL
-            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
-        `);
-
-        // Create game_copy_loans table (for physical copy lending)
-        await queryRunner.query(`
-            CREATE TABLE IF NOT EXISTS game_copy_loans (
-                id VARCHAR(36) NOT NULL,
-                game_copy_id VARCHAR(36) NOT NULL,
-                party_id VARCHAR(36) NOT NULL,
-                direction ENUM('lend', 'borrow') NOT NULL,
-                status ENUM('active', 'returned', 'overdue') NOT NULL DEFAULT 'active',
-                start_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-                due_at DATE NULL,
-                returned_at TIMESTAMP NULL,
-                condition_out ENUM('new', 'like_new', 'good', 'fair', 'poor') NULL,
-                condition_in ENUM('new', 'like_new', 'good', 'fair', 'poor') NULL,
-                notes TEXT NULL,
-                owner_id INT NOT NULL,
-                created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-                PRIMARY KEY (id),
-                INDEX FK_game_copy_loan_copy (game_copy_id),
-                INDEX FK_game_copy_loan_party (party_id),
-                INDEX FK_game_copy_loan_owner (owner_id),
-                CONSTRAINT FK_game_copy_loan_copy FOREIGN KEY (game_copy_id) REFERENCES game_copies(id) ON DELETE CASCADE,
-                CONSTRAINT FK_game_copy_loan_party FOREIGN KEY (party_id) REFERENCES parties(id) ON DELETE CASCADE,
-                CONSTRAINT FK_game_copy_loan_owner FOREIGN KEY (owner_id) REFERENCES users(id) ON DELETE CASCADE
-            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+            ALTER TABLE items
+            ADD INDEX FK_item_game_release (game_release_id),
+            ADD INDEX FK_item_external_account (external_account_id),
+            ADD CONSTRAINT FK_item_game_release FOREIGN KEY (game_release_id) REFERENCES game_releases(id) ON DELETE SET NULL,
+            ADD CONSTRAINT FK_item_external_account FOREIGN KEY (external_account_id) REFERENCES external_accounts(id) ON DELETE SET NULL
         `);
 
         // Create external_library_entries table (sync snapshots)
@@ -238,11 +188,37 @@ export class CreateGamesTables1736092800000 implements MigrationInterface {
         await queryRunner.query(`DROP TABLE IF EXISTS sync_jobs`);
         await queryRunner.query(`DROP TABLE IF EXISTS game_external_mappings`);
         await queryRunner.query(`DROP TABLE IF EXISTS external_library_entries`);
-        await queryRunner.query(`DROP TABLE IF EXISTS game_copy_loans`);
-        await queryRunner.query(`DROP TABLE IF EXISTS game_copy_barcodes`);
-        await queryRunner.query(`DROP TABLE IF EXISTS game_copies`);
+        
+        // Remove foreign keys from items
+        await queryRunner.query(`
+            ALTER TABLE items
+            DROP FOREIGN KEY FK_item_game_release,
+            DROP FOREIGN KEY FK_item_external_account
+        `);
+        
         await queryRunner.query(`DROP TABLE IF EXISTS external_accounts`);
         await queryRunner.query(`DROP TABLE IF EXISTS game_releases`);
         await queryRunner.query(`DROP TABLE IF EXISTS game_titles`);
+        
+        // Remove game-specific columns from items
+        await queryRunner.query(`
+            ALTER TABLE items
+            DROP COLUMN game_release_id,
+            DROP COLUMN game_copy_type,
+            DROP COLUMN external_account_id,
+            DROP COLUMN external_game_id,
+            DROP COLUMN entitlement_id,
+            DROP COLUMN playtime_minutes,
+            DROP COLUMN last_played_at,
+            DROP COLUMN is_installed,
+            DROP COLUMN lendable,
+            DROP COLUMN acquired_at
+        `);
+        
+        // Restore original type enum
+        await queryRunner.query(`
+            ALTER TABLE items 
+            MODIFY COLUMN type ENUM('book', 'tool', 'game', 'electronics', 'clothing', 'collectible', 'other') NOT NULL DEFAULT 'other'
+        `);
     }
 }

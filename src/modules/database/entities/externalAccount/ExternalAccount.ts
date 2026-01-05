@@ -9,7 +9,7 @@ import {
 } from "typeorm";
 import {User} from "../user/User";
 import {GameProvider} from "../../../../types/InventoryEnums";
-import {GameCopy} from "../gameCopy/GameCopy";
+import {Item} from "../item/Item";
 import {ExternalLibraryEntry} from "../externalLibraryEntry/ExternalLibraryEntry";
 import {SyncJob} from "../syncJob/SyncJob";
 
@@ -36,8 +36,8 @@ export class ExternalAccount {
     @Column("timestamp", {name: "last_synced_at", nullable: true})
     lastSyncedAt?: Date | null;
 
-    @OneToMany(() => GameCopy, (copy) => copy.externalAccount)
-    copies?: GameCopy[];
+    @OneToMany(() => Item, (item) => item.externalAccount)
+    items?: Item[];
 
     @OneToMany(() => ExternalLibraryEntry, (entry) => entry.externalAccount)
     libraryEntries?: ExternalLibraryEntry[];
