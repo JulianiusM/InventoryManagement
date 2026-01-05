@@ -50,6 +50,23 @@ import {
 // Ensure connectors are initialized
 initializeConnectors();
 
+/**
+ * Helper to parse checkbox boolean from form submissions
+ * HTML checkboxes submit 'true' string when checked, undefined when unchecked
+ */
+function parseCheckboxBoolean(value: boolean | string | undefined): boolean {
+    return value === true || value === 'true';
+}
+
+/**
+ * Helper to parse optional checkbox boolean (can be null)
+ * Returns true/false if value is present, null if undefined
+ */
+function parseOptionalCheckboxBoolean(value: boolean | string | undefined): boolean | null {
+    if (value === undefined) return null;
+    return value === true || value === 'true';
+}
+
 // ============ Game Titles ============
 
 export async function listGameTitles(ownerId: number, options?: {
@@ -106,9 +123,9 @@ export async function createGameTitle(body: CreateGameTitleBody, ownerId: number
     const profile = {
         overallMinPlayers: Number(body.overallMinPlayers) || 1,
         overallMaxPlayers: Number(body.overallMaxPlayers) || 1,
-        supportsOnline: Boolean(body.supportsOnline),
-        supportsLocal: Boolean(body.supportsLocal),
-        supportsPhysical: Boolean(body.supportsPhysical),
+        supportsOnline: parseCheckboxBoolean(body.supportsOnline),
+        supportsLocal: parseCheckboxBoolean(body.supportsLocal),
+        supportsPhysical: parseCheckboxBoolean(body.supportsPhysical),
         onlineMinPlayers: body.onlineMinPlayers ? Number(body.onlineMinPlayers) : null,
         onlineMaxPlayers: body.onlineMaxPlayers ? Number(body.onlineMaxPlayers) : null,
         localMinPlayers: body.localMinPlayers ? Number(body.localMinPlayers) : null,
@@ -208,9 +225,9 @@ export async function createGameRelease(body: CreateGameReleaseBody, ownerId: nu
         playersOverrideMin: body.playersOverrideMin ? Number(body.playersOverrideMin) : null,
         playersOverrideMax: body.playersOverrideMax ? Number(body.playersOverrideMax) : null,
         // Mode-specific overrides
-        overrideSupportsOnline: body.overrideSupportsOnline !== undefined ? Boolean(body.overrideSupportsOnline) : null,
-        overrideSupportsLocal: body.overrideSupportsLocal !== undefined ? Boolean(body.overrideSupportsLocal) : null,
-        overrideSupportsPhysical: body.overrideSupportsPhysical !== undefined ? Boolean(body.overrideSupportsPhysical) : null,
+        overrideSupportsOnline: parseOptionalCheckboxBoolean(body.overrideSupportsOnline),
+        overrideSupportsLocal: parseOptionalCheckboxBoolean(body.overrideSupportsLocal),
+        overrideSupportsPhysical: parseOptionalCheckboxBoolean(body.overrideSupportsPhysical),
         overrideOnlineMin: body.overrideOnlineMin ? Number(body.overrideOnlineMin) : null,
         overrideOnlineMax: body.overrideOnlineMax ? Number(body.overrideOnlineMax) : null,
         overrideLocalMin: body.overrideLocalMin ? Number(body.overrideLocalMin) : null,
