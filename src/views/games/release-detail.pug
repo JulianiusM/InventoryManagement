@@ -1,0 +1,164 @@
+extends ../layout
+
+block meta
+    title Release | Inventory Management
+
+block content
+    - const release = (data && data.release) ? data.release : null
+    - const copies = (data && data.copies) ? data.copies : []
+    - const platformLabels = {pc: 'PC', ps5: 'PS5', ps4: 'PS4', xbox_series: 'Xbox Series', xbox_one: 'Xbox One', switch: 'Switch', mobile: 'Mobile', physical_only: 'Physical Only', other: 'Other'}
+    - const conditions = ['new', 'like_new', 'good', 'fair', 'poor']
+
+    #liveAlerts
+
+    if !release
+        .alert.alert-danger
+            i.bi.bi-exclamation-triangle.me-2
+            | Release not found.
+    else
+        //- Breadcrumb navigation
+        nav.mb-2(aria-label="breadcrumb")
+            ol.breadcrumb.mb-0
+                li.breadcrumb-item
+                    a.text-white(href="/") Home
+                li.breadcrumb-item
+                    a.text-white(href="/games") Games
+                li.breadcrumb-item
+                    a.text-white(href=`/games/titles/${release.gameTitleId}`) #{release.gameTitle ? release.gameTitle.name : 'Game'}
+                li.breadcrumb-item.active.text-white-50(aria-current="page") #{platformLabels[release.platform] || release.platform}
+
+        //- Header
+        .d-flex.justify-content-between.align-items-start.mb-3
+            div
+                h1.h3.mb-1.text-white
+                    i.bi.bi-box.me-2
+                    | #{release.gameTitle ? release.gameTitle.name : 'Release'}
+                .d-flex.flex-wrap.gap-2.align-items-center
+                    span.badge.text-bg-info #{platformLabels[release.platform] || release.platform}
+                    if release.edition
+                        span.badge.text-bg-secondary #{release.edition}
+                    if release.region
+                        span.badge.text-bg-secondary #{release.region}
+            .btn-group
+                a.btn.btn-outline-light(href=`/games/titles/${release.gameTitleId}`)
+                    i.bi.bi-arrow-left.me-1
+                    | Back
+
+        .row.g-3
+            //- Left column: Copies
+            .col-lg-8
+                .card.text-bg-dark.border-secondary.mb-3
+                    .card-header.d-flex.justify-content-between.align-items-center
+                        h2.h5.mb-0
+                            i.bi.bi-collection.me-2
+                            | Copies
+                            if copies.length > 0
+                                span.badge.text-bg-secondary.ms-2 #{copies.length}
+                        button.btn.btn-sm.btn-outline-light(type="button" data-bs-toggle="modal" data-bs-target="#addCopyModal")
+                            i.bi.bi-plus.me-1
+                            | Add Copy
+                    .card-body
+                        if copies.length === 0
+                            p.text-white-50.mb-0
+                                i.bi.bi-info-circle.me-1
+                                | No copies yet. Add a physical or digital copy.
+                        else
+                            .list-group.list-group-flush
+                                each copy in copies
+                                    .list-group-item.bg-transparent.text-white.border-secondary
+                                        .d-flex.justify-content-between.align-items-center
+                                            div
+                                                if copy.copyType === 'digital_license'
+                                                    span.badge.text-bg-primary.me-2
+                                                        i.bi.bi-cloud.me-1
+                                                        | Digital
+                                                    if copy.externalAccount
+                                                        | #{copy.externalAccount.accountName}
+                                                else
+                                                    span.badge.text-bg-success.me-2
+                                                        i.bi.bi-disc.me-1
+                                                        | Physical
+                                                    if copy.location
+                                                        | #{copy.location.name}
+                                                    else
+                                                        span.text-white-50 Unassigned
+                                                if copy.condition
+                                                    span.badge.text-bg-secondary.ms-2 #{copy.condition.replace('_', ' ')}
+                                            a.btn.btn-sm.btn-outline-light(href=`/games/copies/${copy.id}`)
+                                                i.bi.bi-eye
+
+            //- Right column: Release details
+            .col-lg-4
+                .card.text-bg-dark.border-secondary.mb-3
+                    .card-header
+                        h2.h5.mb-0
+                            i.bi.bi-info-circle.me-2
+                            | Release Details
+                    .card-body
+                        dl.row.mb-0
+                            dt.col-sm-5
+                                i.bi.bi-cpu.me-1
+                                | Platform
+                            dd.col-sm-7 #{platformLabels[release.platform] || release.platform}
+                            
+                            dt.col-sm-5
+                                i.bi.bi-bookmark.me-1
+                                | Edition
+                            dd.col-sm-7 #{release.edition || 'Standard'}
+                            
+                            dt.col-sm-5
+                                i.bi.bi-globe2.me-1
+                                | Region
+                            dd.col-sm-7 #{release.region || '—'}
+                            
+                            dt.col-sm-5
+                                i.bi.bi-calendar.me-1
+                                | Release Date
+                            dd.col-sm-7 #{release.releaseDate || '—'}
+
+                //- Danger zone
+                .card.text-bg-dark.border-danger
+                    .card-header.text-danger
+                        h2.h5.mb-0
+                            i.bi.bi-exclamation-triangle.me-2
+                            | Danger Zone
+                    .card-body
+                        form(method="post" action=`/games/releases/${release.id}/delete`)
+                            button.btn.btn-outline-danger.w-100(type="submit" onclick="return confirm('Delete this release and all its copies?')")
+                                i.bi.bi-trash.me-1
+                                | Delete Release
+
+    //- Add Copy Modal
+    #addCopyModal.modal.fade(tabindex="-1")
+        .modal-dialog
+            .modal-content.text-bg-dark
+                .modal-header.border-secondary
+                    h5.modal-title
+                        i.bi.bi-plus-circle.me-2
+                        | Add Copy
+                    button.btn-close.btn-close-white(type="button" data-bs-dismiss="modal")
+                .modal-body
+                    if release
+                        form#addCopyForm.row.g-3(method="post" action=`/games/releases/${release.id}/copies`)
+                            .col-12
+                                label.form-label Copy Type *
+                                select.form-select.text-bg-dark(name="copyType" required)
+                                    option(value="physical_copy") Physical Copy
+                                    option(value="digital_license") Digital License
+                            .col-md-6
+                                label.form-label Condition
+                                select.form-select.text-bg-dark(name="condition")
+                                    option(value="") Not specified
+                                    each c in conditions
+                                        option(value=c) #{c.charAt(0).toUpperCase() + c.slice(1).replace('_', ' ')}
+                            .col-md-6
+                                label.form-label Acquired Date
+                                input.form-control.text-bg-dark(type="date" name="acquiredAt")
+                            .col-12
+                                label.form-label Notes
+                                textarea.form-control.text-bg-dark(name="notes" rows="2" placeholder="Optional notes")
+                .modal-footer.border-secondary
+                    button.btn.btn-secondary(type="button" data-bs-dismiss="modal") Cancel
+                    button.btn.btn-primary(type="submit" form="addCopyForm")
+                        i.bi.bi-plus-lg.me-1
+                        | Add Copy

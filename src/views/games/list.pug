@@ -1,0 +1,177 @@
+extends ../layout
+
+block meta
+    title Games | Inventory Management
+
+block content
+    - const titles = (data && data.titles) ? data.titles : []
+    - const gameTypes = ['video_game', 'board_game', 'card_game', 'tabletop_rpg', 'other_physical_game']
+    - const typeLabels = {video_game: 'Video Game', board_game: 'Board Game', card_game: 'Card Game', tabletop_rpg: 'Tabletop RPG', other_physical_game: 'Other Physical'}
+
+    #liveAlerts
+
+    .d-flex.justify-content-between.align-items-center.mb-3.flex-wrap.gap-2
+        h1.h3.mb-0.text-white
+            i.bi.bi-controller.me-2
+            | Games
+            if titles.length > 0
+                span.badge.text-bg-secondary.ms-2.fs-6 #{titles.length}
+        
+        .d-flex.gap-2.align-items-center.flex-wrap
+            a.btn.btn-outline-light(href="/games/copies")
+                i.bi.bi-collection.me-1
+                | My Copies
+            a.btn.btn-outline-light(href="/games/accounts")
+                i.bi.bi-cloud.me-1
+                | Accounts
+            a.btn.btn-outline-light(href="/games/mappings")
+                i.bi.bi-link-45deg.me-1
+                | Mappings
+            button.btn.btn-primary(type="button" data-bs-toggle="modal" data-bs-target="#addGameModal")
+                i.bi.bi-plus-lg.me-1
+                | Add Game
+
+    //- Search and filter row
+    .card.text-bg-dark.border-secondary.mb-3
+        .card-body.py-2
+            form(method="get" action="/games")
+                .row.g-2.align-items-center
+                    .col-md-6
+                        .input-group
+                            span.input-group-text.text-bg-dark.border-secondary
+                                i.bi.bi-search
+                            input#gameSearch.form-control.text-bg-dark.border-secondary(
+                                type="text" 
+                                name="search" 
+                                placeholder="Search games..." 
+                                value=(data && data.search) || ''
+                            )
+                    .col-md-3
+                        select#filterType.form-select.text-bg-dark.border-secondary(name="type")
+                            option(value="") All types
+                            each t in gameTypes
+                                option(value=t) #{typeLabels[t]}
+                    .col-md-3
+                        button.btn.btn-primary.w-100(type="submit")
+                            i.bi.bi-funnel.me-1
+                            | Filter
+
+    //- Games list
+    if titles.length === 0
+        .card.text-bg-dark.border-secondary
+            .card-body.text-center.py-5
+                i.bi.bi-controller.display-1.text-white-50.mb-3.d-block
+                p.text-white-50.mb-3 No games yet. Add your first game above!
+                p.text-white-50.mb-0 Or 
+                    a.text-white(href="/games/accounts") link an external account
+                    |  to sync your library.
+    else
+        .row.g-3
+            each title in titles
+                .col-md-6.col-lg-4
+                    .card.text-bg-dark.border-secondary.h-100
+                        .card-body
+                            .d-flex.justify-content-between.align-items-start.mb-2
+                                div
+                                    a.text-white.text-decoration-none.h5(href=`/games/titles/${title.id}`)
+                                        i.bi.bi-controller.me-2
+                                        | #{title.name}
+                                span.badge.text-bg-info #{typeLabels[title.type] || title.type}
+                            
+                            .d-flex.flex-wrap.gap-1.mb-2
+                                span.badge.text-bg-secondary
+                                    i.bi.bi-people.me-1
+                                    | #{title.overallMinPlayers}-#{title.overallMaxPlayers} players
+                                if title.supportsOnline
+                                    span.badge.text-bg-primary
+                                        i.bi.bi-globe.me-1
+                                        | Online
+                                if title.supportsLocal
+                                    span.badge.text-bg-success
+                                        i.bi.bi-display.me-1
+                                        | Local
+                                if title.supportsPhysical
+                                    span.badge.text-bg-warning.text-dark
+                                        i.bi.bi-dice-5.me-1
+                                        | Physical
+                            
+                            if title.description
+                                p.small.text-white-50.mb-2.text-truncate #{title.description}
+                            
+                            if title.releases && title.releases.length > 0
+                                .small.text-white-50
+                                    i.bi.bi-box.me-1
+                                    | #{title.releases.length} release(s)
+                        .card-footer.bg-transparent.border-secondary
+                            a.btn.btn-sm.btn-outline-light(href=`/games/titles/${title.id}`)
+                                i.bi.bi-eye.me-1
+                                | View Details
+
+    //- Add Game Modal
+    #addGameModal.modal.fade(tabindex="-1")
+        .modal-dialog.modal-lg
+            .modal-content.text-bg-dark
+                .modal-header.border-secondary
+                    h5.modal-title
+                        i.bi.bi-plus-circle.me-2
+                        | Add New Game
+                    button.btn-close.btn-close-white(type="button" data-bs-dismiss="modal")
+                .modal-body
+                    form#addGameForm.row.g-3(method="post" action="/games")
+                        .col-md-8
+                            label.form-label(for="name")
+                                i.bi.bi-tag.me-1
+                                | Name *
+                            input#name.form-control.text-bg-dark(type="text" name="name" required placeholder="Game name")
+                        .col-md-4
+                            label.form-label(for="type")
+                                i.bi.bi-grid.me-1
+                                | Type
+                            select#type.form-select.text-bg-dark(name="type")
+                                each t in gameTypes
+                                    option(value=t selected=(t === 'video_game')) #{typeLabels[t]}
+                        
+                        .col-12
+                            label.form-label(for="description")
+                                i.bi.bi-text-left.me-1
+                                | Description
+                            textarea#description.form-control.text-bg-dark(name="description" rows="2" placeholder="Optional description")
+                        
+                        hr.border-secondary
+                        
+                        h6.text-white
+                            i.bi.bi-people.me-1
+                            | Player Profile
+                        
+                        .col-md-6
+                            label.form-label Overall Min Players *
+                            input.form-control.text-bg-dark(type="number" name="overallMinPlayers" value="1" min="1" required)
+                        .col-md-6
+                            label.form-label Overall Max Players *
+                            input.form-control.text-bg-dark(type="number" name="overallMaxPlayers" value="1" min="1" required)
+                        
+                        .col-12
+                            label.form-label Multiplayer Support
+                        .col-md-4
+                            .form-check
+                                input#supportsOnline.form-check-input(type="checkbox" name="supportsOnline" value="true")
+                                label.form-check-label(for="supportsOnline")
+                                    i.bi.bi-globe.me-1
+                                    | Online
+                        .col-md-4
+                            .form-check
+                                input#supportsLocal.form-check-input(type="checkbox" name="supportsLocal" value="true")
+                                label.form-check-label(for="supportsLocal")
+                                    i.bi.bi-display.me-1
+                                    | Local Co-op
+                        .col-md-4
+                            .form-check
+                                input#supportsPhysical.form-check-input(type="checkbox" name="supportsPhysical" value="true")
+                                label.form-check-label(for="supportsPhysical")
+                                    i.bi.bi-dice-5.me-1
+                                    | Physical Play
+                .modal-footer.border-secondary
+                    button.btn.btn-secondary(type="button" data-bs-dismiss="modal") Cancel
+                    button.btn.btn-primary(type="submit" form="addGameForm")
+                        i.bi.bi-plus-lg.me-1
+                        | Create Game

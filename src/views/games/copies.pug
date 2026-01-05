@@ -1,0 +1,101 @@
+extends ../layout
+
+block meta
+    title Game Copies | Inventory Management
+
+block content
+    - const copies = (data && data.copies) ? data.copies : []
+    - const locations = (data && data.locations) ? data.locations : []
+    - const accounts = (data && data.accounts) ? data.accounts : []
+    - const platformLabels = {pc: 'PC', ps5: 'PS5', ps4: 'PS4', xbox_series: 'Xbox Series', xbox_one: 'Xbox One', switch: 'Switch', mobile: 'Mobile', physical_only: 'Physical Only', other: 'Other'}
+
+    #liveAlerts
+
+    .d-flex.justify-content-between.align-items-center.mb-3.flex-wrap.gap-2
+        h1.h3.mb-0.text-white
+            i.bi.bi-collection.me-2
+            | Game Copies
+            if copies.length > 0
+                span.badge.text-bg-secondary.ms-2.fs-6 #{copies.length}
+        
+        a.btn.btn-outline-light(href="/games")
+            i.bi.bi-arrow-left.me-1
+            | Back to Games
+
+    //- Filters
+    .card.text-bg-dark.border-secondary.mb-3
+        .card-body.py-2
+            form(method="get" action="/games/copies")
+                .row.g-2.align-items-center
+                    .col-md-4
+                        select.form-select.text-bg-dark.border-secondary(name="copyType")
+                            option(value="") All types
+                            option(value="digital_license") Digital
+                            option(value="physical_copy") Physical
+                    .col-md-4
+                        select.form-select.text-bg-dark.border-secondary(name="location")
+                            option(value="") All locations
+                            option(value="unassigned") Unassigned
+                            each loc in locations
+                                option(value=loc.id) #{loc.name}
+                    .col-md-4
+                        button.btn.btn-primary.w-100(type="submit")
+                            i.bi.bi-funnel.me-1
+                            | Filter
+
+    //- Copies list
+    if copies.length === 0
+        .card.text-bg-dark.border-secondary
+            .card-body.text-center.py-5
+                i.bi.bi-collection.display-1.text-white-50.mb-3.d-block
+                p.text-white-50.mb-3 No game copies yet.
+                a.btn.btn-outline-light(href="/games") Browse games to add copies
+    else
+        .table-responsive
+            table.table.table-dark.table-hover.align-middle
+                thead
+                    tr
+                        th Game
+                        th Platform
+                        th Type
+                        th Location/Account
+                        th Condition
+                        th.text-end Actions
+                tbody
+                    each copy in copies
+                        tr
+                            td
+                                if copy.gameRelease && copy.gameRelease.gameTitle
+                                    a.text-white.text-decoration-none(href=`/games/titles/${copy.gameRelease.gameTitle.id}`)
+                                        | #{copy.gameRelease.gameTitle.name}
+                                else
+                                    span.text-white-50 Unknown
+                            td
+                                if copy.gameRelease
+                                    span.badge.text-bg-info #{platformLabels[copy.gameRelease.platform] || copy.gameRelease.platform}
+                            td
+                                if copy.copyType === 'digital_license'
+                                    span.badge.text-bg-primary
+                                        i.bi.bi-cloud.me-1
+                                        | Digital
+                                else
+                                    span.badge.text-bg-success
+                                        i.bi.bi-disc.me-1
+                                        | Physical
+                            td
+                                if copy.copyType === 'digital_license'
+                                    if copy.externalAccount
+                                        i.bi.bi-cloud.me-1.text-white-50
+                                        | #{copy.externalAccount.accountName}
+                                    else
+                                        span.text-white-50 —
+                                else
+                                    if copy.location
+                                        i.bi.bi-geo-alt.me-1.text-white-50
+                                        | #{copy.location.name}
+                                    else
+                                        span.text-white-50 Unassigned
+                            td.text-white-50 #{copy.condition ? copy.condition.replace('_', ' ') : '—'}
+                            td.text-end
+                                a.btn.btn-sm.btn-outline-light(href=`/games/copies/${copy.id}`)
+                                    i.bi.bi-eye

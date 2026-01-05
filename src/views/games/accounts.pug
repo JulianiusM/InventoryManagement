@@ -1,0 +1,136 @@
+extends ../layout
+
+block meta
+    title External Accounts | Inventory Management
+
+block content
+    - const accounts = (data && data.accounts) ? data.accounts : []
+    - const connectors = (data && data.connectors) ? data.connectors : []
+    - const providerLabels = {steam: 'Steam', epic: 'Epic Games', gog: 'GOG', xbox: 'Xbox', playstation: 'PlayStation', nintendo: 'Nintendo', origin: 'Origin', ubisoft: 'Ubisoft', other: 'Other'}
+
+    #liveAlerts
+
+    .d-flex.justify-content-between.align-items-center.mb-3.flex-wrap.gap-2
+        h1.h3.mb-0.text-white
+            i.bi.bi-cloud.me-2
+            | External Accounts
+            if accounts.length > 0
+                span.badge.text-bg-secondary.ms-2.fs-6 #{accounts.length}
+        
+        .d-flex.gap-2
+            a.btn.btn-outline-light(href="/games")
+                i.bi.bi-arrow-left.me-1
+                | Back to Games
+            button.btn.btn-primary(type="button" data-bs-toggle="modal" data-bs-target="#addAccountModal")
+                i.bi.bi-plus-lg.me-1
+                | Link Account
+
+    //- Info card
+    .card.text-bg-dark.border-secondary.mb-3
+        .card-body
+            i.bi.bi-info-circle.me-2
+            | Link your gaming accounts to sync your library automatically. Currently supported connectors are in development mode.
+
+    //- Accounts list
+    if accounts.length === 0
+        .card.text-bg-dark.border-secondary
+            .card-body.text-center.py-5
+                i.bi.bi-cloud.display-1.text-white-50.mb-3.d-block
+                p.text-white-50.mb-3 No external accounts linked yet.
+                button.btn.btn-outline-light(type="button" data-bs-toggle="modal" data-bs-target="#addAccountModal")
+                    i.bi.bi-plus-lg.me-1
+                    | Link Your First Account
+    else
+        .row.g-3
+            each account in accounts
+                .col-md-6.col-lg-4
+                    .card.text-bg-dark.border-secondary.h-100
+                        .card-body
+                            .d-flex.justify-content-between.align-items-start.mb-3
+                                div
+                                    h5.mb-1.text-white
+                                        i.bi.bi-cloud.me-2
+                                        | #{account.accountName}
+                                    span.badge.text-bg-info #{providerLabels[account.provider] || account.provider}
+                                .dropdown
+                                    button.btn.btn-sm.btn-outline-secondary.dropdown-toggle(type="button" data-bs-toggle="dropdown")
+                                        i.bi.bi-three-dots-vertical
+                                    ul.dropdown-menu.dropdown-menu-dark.dropdown-menu-end
+                                        li
+                                            form(method="post" action=`/games/accounts/${account.id}/sync`)
+                                                button.dropdown-item(type="submit")
+                                                    i.bi.bi-arrow-repeat.me-2
+                                                    | Sync Now
+                                        li
+                                            hr.dropdown-divider
+                                        li
+                                            form(method="post" action=`/games/accounts/${account.id}/delete`)
+                                                button.dropdown-item.text-danger(type="submit" onclick="return confirm('Remove this account?')")
+                                                    i.bi.bi-trash.me-2
+                                                    | Remove
+                            
+                            .small.text-white-50
+                                if account.lastSyncedAt
+                                    i.bi.bi-clock.me-1
+                                    | Last synced: #{new Date(account.lastSyncedAt).toLocaleString()}
+                                else
+                                    i.bi.bi-exclamation-circle.me-1
+                                    | Never synced
+                        .card-footer.bg-transparent.border-secondary
+                            form(method="post" action=`/games/accounts/${account.id}/sync`)
+                                button.btn.btn-sm.btn-outline-primary.w-100(type="submit")
+                                    i.bi.bi-arrow-repeat.me-1
+                                    | Sync Library
+
+    //- Available connectors
+    .card.text-bg-dark.border-secondary.mt-4
+        .card-header
+            h5.mb-0
+                i.bi.bi-plug.me-2
+                | Available Connectors
+        .card-body
+            if connectors.length === 0
+                p.text-white-50.mb-0 No connectors available.
+            else
+                .row.g-2
+                    each conn in connectors
+                        .col-md-6.col-lg-4
+                            .card.text-bg-dark.border-secondary
+                                .card-body.py-2
+                                    h6.mb-1 #{conn.name}
+                                    p.small.text-white-50.mb-1 #{conn.description}
+                                    .d-flex.flex-wrap.gap-1
+                                        each cap in conn.capabilities
+                                            span.badge.text-bg-secondary.small #{cap.replace('_', ' ')}
+
+    //- Add Account Modal
+    #addAccountModal.modal.fade(tabindex="-1")
+        .modal-dialog
+            .modal-content.text-bg-dark
+                .modal-header.border-secondary
+                    h5.modal-title
+                        i.bi.bi-plus-circle.me-2
+                        | Link External Account
+                    button.btn-close.btn-close-white(type="button" data-bs-dismiss="modal")
+                .modal-body
+                    form#addAccountForm.row.g-3(method="post" action="/games/accounts")
+                        .col-12
+                            label.form-label Provider *
+                            select.form-select.text-bg-dark(name="provider" required)
+                                each conn in connectors
+                                    option(value=conn.provider) #{conn.name}
+                        .col-12
+                            label.form-label Account Name *
+                            input.form-control.text-bg-dark(type="text" name="accountName" required placeholder="e.g., My Steam Account")
+                        .col-12
+                            label.form-label User ID / Steam ID
+                            input.form-control.text-bg-dark(type="text" name="externalUserId" placeholder="Your external user ID")
+                        .col-12
+                            label.form-label API Key / Token (optional)
+                            input.form-control.text-bg-dark(type="password" name="tokenRef" placeholder="API key or token if required")
+                            .form-text.text-white-50 This will be stored securely and used for syncing.
+                .modal-footer.border-secondary
+                    button.btn.btn-secondary(type="button" data-bs-dismiss="modal") Cancel
+                    button.btn.btn-primary(type="submit" form="addAccountForm")
+                        i.bi.bi-link-45deg.me-1
+                        | Link Account

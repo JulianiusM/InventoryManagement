@@ -1,0 +1,227 @@
+extends ../layout
+
+block meta
+    title #{data && data.title ? data.title.name : 'Game'} | Inventory Management
+
+block content
+    - const title = (data && data.title) ? data.title : null
+    - const releases = (data && data.releases) ? data.releases : []
+    - const gameTypes = ['video_game', 'board_game', 'card_game', 'tabletop_rpg', 'other_physical_game']
+    - const typeLabels = {video_game: 'Video Game', board_game: 'Board Game', card_game: 'Card Game', tabletop_rpg: 'Tabletop RPG', other_physical_game: 'Other Physical'}
+    - const platforms = ['pc', 'ps5', 'ps4', 'xbox_series', 'xbox_one', 'switch', 'mobile', 'physical_only', 'other']
+    - const platformLabels = {pc: 'PC', ps5: 'PS5', ps4: 'PS4', xbox_series: 'Xbox Series', xbox_one: 'Xbox One', switch: 'Switch', mobile: 'Mobile', physical_only: 'Physical Only', other: 'Other'}
+
+    #liveAlerts
+
+    if !title
+        .alert.alert-danger
+            i.bi.bi-exclamation-triangle.me-2
+            | Game not found.
+    else
+        //- Breadcrumb navigation
+        nav.mb-2(aria-label="breadcrumb")
+            ol.breadcrumb.mb-0
+                li.breadcrumb-item
+                    a.text-white(href="/") Home
+                li.breadcrumb-item
+                    a.text-white(href="/games") Games
+                li.breadcrumb-item.active.text-white-50(aria-current="page") #{title.name}
+
+        //- Header
+        .d-flex.justify-content-between.align-items-start.mb-3
+            div
+                h1.h3.mb-1.text-white
+                    i.bi.bi-controller.me-2
+                    | #{title.name}
+                .d-flex.flex-wrap.gap-2.align-items-center
+                    span.badge.text-bg-info #{typeLabels[title.type] || title.type}
+                    span.badge.text-bg-secondary
+                        i.bi.bi-people.me-1
+                        | #{title.overallMinPlayers}-#{title.overallMaxPlayers} players
+                    if title.supportsOnline
+                        span.badge.text-bg-primary
+                            i.bi.bi-globe.me-1
+                            | Online
+                    if title.supportsLocal
+                        span.badge.text-bg-success
+                            i.bi.bi-display.me-1
+                            | Local
+                    if title.supportsPhysical
+                        span.badge.text-bg-warning.text-dark
+                            i.bi.bi-dice-5.me-1
+                            | Physical
+            .btn-group
+                a.btn.btn-outline-light(href="/games")
+                    i.bi.bi-arrow-left.me-1
+                    | Back
+
+        .row.g-3
+            //- Left column: Details
+            .col-lg-7
+                //- Game details card
+                .card.text-bg-dark.border-secondary.mb-3
+                    .card-header.d-flex.justify-content-between.align-items-center
+                        h2.h5.mb-0
+                            i.bi.bi-info-circle.me-2
+                            | Details
+                        button.btn.btn-sm.btn-outline-light(type="button" data-bs-toggle="collapse" data-bs-target="#editDetailsForm")
+                            i.bi.bi-pencil.me-1
+                            | Edit
+                    .card-body
+                        if title.description
+                            p.text-white-50.mb-3 #{title.description}
+                        
+                        dl.row.mb-0
+                            dt.col-sm-4
+                                i.bi.bi-grid.me-1
+                                | Type
+                            dd.col-sm-8 #{typeLabels[title.type] || title.type}
+                            
+                            dt.col-sm-4
+                                i.bi.bi-people.me-1
+                                | Overall Players
+                            dd.col-sm-8 #{title.overallMinPlayers} - #{title.overallMaxPlayers}
+                            
+                            if title.supportsOnline
+                                dt.col-sm-4.text-primary
+                                    i.bi.bi-globe.me-1
+                                    | Online
+                                dd.col-sm-8
+                                    | #{title.onlineMinPlayers || title.overallMinPlayers} - #{title.onlineMaxPlayers || title.overallMaxPlayers} players
+                            
+                            if title.supportsLocal
+                                dt.col-sm-4.text-success
+                                    i.bi.bi-display.me-1
+                                    | Local Co-op
+                                dd.col-sm-8
+                                    | #{title.localMinPlayers || title.overallMinPlayers} - #{title.localMaxPlayers || title.overallMaxPlayers} players
+                            
+                            if title.supportsPhysical
+                                dt.col-sm-4.text-warning
+                                    i.bi.bi-dice-5.me-1
+                                    | Physical
+                                dd.col-sm-8
+                                    | #{title.physicalMinPlayers || title.overallMinPlayers} - #{title.physicalMaxPlayers || title.overallMaxPlayers} players
+
+                    //- Edit form (collapsible)
+                    #editDetailsForm.collapse
+                        .card-body.border-top.border-secondary
+                            form.row.g-3(method="post" action=`/games/titles/${title.id}`)
+                                .col-md-8
+                                    label.form-label(for="editName") Name
+                                    input#editName.form-control.text-bg-dark(type="text" name="name" value=title.name required)
+                                .col-md-4
+                                    label.form-label(for="editType") Type
+                                    select#editType.form-select.text-bg-dark(name="type")
+                                        each t in gameTypes
+                                            option(value=t selected=(title.type === t)) #{typeLabels[t]}
+                                .col-12
+                                    label.form-label(for="editDescription") Description
+                                    textarea#editDescription.form-control.text-bg-dark(name="description" rows="2") #{title.description || ''}
+                                .col-md-6
+                                    label.form-label Overall Min Players
+                                    input.form-control.text-bg-dark(type="number" name="overallMinPlayers" value=title.overallMinPlayers min="1" required)
+                                .col-md-6
+                                    label.form-label Overall Max Players
+                                    input.form-control.text-bg-dark(type="number" name="overallMaxPlayers" value=title.overallMaxPlayers min="1" required)
+                                .col-12
+                                    button.btn.btn-primary(type="submit")
+                                        i.bi.bi-check-lg.me-1
+                                        | Save Changes
+
+                //- Releases card
+                .card.text-bg-dark.border-secondary.mb-3
+                    .card-header.d-flex.justify-content-between.align-items-center
+                        h2.h5.mb-0
+                            i.bi.bi-box.me-2
+                            | Releases
+                            if releases.length > 0
+                                span.badge.text-bg-secondary.ms-2 #{releases.length}
+                        button.btn.btn-sm.btn-outline-light(type="button" data-bs-toggle="modal" data-bs-target="#addReleaseModal")
+                            i.bi.bi-plus.me-1
+                            | Add Release
+                    .card-body
+                        if releases.length === 0
+                            p.text-white-50.mb-0
+                                i.bi.bi-info-circle.me-1
+                                | No releases yet. Add a release to start tracking copies.
+                        else
+                            .list-group.list-group-flush
+                                each rel in releases
+                                    .list-group-item.bg-transparent.text-white.border-secondary
+                                        .d-flex.justify-content-between.align-items-center
+                                            div
+                                                a.text-white.text-decoration-none(href=`/games/releases/${rel.id}`)
+                                                    span.badge.text-bg-info.me-2 #{platformLabels[rel.platform] || rel.platform}
+                                                    if rel.edition
+                                                        | #{rel.edition}
+                                                    else
+                                                        | Standard Edition
+                                                    if rel.region
+                                                        span.text-white-50.ms-2 (#{rel.region})
+                                                if rel.copies && rel.copies.length > 0
+                                                    span.badge.text-bg-secondary.ms-2 #{rel.copies.length} copy(ies)
+                                            a.btn.btn-sm.btn-outline-light(href=`/games/releases/${rel.id}`)
+                                                i.bi.bi-eye
+
+            //- Right column: Actions
+            .col-lg-5
+                //- Quick actions
+                .card.text-bg-dark.border-secondary.mb-3
+                    .card-header
+                        h2.h5.mb-0
+                            i.bi.bi-lightning.me-2
+                            | Quick Actions
+                    .card-body
+                        .d-grid.gap-2
+                            button.btn.btn-outline-light(type="button" data-bs-toggle="modal" data-bs-target="#addReleaseModal")
+                                i.bi.bi-plus.me-1
+                                | Add Release
+                            a.btn.btn-outline-light(href="/games/copies")
+                                i.bi.bi-collection.me-1
+                                | View All Copies
+
+                //- Danger zone
+                .card.text-bg-dark.border-danger
+                    .card-header.text-danger
+                        h2.h5.mb-0
+                            i.bi.bi-exclamation-triangle.me-2
+                            | Danger Zone
+                    .card-body
+                        p.text-white-50.small.mb-2 Deleting this game will also remove all releases and copies.
+                        form(method="post" action=`/games/titles/${title.id}/delete`)
+                            button.btn.btn-outline-danger.w-100(type="submit" onclick="return confirm('Are you sure you want to delete this game?')")
+                                i.bi.bi-trash.me-1
+                                | Delete Game
+
+    //- Add Release Modal
+    #addReleaseModal.modal.fade(tabindex="-1")
+        .modal-dialog
+            .modal-content.text-bg-dark
+                .modal-header.border-secondary
+                    h5.modal-title
+                        i.bi.bi-plus-circle.me-2
+                        | Add Release
+                    button.btn-close.btn-close-white(type="button" data-bs-dismiss="modal")
+                .modal-body
+                    if title
+                        form#addReleaseForm.row.g-3(method="post" action=`/games/titles/${title.id}/releases`)
+                            .col-md-6
+                                label.form-label Platform
+                                select.form-select.text-bg-dark(name="platform")
+                                    each p in platforms
+                                        option(value=p) #{platformLabels[p]}
+                            .col-md-6
+                                label.form-label Edition
+                                input.form-control.text-bg-dark(type="text" name="edition" placeholder="e.g., GOTY, Collector's")
+                            .col-md-6
+                                label.form-label Region
+                                input.form-control.text-bg-dark(type="text" name="region" placeholder="e.g., US, EU, JP")
+                            .col-md-6
+                                label.form-label Release Date
+                                input.form-control.text-bg-dark(type="date" name="releaseDate")
+                .modal-footer.border-secondary
+                    button.btn.btn-secondary(type="button" data-bs-dismiss="modal") Cancel
+                    button.btn.btn-primary(type="submit" form="addReleaseForm")
+                        i.bi.bi-plus-lg.me-1
+                        | Add Release

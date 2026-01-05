@@ -6,6 +6,7 @@ import createError from "http-errors";
 import scanApiRouter from './api/scan';
 import itemsApiRouter from './api/items';
 import loansApiRouter from './api/loans';
+import gamesApiRouter from './api/games';
 
 const router = express.Router();
 
@@ -13,6 +14,7 @@ const router = express.Router();
 router.use('/scan', scanApiRouter);
 router.use('/items', itemsApiRouter);
 router.use('/loans', loansApiRouter);
+router.use('/games', gamesApiRouter);
 
 router.use(handleValidationError);
 // catch 404 and forward to error handler

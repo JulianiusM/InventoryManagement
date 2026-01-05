@@ -14,6 +14,7 @@ import itemsRouter from './routes/items';
 import locationsRouter from './routes/locations';
 import loansRouter from './routes/loans';
 import scanRouter from './routes/scan';
+import gamesRouter from './routes/games';
 import settings from './modules/settings';
 import {handleGenericError} from './middleware/genericErrorHandler';
 
@@ -85,6 +86,7 @@ app.use('/items', itemsRouter);
 app.use('/locations', locationsRouter);
 app.use('/loans', loansRouter);
 app.use('/scan', scanRouter);
+app.use('/games', gamesRouter);
 
 app.get('/healthz', (_req, res) => res.status(200).send('ok'));
 
