@@ -16,19 +16,19 @@ const DEFAULT_PLATFORMS = [
 export async function getAllPlatforms(ownerId: number): Promise<Platform[]> {
     const repo = AppDataSource.getRepository(Platform);
     return repo.find({
-        where: {ownerId},
+        where: {owner: {id: ownerId}},
         order: {isDefault: "DESC", name: "ASC"},
     });
 }
 
 export async function getPlatformById(id: string, ownerId: number): Promise<Platform | null> {
     const repo = AppDataSource.getRepository(Platform);
-    return repo.findOne({where: {id, ownerId}});
+    return repo.findOne({where: {id, owner: {id: ownerId}}});
 }
 
 export async function getPlatformByName(name: string, ownerId: number): Promise<Platform | null> {
     const repo = AppDataSource.getRepository(Platform);
-    return repo.findOne({where: {name, ownerId}});
+    return repo.findOne({where: {name, owner: {id: ownerId}}});
 }
 
 export async function createPlatform(data: {name: string; description?: string | null}, ownerId: number): Promise<Platform> {
@@ -45,7 +45,7 @@ export async function createPlatform(data: {name: string; description?: string |
         name: data.name.trim(),
         description: data.description?.trim() || null,
         isDefault: false,
-        ownerId,
+        owner: {id: ownerId},
     });
     return repo.save(platform);
 }
@@ -59,7 +59,7 @@ export async function deletePlatform(id: string, ownerId: number): Promise<void>
     if (platform.isDefault) {
         throw new Error("Cannot delete a default platform");
     }
-    await repo.delete({id, ownerId});
+    await repo.delete({id});
 }
 
 export async function ensureDefaultPlatforms(ownerId: number): Promise<void> {
@@ -72,7 +72,7 @@ export async function ensureDefaultPlatforms(ownerId: number): Promise<void> {
                 name: defaultPlatform.name,
                 description: defaultPlatform.description,
                 isDefault: true,
-                ownerId,
+                owner: {id: ownerId},
             });
             await repo.save(platform);
         }
@@ -88,7 +88,7 @@ export async function getOrCreatePlatform(name: string, ownerId: number): Promis
             name: name.trim(),
             description: null,
             isDefault: false,
-            ownerId,
+            owner: {id: ownerId},
         });
         await repo.save(platform);
     }

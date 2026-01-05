@@ -6,6 +6,8 @@ block meta
 block content
     - const accounts = (data && data.accounts) ? data.accounts : []
     - const connectors = (data && data.connectors) ? data.connectors : []
+    //- Generate provider list from registered connectors
+    - const connectorProviders = connectors.map(c => c.provider)
 
     #liveAlerts
 
@@ -50,10 +52,10 @@ block content
                     | Link Your First Account
     else
         //- Check which providers have connectors (case-insensitive match)
-        - const connectorProviders = connectors.map(c => c.provider.toLowerCase())
+        - const connectorProviderNames = connectors.map(c => c.provider.toLowerCase())
         .row.g-3
             each account in accounts
-                - const hasConnector = connectorProviders.includes(account.provider.toLowerCase())
+                - const hasConnector = connectorProviderNames.includes(account.provider.toLowerCase())
                 .col-md-6.col-lg-4
                     .card.text-bg-dark.border-secondary.h-100
                         .card-body
@@ -170,14 +172,14 @@ block content
                         | Link External Account
                     button.btn-close.btn-close-white(type="button" data-bs-dismiss="modal")
                 .modal-body
-                    //- Known providers that have connectors or are commonly used
-                    - const knownProviders = ['Steam', 'Epic Games', 'GOG', 'Xbox', 'PlayStation', 'Nintendo', 'Origin', 'Ubisoft Connect', 'Humble Bundle', 'itch.io']
+                    //- Provider list generated from registered connectors
                     form#addAccountForm.row.g-3(method="post" action="/games/accounts")
                         .col-12
                             label.form-label Provider *
                             select#providerSelect.form-select.text-bg-dark(name="provider" required)
-                                each p in knownProviders
-                                    option(value=p selected=(p === 'Steam')) #{p}
+                                //- Options from registered connectors
+                                each p in connectorProviders
+                                    option(value=p selected=(p === connectorProviders[0])) #{p}
                                 option(value="Other") Other (Manual only)
                         
                         //- Custom provider name (only visible when "Other" selected)
