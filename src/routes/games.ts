@@ -236,4 +236,53 @@ router.post('/mappings/:id', asyncHandler(async (req: Request, res: Response) =>
     res.redirect('/games/mappings');
 }));
 
+// ============ Merge Operations ============
+
+// Merge game titles
+router.post('/titles/merge', asyncHandler(async (req: Request, res: Response) => {
+    const userId = req.session.user!.id;
+    const releasesMoved = await gamesController.mergeGameTitles(req.body, userId);
+    req.flash('success', `Merge complete: ${releasesMoved} release(s) moved`);
+    res.redirect(`/games/titles/${req.body.targetId}`);
+}));
+
+// Merge game releases
+router.post('/releases/merge', asyncHandler(async (req: Request, res: Response) => {
+    const userId = req.session.user!.id;
+    const copiesMoved = await gamesController.mergeGameReleases(req.body, userId);
+    req.flash('success', `Merge complete: ${copiesMoved} copy(ies) moved`);
+    res.redirect(`/games/releases/${req.body.targetId}`);
+}));
+
+// ============ Manual Account Linking ============
+
+// Link digital copy to external account
+router.post('/copies/:id/link-account', asyncHandler(async (req: Request, res: Response) => {
+    const id = req.params.id;
+    const userId = req.session.user!.id;
+    await gamesController.linkDigitalCopyToAccount(id, req.body, userId);
+    req.flash('success', 'Copy linked to external account');
+    res.redirect(`/games/copies/${id}`);
+}));
+
+// ============ Scheduled Sync ============
+
+// Schedule sync for account
+router.post('/accounts/:id/schedule', asyncHandler(async (req: Request, res: Response) => {
+    const id = req.params.id;
+    const userId = req.session.user!.id;
+    await gamesController.scheduleAccountSync(id, req.body, userId);
+    req.flash('success', 'Scheduled sync enabled');
+    res.redirect('/games/accounts');
+}));
+
+// Cancel scheduled sync
+router.post('/accounts/:id/unschedule', asyncHandler(async (req: Request, res: Response) => {
+    const id = req.params.id;
+    const userId = req.session.user!.id;
+    await gamesController.cancelScheduledSync(id, userId);
+    req.flash('success', 'Scheduled sync cancelled');
+    res.redirect('/games/accounts');
+}));
+
 export default router;

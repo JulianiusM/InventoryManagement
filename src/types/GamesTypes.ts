@@ -66,3 +66,24 @@ export interface ResolveMappingBody {
     gameReleaseId?: string;
     action: 'map' | 'ignore' | 'create';
 }
+
+// New types for enhanced functionality
+
+export interface MergeGameTitlesBody {
+    sourceId: string;
+    targetId: string;
+}
+
+export interface MergeGameReleasesBody {
+    sourceId: string;
+    targetId: string;
+}
+
+export interface LinkDigitalCopyToAccountBody {
+    externalAccountId: string;
+    externalGameId?: string;
+}
+
+export interface ScheduleSyncBody {
+    intervalMinutes: number;
+}

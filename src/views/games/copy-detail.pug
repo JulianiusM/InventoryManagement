@@ -9,8 +9,10 @@ block content
     - const barcodes = (data && data.barcodes) ? data.barcodes : []
     - const locations = (data && data.locations) ? data.locations : []
     - const parties = (data && data.parties) ? data.parties : []
+    - const accounts = (data && data.accounts) ? data.accounts : []
     - const conditions = ['new', 'like_new', 'good', 'fair', 'poor']
     - const platformLabels = {pc: 'PC', ps5: 'PS5', ps4: 'PS4', xbox_series: 'Xbox Series', xbox_one: 'Xbox One', switch: 'Switch', mobile: 'Mobile', physical_only: 'Physical Only', other: 'Other'}
+    - const providerLabels = {steam: 'Steam', epic: 'Epic Games', gog: 'GOG', xbox: 'Xbox', playstation: 'PlayStation', nintendo: 'Nintendo', origin: 'Origin', ubisoft: 'Ubisoft', other: 'Other'}
 
     #liveAlerts
 
@@ -229,6 +231,38 @@ block content
                                 button.btn.btn-primary.w-100(type="submit")
                                     i.bi.bi-hand-index.me-1
                                     | Lend
+                
+                //- Link to account (digital only)
+                if copy.gameCopyType === 'digital_license'
+                    .card.text-bg-dark.border-secondary.mb-3
+                        .card-header
+                            h2.h5.mb-0
+                                i.bi.bi-link-45deg.me-2
+                                | Link to External Account
+                        .card-body
+                            if copy.externalAccount
+                                .alert.alert-info.mb-3
+                                    i.bi.bi-check-circle.me-2
+                                    | Currently linked to: 
+                                    strong #{copy.externalAccount.accountName}
+                                    |  (#{providerLabels[copy.externalAccount.provider] || copy.externalAccount.provider})
+                            else
+                                p.text-white-50.small.mb-3 Manually link this digital license to an external account.
+                            
+                            form(method="post" action=`/games/copies/${copy.id}/link-account`)
+                                .mb-3
+                                    label.form-label External Account
+                                    select.form-select.text-bg-dark(name="externalAccountId" required)
+                                        option(value="") Select account...
+                                        each acc in accounts
+                                            option(value=acc.id selected=(copy.externalAccountId && copy.externalAccountId === acc.id)) #{acc.accountName} (#{providerLabels[acc.provider] || acc.provider})
+                                .mb-3
+                                    label.form-label External Game ID
+                                    input.form-control.text-bg-dark(type="text" name="externalGameId" value=(copy.externalGameId || '') placeholder="Optional: Platform-specific game ID")
+                                    .form-text.text-white-50 Used for identifying the game on the external platform
+                                button.btn.btn-outline-primary.w-100(type="submit")
+                                    i.bi.bi-link-45deg.me-1
+                                    | Link to Account
 
                 //- Danger zone
                 .card.text-bg-dark.border-danger

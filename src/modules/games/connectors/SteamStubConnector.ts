@@ -1,6 +1,7 @@
 /**
  * Steam Stub Connector
  * A mock implementation for testing and development
+ * Provides complete game metadata including player counts
  */
 
 import {BaseConnector, ConnectorManifest, ExternalGame, SyncResult} from './ConnectorInterface';
@@ -9,7 +10,7 @@ import {GameProvider, ConnectorCapability} from '../../../types/InventoryEnums';
 const STEAM_STUB_MANIFEST: ConnectorManifest = {
     id: 'steam-stub',
     name: 'Steam (Stub)',
-    description: 'Mock Steam connector for testing and development. Returns sample game data.',
+    description: 'Mock Steam connector for testing and development. Returns sample game data with complete metadata.',
     provider: GameProvider.STEAM,
     capabilities: [
         ConnectorCapability.LIBRARY_SYNC,
@@ -27,7 +28,7 @@ const STEAM_STUB_MANIFEST: ConnectorManifest = {
     },
 };
 
-// Sample games for the stub connector
+// Sample games for the stub connector with complete metadata
 const SAMPLE_GAMES: ExternalGame[] = [
     {
         externalGameId: '570',
@@ -37,6 +38,18 @@ const SAMPLE_GAMES: ExternalGame[] = [
         isInstalled: true,
         coverImageUrl: 'https://cdn.cloudflare.steamstatic.com/steam/apps/570/header.jpg',
         rawPayload: {appid: 570, name: 'Dota 2'},
+        // Player metadata
+        overallMinPlayers: 1,
+        overallMaxPlayers: 10,
+        supportsOnline: true,
+        supportsLocal: false,
+        supportsPhysical: false,
+        onlineMinPlayers: 2,
+        onlineMaxPlayers: 10,
+        description: 'A competitive MOBA game',
+        genres: ['MOBA', 'Strategy'],
+        developer: 'Valve',
+        publisher: 'Valve',
     },
     {
         externalGameId: '730',
@@ -46,6 +59,17 @@ const SAMPLE_GAMES: ExternalGame[] = [
         isInstalled: true,
         coverImageUrl: 'https://cdn.cloudflare.steamstatic.com/steam/apps/730/header.jpg',
         rawPayload: {appid: 730, name: 'Counter-Strike 2'},
+        overallMinPlayers: 1,
+        overallMaxPlayers: 10,
+        supportsOnline: true,
+        supportsLocal: false,
+        supportsPhysical: false,
+        onlineMinPlayers: 2,
+        onlineMaxPlayers: 10,
+        description: 'Tactical first-person shooter',
+        genres: ['FPS', 'Action'],
+        developer: 'Valve',
+        publisher: 'Valve',
     },
     {
         externalGameId: '1091500',
@@ -55,6 +79,15 @@ const SAMPLE_GAMES: ExternalGame[] = [
         isInstalled: false,
         coverImageUrl: 'https://cdn.cloudflare.steamstatic.com/steam/apps/1091500/header.jpg',
         rawPayload: {appid: 1091500, name: 'Cyberpunk 2077'},
+        overallMinPlayers: 1,
+        overallMaxPlayers: 1,
+        supportsOnline: false,
+        supportsLocal: false,
+        supportsPhysical: false,
+        description: 'Open-world action RPG set in Night City',
+        genres: ['RPG', 'Action', 'Open World'],
+        developer: 'CD Projekt Red',
+        publisher: 'CD Projekt',
     },
     {
         externalGameId: '292030',
@@ -64,6 +97,15 @@ const SAMPLE_GAMES: ExternalGame[] = [
         isInstalled: false,
         coverImageUrl: 'https://cdn.cloudflare.steamstatic.com/steam/apps/292030/header.jpg',
         rawPayload: {appid: 292030, name: 'The Witcher 3: Wild Hunt'},
+        overallMinPlayers: 1,
+        overallMaxPlayers: 1,
+        supportsOnline: false,
+        supportsLocal: false,
+        supportsPhysical: false,
+        description: 'Story-driven open world RPG',
+        genres: ['RPG', 'Action', 'Open World'],
+        developer: 'CD Projekt Red',
+        publisher: 'CD Projekt',
     },
     {
         externalGameId: '1245620',
@@ -73,6 +115,17 @@ const SAMPLE_GAMES: ExternalGame[] = [
         isInstalled: true,
         coverImageUrl: 'https://cdn.cloudflare.steamstatic.com/steam/apps/1245620/header.jpg',
         rawPayload: {appid: 1245620, name: 'Elden Ring'},
+        overallMinPlayers: 1,
+        overallMaxPlayers: 4,
+        supportsOnline: true,
+        supportsLocal: false,
+        supportsPhysical: false,
+        onlineMinPlayers: 1,
+        onlineMaxPlayers: 4,
+        description: 'Open-world action RPG by FromSoftware',
+        genres: ['Action', 'RPG', 'Souls-like'],
+        developer: 'FromSoftware',
+        publisher: 'Bandai Namco',
     },
     {
         externalGameId: '1174180',
@@ -82,6 +135,17 @@ const SAMPLE_GAMES: ExternalGame[] = [
         isInstalled: false,
         coverImageUrl: 'https://cdn.cloudflare.steamstatic.com/steam/apps/1174180/header.jpg',
         rawPayload: {appid: 1174180, name: 'Red Dead Redemption 2'},
+        overallMinPlayers: 1,
+        overallMaxPlayers: 32,
+        supportsOnline: true,
+        supportsLocal: false,
+        supportsPhysical: false,
+        onlineMinPlayers: 1,
+        onlineMaxPlayers: 32,
+        description: 'Epic tale of outlaw life in America\'s heartland',
+        genres: ['Action', 'Adventure', 'Open World'],
+        developer: 'Rockstar Games',
+        publisher: 'Rockstar Games',
     },
 ];
 

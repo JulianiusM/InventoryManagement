@@ -25,7 +25,20 @@ block content
     .card.text-bg-dark.border-secondary.mb-3
         .card-body
             i.bi.bi-info-circle.me-2
-            | Link your gaming accounts to sync your library automatically. Currently supported connectors are in development mode.
+            | Link your gaming accounts to sync your library.
+            ul.mb-0.mt-2
+                li 
+                    strong Automatic import
+                    |  - Games are automatically imported with metadata (player counts, multiplayer support, etc.)
+                li 
+                    strong Automatic copies
+                    |  - Digital licenses are created automatically for each synced game
+                li 
+                    strong Scheduled sync
+                    |  - Set up periodic syncs to keep your library up to date
+                li 
+                    strong No manual mapping
+                    |  - Everything is handled automatically
 
     //- Accounts list
     if accounts.length === 0
@@ -58,6 +71,15 @@ block content
                                                     i.bi.bi-arrow-repeat.me-2
                                                     | Sync Now
                                         li
+                                            button.dropdown-item(type="button" data-bs-toggle="modal" data-bs-target=`#scheduleModal-${account.id}`)
+                                                i.bi.bi-clock.me-2
+                                                | Schedule Sync
+                                        li
+                                            form(method="post" action=`/games/accounts/${account.id}/unschedule`)
+                                                button.dropdown-item(type="submit")
+                                                    i.bi.bi-clock-history.me-2
+                                                    | Cancel Schedule
+                                        li
                                             hr.dropdown-divider
                                         li
                                             form(method="post" action=`/games/accounts/${account.id}/delete`)
@@ -73,10 +95,36 @@ block content
                                     i.bi.bi-exclamation-circle.me-1
                                     | Never synced
                         .card-footer.bg-transparent.border-secondary
-                            form(method="post" action=`/games/accounts/${account.id}/sync`)
-                                button.btn.btn-sm.btn-outline-primary.w-100(type="submit")
-                                    i.bi.bi-arrow-repeat.me-1
-                                    | Sync Library
+                            .d-flex.gap-2
+                                form.flex-grow-1(method="post" action=`/games/accounts/${account.id}/sync`)
+                                    button.btn.btn-sm.btn-outline-primary.w-100(type="submit")
+                                        i.bi.bi-arrow-repeat.me-1
+                                        | Sync Library
+                    
+                    //- Schedule Modal for this account
+                    .modal.fade(id=`scheduleModal-${account.id}` tabindex="-1")
+                        .modal-dialog
+                            .modal-content.text-bg-dark
+                                .modal-header.border-secondary
+                                    h5.modal-title
+                                        i.bi.bi-clock.me-2
+                                        | Schedule Periodic Sync
+                                    button.btn-close.btn-close-white(type="button" data-bs-dismiss="modal")
+                                .modal-body
+                                    form(id=`scheduleForm-${account.id}` method="post" action=`/games/accounts/${account.id}/schedule`)
+                                        label.form-label Sync Interval
+                                        select.form-select.text-bg-dark(name="intervalMinutes" required)
+                                            option(value="60") Every hour
+                                            option(value="360") Every 6 hours
+                                            option(value="720") Every 12 hours
+                                            option(value="1440" selected) Daily
+                                            option(value="10080") Weekly
+                                        .form-text.text-white-50 Automatically sync your library at regular intervals.
+                                .modal-footer.border-secondary
+                                    button.btn.btn-secondary(type="button" data-bs-dismiss="modal") Cancel
+                                    button.btn.btn-primary(type="submit" form=`scheduleForm-${account.id}`)
+                                        i.bi.bi-check-lg.me-1
+                                        | Enable Schedule
 
     //- Available connectors
     .card.text-bg-dark.border-secondary.mt-4

@@ -7,6 +7,7 @@ import {GameProvider, ConnectorCapability} from '../../../types/InventoryEnums';
 
 /**
  * External game data returned by connectors
+ * Includes player profile and multiplayer metadata when available
  */
 export interface ExternalGame {
     externalGameId: string;
@@ -16,6 +17,24 @@ export interface ExternalGame {
     isInstalled?: boolean;
     coverImageUrl?: string;
     rawPayload?: object;
+    
+    // Player profile metadata (provided by connector when available)
+    overallMinPlayers?: number;
+    overallMaxPlayers?: number;
+    supportsOnline?: boolean;
+    supportsLocal?: boolean;
+    supportsPhysical?: boolean;
+    onlineMinPlayers?: number;
+    onlineMaxPlayers?: number;
+    localMinPlayers?: number;
+    localMaxPlayers?: number;
+    
+    // Additional metadata
+    description?: string;
+    genres?: string[];
+    releaseDate?: string;
+    developer?: string;
+    publisher?: string;
 }
 
 /**

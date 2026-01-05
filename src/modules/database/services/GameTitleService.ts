@@ -110,3 +110,47 @@ export async function searchGameTitles(ownerId: number, search: string): Promise
         .orderBy('title.name', 'ASC')
         .getMany();
 }
+
+/**
+ * Merge two game titles without losing information
+ * Moves all releases from source to target, then deletes source
+ * @param sourceId The title to merge FROM (will be deleted)
+ * @param targetId The title to merge INTO (will be kept)
+ * @returns Number of releases moved
+ */
+export async function mergeGameTitles(sourceId: string, targetId: string): Promise<number> {
+    const repo = AppDataSource.getRepository(GameTitle);
+    const gameReleaseRepo = AppDataSource.getRepository('GameRelease');
+    const gameMappingRepo = AppDataSource.getRepository('GameExternalMapping');
+    
+    // Get source with releases
+    const source = await repo.findOne({where: {id: sourceId}, relations: ['releases']});
+    const target = await repo.findOne({where: {id: targetId}});
+    
+    if (!source || !target) {
+        throw new Error('Source or target game title not found');
+    }
+    
+    if (sourceId === targetId) {
+        throw new Error('Cannot merge a title with itself');
+    }
+    
+    // Move all releases from source to target
+    const releasesToMove = source.releases || [];
+    for (const release of releasesToMove) {
+        await gameReleaseRepo.update({id: release.id}, {gameTitle: {id: targetId}});
+    }
+    
+    // Update mappings to point to target
+    await gameMappingRepo
+        .createQueryBuilder()
+        .update()
+        .set({gameTitle: {id: targetId}})
+        .where('game_title_id = :sourceId', {sourceId})
+        .execute();
+    
+    // Delete the source title (releases are already moved)
+    await repo.delete({id: sourceId});
+    
+    return releasesToMove.length;
+}

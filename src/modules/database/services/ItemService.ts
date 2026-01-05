@@ -76,9 +76,28 @@ export async function getAllItems(ownerId: number): Promise<Item[]> {
     });
 }
 
-export async function updateItem(id: string, data: Partial<Omit<Item, 'location' | 'owner' | 'gameRelease' | 'externalAccount'>>): Promise<void> {
+export async function updateItem(id: string, data: Partial<Omit<Item, 'location' | 'owner' | 'gameRelease' | 'externalAccount'>> & {
+    externalAccountId?: string | null;
+}): Promise<void> {
     const repo = AppDataSource.getRepository(Item);
-    await repo.update({id}, data as Record<string, unknown>);
+    
+    // Handle external account linking
+    if (data.externalAccountId !== undefined) {
+        const item = await repo.findOne({where: {id}});
+        if (item) {
+            item.externalAccount = data.externalAccountId 
+                ? {id: data.externalAccountId} as ExternalAccount 
+                : null;
+            await repo.save(item);
+        }
+        // Remove from data to avoid conflict
+        delete data.externalAccountId;
+    }
+    
+    // Update other fields
+    if (Object.keys(data).length > 0) {
+        await repo.update({id}, data as Record<string, unknown>);
+    }
 }
 
 export async function deleteItem(id: string): Promise<void> {

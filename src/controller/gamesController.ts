@@ -40,7 +40,11 @@ import {
     MoveGameCopyBody,
     LendGameCopyBody,
     CreateExternalAccountBody,
-    ResolveMappingBody
+    ResolveMappingBody,
+    MergeGameTitlesBody,
+    MergeGameReleasesBody,
+    LinkDigitalCopyToAccountBody,
+    ScheduleSyncBody
 } from '../types/GamesTypes';
 
 // Ensure connectors are initialized
@@ -85,7 +89,10 @@ export async function getGameTitleDetail(id: string, userId: number) {
     checkOwnership(title, userId);
     
     const releases = await gameReleaseService.getGameReleasesByTitleId(id);
-    return {title, releases};
+    // Get all titles for merge dropdown (excluding current)
+    const allTitles = (await gameTitleService.getAllGameTitles(userId))
+        .filter(t => t.id !== id);
+    return {title, releases, allTitles};
 }
 
 export async function createGameTitle(body: CreateGameTitleBody, ownerId: number): Promise<GameTitle> {
@@ -276,8 +283,10 @@ export async function getGameCopyDetail(id: string, userId: number) {
     const barcodes = await barcodeService.getBarcodesByItemId(id);
     const locations = await locationService.getAllLocations(userId);
     const parties = await partyService.getAllParties(userId);
+    // Get accounts for manual linking (digital copies only)
+    const accounts = await externalAccountService.getAllExternalAccounts(userId);
     
-    return {copy, loans, barcodes, locations, parties};
+    return {copy, loans, barcodes, locations, parties, accounts};
 }
 
 export async function createGameCopy(body: CreateGameCopyBody, ownerId: number): Promise<Item> {
@@ -614,4 +623,137 @@ export async function bulkIgnoreMappings(userId: number): Promise<number> {
 
 export function getConnectorManifests() {
     return connectorRegistry.getAllManifests();
+}
+
+// ============ Merge Operations ============
+
+/**
+ * Merge two game titles without losing information
+ * All releases from source are moved to target
+ */
+export async function mergeGameTitles(body: MergeGameTitlesBody, userId: number): Promise<number> {
+    requireAuthenticatedUser(userId);
+    
+    // Verify ownership of both titles
+    const source = await gameTitleService.getGameTitleById(body.sourceId);
+    const target = await gameTitleService.getGameTitleById(body.targetId);
+    
+    if (!source) {
+        throw new ExpectedError('Source game title not found', 'error', 404);
+    }
+    if (!target) {
+        throw new ExpectedError('Target game title not found', 'error', 404);
+    }
+    
+    checkOwnership(source, userId);
+    checkOwnership(target, userId);
+    
+    return await gameTitleService.mergeGameTitles(body.sourceId, body.targetId);
+}
+
+/**
+ * Merge two game releases without losing information
+ * All copies from source are moved to target
+ */
+export async function mergeGameReleases(body: MergeGameReleasesBody, userId: number): Promise<number> {
+    requireAuthenticatedUser(userId);
+    
+    // Verify ownership of both releases
+    const source = await gameReleaseService.getGameReleaseById(body.sourceId);
+    const target = await gameReleaseService.getGameReleaseById(body.targetId);
+    
+    if (!source) {
+        throw new ExpectedError('Source game release not found', 'error', 404);
+    }
+    if (!target) {
+        throw new ExpectedError('Target game release not found', 'error', 404);
+    }
+    
+    checkOwnership(source, userId);
+    checkOwnership(target, userId);
+    
+    return await gameReleaseService.mergeGameReleases(body.sourceId, body.targetId);
+}
+
+// ============ Manual Digital License Linking ============
+
+/**
+ * Link a digital copy to an external account manually
+ * Use this when no connector exists for a platform
+ */
+export async function linkDigitalCopyToAccount(
+    copyId: string,
+    body: LinkDigitalCopyToAccountBody,
+    userId: number
+): Promise<void> {
+    requireAuthenticatedUser(userId);
+    
+    const copy = await itemService.getItemById(copyId);
+    if (!copy) {
+        throw new ExpectedError('Game copy not found', 'error', 404);
+    }
+    checkOwnership(copy, userId);
+    
+    if (copy.gameCopyType !== GameCopyType.DIGITAL_LICENSE) {
+        throw new ExpectedError('Can only link digital licenses to external accounts', 'error', 400);
+    }
+    
+    // Verify account ownership
+    const account = await externalAccountService.getExternalAccountById(body.externalAccountId);
+    if (!account) {
+        throw new ExpectedError('External account not found', 'error', 404);
+    }
+    checkOwnership(account, userId);
+    
+    await itemService.updateItem(copyId, {
+        externalAccountId: body.externalAccountId,
+        externalGameId: body.externalGameId || null,
+    });
+}
+
+// ============ Scheduled Sync ============
+
+/**
+ * Schedule periodic sync for an account
+ */
+export async function scheduleAccountSync(
+    accountId: string,
+    body: ScheduleSyncBody,
+    userId: number
+): Promise<void> {
+    requireAuthenticatedUser(userId);
+    
+    const account = await externalAccountService.getExternalAccountById(accountId);
+    if (!account) {
+        throw new ExpectedError('Account not found', 'error', 404);
+    }
+    checkOwnership(account, userId);
+    
+    if (body.intervalMinutes < 5) {
+        throw new ExpectedError('Minimum sync interval is 5 minutes', 'error', 400);
+    }
+    
+    gameSyncService.scheduleSync(accountId, userId, body.intervalMinutes);
+}
+
+/**
+ * Cancel scheduled sync for an account
+ */
+export async function cancelScheduledSync(accountId: string, userId: number): Promise<void> {
+    requireAuthenticatedUser(userId);
+    
+    const account = await externalAccountService.getExternalAccountById(accountId);
+    if (!account) {
+        throw new ExpectedError('Account not found', 'error', 404);
+    }
+    checkOwnership(account, userId);
+    
+    gameSyncService.cancelScheduledSync(accountId);
+}
+
+/**
+ * Get list of scheduled syncs
+ */
+export function getScheduledSyncs(): string[] {
+    return gameSyncService.getScheduledSyncs();
 }

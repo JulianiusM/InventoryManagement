@@ -6,6 +6,7 @@ block meta
 block content
     - const title = (data && data.title) ? data.title : null
     - const releases = (data && data.releases) ? data.releases : []
+    - const allTitles = (data && data.allTitles) ? data.allTitles : []
     - const gameTypes = ['video_game', 'board_game', 'card_game', 'tabletop_rpg', 'other_physical_game']
     - const typeLabels = {video_game: 'Video Game', board_game: 'Board Game', card_game: 'Card Game', tabletop_rpg: 'Tabletop RPG', other_physical_game: 'Other Physical'}
     - const platforms = ['pc', 'ps5', 'ps4', 'xbox_series', 'xbox_one', 'switch', 'mobile', 'physical_only', 'other']
@@ -218,6 +219,9 @@ block content
                             a.btn.btn-outline-light(href="/games/copies")
                                 i.bi.bi-collection.me-1
                                 | View All Copies
+                            button.btn.btn-outline-light(type="button" data-bs-toggle="modal" data-bs-target="#mergeModal")
+                                i.bi.bi-arrow-left-right.me-1
+                                | Merge Into Another Title
 
                 //- Danger zone
                 .card.text-bg-dark.border-danger
@@ -279,3 +283,30 @@ block content
                     button.btn.btn-primary(type="submit" form="addReleaseForm")
                         i.bi.bi-plus-lg.me-1
                         | Add Release
+    
+    //- Merge Modal
+    if title
+        #mergeModal.modal.fade(tabindex="-1")
+            .modal-dialog
+                .modal-content.text-bg-dark
+                    .modal-header.border-secondary
+                        h5.modal-title
+                            i.bi.bi-arrow-left-right.me-2
+                            | Merge Into Another Title
+                        button.btn-close.btn-close-white(type="button" data-bs-dismiss="modal")
+                    .modal-body
+                        .alert.alert-warning
+                            i.bi.bi-exclamation-triangle.me-2
+                            | This will move all releases and copies from "#{title.name}" to the selected target, then delete this title.
+                        form#mergeForm(method="post" action="/games/titles/merge")
+                            input(type="hidden" name="sourceId" value=title.id)
+                            label.form-label Target Game Title
+                            select.form-select.text-bg-dark(name="targetId" required)
+                                option(value="") Select target game...
+                                each t in allTitles
+                                    option(value=t.id) #{t.name}
+                    .modal-footer.border-secondary
+                        button.btn.btn-secondary(type="button" data-bs-dismiss="modal") Cancel
+                        button.btn.btn-warning(type="submit" form="mergeForm" onclick="return confirm('This will permanently merge the titles. Continue?')")
+                            i.bi.bi-arrow-left-right.me-1
+                            | Merge
