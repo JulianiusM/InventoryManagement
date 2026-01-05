@@ -47,8 +47,9 @@ block content
                                 value=filters.search
                                 autocomplete="off"
                             )
-                            button.btn.btn-outline-secondary(type="button" data-search-clear style=filters.search ? '' : 'display:none')
-                                i.bi.bi-x-lg
+                            if filters.search
+                                button.btn.btn-outline-secondary(type="button" data-search-clear)
+                                    i.bi.bi-x-lg
                     .col-md-3
                         select#filterType.form-select.text-bg-dark.border-secondary(name="type")
                             option(value="" selected=!filters.type) All types
@@ -61,14 +62,13 @@ block content
                             each loc in locations
                                 option(value=loc.id selected=filters.location === loc.id) #{loc.name}
                     .col-md-2
-                        .d-flex.gap-1
-                            button.btn.btn-primary.flex-grow-1(type="submit")
-                                i.bi.bi-funnel.me-1
-                                span.d-none.d-lg-inline Filter
-                                span.d-lg-none
-                                    i.bi.bi-check
-                            a.btn.btn-outline-secondary(href="/items" title="Clear filters")
-                                i.bi.bi-x-lg
+                        button.btn.btn-primary.w-100(type="submit")
+                            i.bi.bi-funnel.me-1
+                            | Filter
+                        if filters.search || filters.type || filters.location
+                            a.btn.btn-outline-secondary.w-100.mt-1(href="/items")
+                                i.bi.bi-arrow-counterclockwise.me-1
+                                | Reset
 
     //- Items per page selector on mobile
     .d-md-none.mb-3
@@ -237,15 +237,10 @@ block scripts
             const searchInput = document.getElementById('itemSearch');
             const clearBtn = document.querySelector('[data-search-clear]');
             
-            // Show/hide clear button
-            if (searchInput && clearBtn) {
-                searchInput.addEventListener('input', function() {
-                    clearBtn.style.display = this.value ? '' : 'none';
-                });
-                
+            // Clear button handler
+            if (clearBtn) {
                 clearBtn.addEventListener('click', function() {
                     searchInput.value = '';
-                    this.style.display = 'none';
                     searchInput.focus();
                 });
             }

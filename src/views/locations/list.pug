@@ -104,17 +104,17 @@ block content
                                 value=filters.search
                                 autocomplete="off"
                             )
-                            button.btn.btn-outline-secondary(type="button" data-search-clear style=filters.search ? '' : 'display:none')
-                                i.bi.bi-x-lg
+                            if filters.search
+                                button.btn.btn-outline-secondary(type="button" data-search-clear)
+                                    i.bi.bi-x-lg
                     .col-md-2
-                        .d-flex.gap-1
-                            button.btn.btn-primary.flex-grow-1(type="submit")
-                                i.bi.bi-funnel.me-1
-                                span.d-none.d-lg-inline Filter
-                                span.d-lg-none
-                                    i.bi.bi-check
-                            a.btn.btn-outline-secondary(href="/locations" title="Clear filters")
-                                i.bi.bi-x-lg
+                        button.btn.btn-primary.w-100(type="submit")
+                            i.bi.bi-funnel.me-1
+                            | Search
+                        if filters.search
+                            a.btn.btn-outline-secondary.w-100.mt-1(href="/locations")
+                                i.bi.bi-arrow-counterclockwise.me-1
+                                | Reset
 
     //- Items per page selector on mobile
     .d-md-none.mb-3
@@ -156,44 +156,11 @@ block scripts
             const searchInput = document.getElementById('locationSearch');
             const clearBtn = document.querySelector('[data-search-clear]');
             
-            // Show/hide clear button
-            if (searchInput && clearBtn) {
-                searchInput.addEventListener('input', function() {
-                    clearBtn.style.display = this.value ? '' : 'none';
-                });
-                
+            // Clear button handler
+            if (clearBtn) {
                 clearBtn.addEventListener('click', function() {
                     searchInput.value = '';
-                    this.style.display = 'none';
                     searchInput.focus();
-                });
-            }
-            
-            // Client-side tree filtering (optional enhancement)
-            const tree = document.getElementById('locationTree');
-            if (searchInput && tree) {
-                searchInput.addEventListener('input', function() {
-                    const query = this.value.toLowerCase();
-                    const nodes = tree.querySelectorAll('.location-node');
-                    
-                    nodes.forEach(node => {
-                        const link = node.querySelector('a');
-                        const name = link ? link.textContent.toLowerCase() : '';
-                        
-                        if (!query || name.includes(query)) {
-                            node.style.display = '';
-                            // Show all parent nodes
-                            let parent = node.parentElement;
-                            while (parent && parent !== tree) {
-                                if (parent.classList.contains('location-node')) {
-                                    parent.style.display = '';
-                                }
-                                parent = parent.parentElement;
-                            }
-                        } else {
-                            node.style.display = 'none';
-                        }
-                    });
                 });
             }
             

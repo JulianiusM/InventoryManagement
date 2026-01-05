@@ -34,6 +34,10 @@ interface BrowserMultiFormatReader {
         videoElement: HTMLVideoElement,
         callback: (result: { getText(): string } | null, error?: Error) => void
     ): Promise<void>;
+    decodeFromVideoElement(
+        videoElement: HTMLVideoElement,
+        callback: (result: { getText(): string } | null, error?: Error) => void
+    ): Promise<void>;
     reset(): void;
 }
 
@@ -142,10 +146,10 @@ async function initCamera(): Promise<void> {
         
         // Resume scanning after a delay
         setTimeout(async () => {
-            if (isScanning && window.ZXing) {
+            if (isScanning && window.ZXing && video.srcObject) {
                 updateStatus(statusDiv, 'scanning', 'Scanning active - point at next barcode...');
                 codeReader = new window.ZXing.BrowserMultiFormatReader();
-                await codeReader.decodeFromVideoDevice(null, video, handleScanResult);
+                await codeReader.decodeFromVideoElement(video, handleScanResult);
             }
         }, 3000);
     };
@@ -164,6 +168,64 @@ async function initCamera(): Promise<void> {
             
             updateStatus(statusDiv, 'info', 'Requesting camera access...');
             
+            // Request camera with advanced constraints for better autofocus
+            try {
+                videoStream = await navigator.mediaDevices.getUserMedia({
+                    video: {
+                        facingMode: 'environment', // Prefer back camera on mobile
+                        width: { ideal: 1280 },
+                        height: { ideal: 720 },
+                        focusMode: 'continuous', // Continuous autofocus
+                        // @ts-ignore - focusDistance is experimental but widely supported
+                        focusDistance: { ideal: 0.3 }, // Focus at ~30cm for barcodes
+                        // @ts-ignore - Advanced camera controls
+                        advanced: [
+                            { focusMode: 'continuous' },
+                            { zoom: 1.0 }
+                        ]
+                    }
+                });
+                
+                video.srcObject = videoStream;
+                await video.play();
+                
+                // Try to enable advanced focus features if supported
+                const track = videoStream.getVideoTracks()[0];
+                if ('getCapabilities' in track) {
+                    const capabilities = track.getCapabilities();
+                    const constraints: any = {};
+                    
+                    // Enable continuous autofocus if supported
+                    if ('focusMode' in capabilities && Array.isArray(capabilities.focusMode)) {
+                        if (capabilities.focusMode.includes('continuous')) {
+                            constraints.focusMode = 'continuous';
+                        }
+                    }
+                    
+                    // Set focus distance for barcode reading if supported
+                    if ('focusDistance' in capabilities) {
+                        constraints.focusDistance = 0.3; // 30cm - good for barcodes
+                    }
+                    
+                    if (Object.keys(constraints).length > 0) {
+                        await track.applyConstraints({ advanced: [constraints] });
+                    }
+                }
+            } catch (err) {
+                const errorMessage = err instanceof Error ? err.message : 'Unknown error';
+                if (errorMessage.includes('Permission denied') || errorMessage.includes('NotAllowedError')) {
+                    updateStatus(statusDiv, 'error', 'Camera access denied. Please allow camera permissions.');
+                } else if (errorMessage.includes('NotFoundError')) {
+                    updateStatus(statusDiv, 'error', 'No camera found. Please connect a camera and try again.');
+                } else {
+                    updateStatus(statusDiv, 'error', `Camera error: ${errorMessage}`);
+                }
+                isScanning = false;
+                startBtn.disabled = false;
+                stopBtn.disabled = true;
+                return;
+            }
+            
             codeReader = new window.ZXing.BrowserMultiFormatReader();
             isScanning = true;
             scanCount = 0;
@@ -173,8 +235,8 @@ async function initCamera(): Promise<void> {
             
             updateStatus(statusDiv, 'scanning', 'Camera active - point at a barcode to scan');
 
-            // Start continuous scanning
-            await codeReader.decodeFromVideoDevice(null, video, handleScanResult);
+            // Start continuous scanning from the already-started video
+            await codeReader.decodeFromVideoElement(video, handleScanResult);
             
         } catch (err) {
             const errorMessage = err instanceof Error ? err.message : 'Unknown error';

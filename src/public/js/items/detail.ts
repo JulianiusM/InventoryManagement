@@ -49,11 +49,53 @@ function initBarcodeForm(): void {
 }
 
 /**
+ * Initialize barcode delete handlers
+ */
+function initBarcodeDelete(): void {
+    const deleteButtons = document.querySelectorAll('.barcode-delete');
+    
+    deleteButtons.forEach(button => {
+        button.addEventListener('click', async function() {
+            const barcodeId = this.getAttribute('data-barcode-id');
+            if (!barcodeId) return;
+            
+            if (!confirm('Are you sure you want to remove this barcode?')) {
+                return;
+            }
+            
+            try {
+                // Get item ID from URL
+                const pathParts = window.location.pathname.split('/');
+                const itemId = pathParts[pathParts.length - 1];
+                
+                const response = await fetch(`/api/items/${itemId}/barcode/${barcodeId}`, {
+                    method: 'DELETE',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                });
+                
+                if (response.ok) {
+                    // Reload page to show updated barcode list
+                    window.location.reload();
+                } else {
+                    alert('Failed to delete barcode');
+                }
+            } catch (err) {
+                alert('Error deleting barcode');
+                console.error(err);
+            }
+        });
+    });
+}
+
+/**
  * Initialize item detail page
  */
 export function init(): void {
     setCurrentNavLocation();
     initBarcodeForm();
+    initBarcodeDelete();
 }
 
 // Expose to global scope
