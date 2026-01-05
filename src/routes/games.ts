@@ -17,13 +17,15 @@ router.get('/', asyncHandler(async (req: Request, res: Response) => {
     const search = (req.query.search as string) || '';
     const typeFilter = (req.query.type as string) || '';
     const playersFilter = req.query.players ? parseInt(req.query.players as string) : undefined;
+    const page = req.query.page ? parseInt(req.query.page as string) : 1;
     
     const data = await gamesController.listGameTitles(ownerId, {
         search,
         typeFilter,
-        playersFilter
+        playersFilter,
+        page
     });
-    renderer.renderWithData(res, 'games/list', data);
+    renderer.renderWithData(res, 'games/list', {...data, search, typeFilter});
 }));
 
 // Create game title
@@ -127,13 +129,15 @@ router.get('/copies', asyncHandler(async (req: Request, res: Response) => {
     const copyType = (req.query.copyType as string) || '';
     const locationFilter = (req.query.location as string) || '';
     const providerFilter = (req.query.provider as string) || '';
+    const page = req.query.page ? parseInt(req.query.page as string) : 1;
     
     const data = await gamesController.listGameCopies(ownerId, {
         copyType,
         locationFilter,
-        providerFilter
+        providerFilter,
+        page
     });
-    renderer.renderWithData(res, 'games/copies', data);
+    renderer.renderWithData(res, 'games/copies', {...data, copyType, locationFilter, providerFilter});
 }));
 
 // Create copy for release

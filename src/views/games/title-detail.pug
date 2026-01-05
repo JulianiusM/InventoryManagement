@@ -343,7 +343,7 @@ block content
                         form#mergeForm(method="post" action="/games/titles/merge")
                             input(type="hidden" name="sourceId" value=title.id)
                             label.form-label Target Game Title
-                            select.form-select.text-bg-dark(name="targetId" required)
+                            select#mergeTargetSelect.form-select.text-bg-dark(name="targetId" required)
                                 option(value="") Select target game...
                                 each t in allTitles
                                     option(value=t.id) #{t.name}
@@ -352,3 +352,22 @@ block content
                         button.btn.btn-warning(type="submit" form="mergeForm" onclick="return confirm('This will permanently merge the titles. Continue?')")
                             i.bi.bi-arrow-left-right.me-1
                             | Merge
+
+block scripts
+    script(type="module" src="/js/stub.gen.js")
+    script.
+        // Initialize Select2 for merge dropdown
+        $(document).ready(function() {
+            $('#mergeTargetSelect').select2({
+                theme: 'bootstrap-5',
+                placeholder: 'Search games...',
+                allowClear: true,
+                dropdownParent: $('#mergeModal')
+            });
+            // Platform dropdown
+            $('select[name="platform"]').select2({
+                theme: 'bootstrap-5',
+                placeholder: 'Select platform...',
+                dropdownParent: $('#addReleaseModal')
+            });
+        });

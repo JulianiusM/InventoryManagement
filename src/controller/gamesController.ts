@@ -72,6 +72,8 @@ export async function listGameTitles(ownerId: number, options?: {
     search?: string;
     typeFilter?: string;
     playersFilter?: number;
+    page?: number;
+    limit?: number;
 }) {
     requireAuthenticatedUser(ownerId);
     let titles = await gameTitleService.getAllGameTitles(ownerId);
@@ -93,7 +95,25 @@ export async function listGameTitles(ownerId: number, options?: {
         );
     }
     
-    return {titles};
+    // Apply pagination
+    const page = options?.page || 1;
+    const limit = options?.limit || 24;
+    const totalCount = titles.length;
+    const totalPages = Math.ceil(totalCount / limit);
+    const offset = (page - 1) * limit;
+    titles = titles.slice(offset, offset + limit);
+    
+    return {
+        titles,
+        pagination: {
+            page,
+            limit,
+            totalCount,
+            totalPages,
+            hasNext: page < totalPages,
+            hasPrev: page > 1
+        }
+    };
 }
 
 export async function getGameTitleDetail(id: string, userId: number) {
@@ -311,6 +331,8 @@ export async function listGameCopies(ownerId: number, options?: {
     copyType?: string;
     locationFilter?: string;
     providerFilter?: string;
+    page?: number;
+    limit?: number;
 }) {
     requireAuthenticatedUser(ownerId);
     let copies = await itemService.getGameItems(ownerId);
@@ -336,7 +358,27 @@ export async function listGameCopies(ownerId: number, options?: {
         );
     }
     
-    return {copies, locations, accounts};
+    // Apply pagination
+    const page = options?.page || 1;
+    const limit = options?.limit || 24;
+    const totalCount = copies.length;
+    const totalPages = Math.ceil(totalCount / limit);
+    const offset = (page - 1) * limit;
+    copies = copies.slice(offset, offset + limit);
+    
+    return {
+        copies,
+        locations,
+        accounts,
+        pagination: {
+            page,
+            limit,
+            totalCount,
+            totalPages,
+            hasNext: page < totalPages,
+            hasPrev: page > 1
+        }
+    };
 }
 
 export async function getGameCopyDetail(id: string, userId: number) {
@@ -371,17 +413,29 @@ export async function createGameCopy(body: CreateGameCopyBody, ownerId: number):
     // Get the game title name for the item name
     const gameName = release.gameTitle?.name || 'Game Copy';
     
+    // Parse lendable properly - for physical copies, default to true if checkbox is checked
+    // HTML checkboxes send 'true' when checked, undefined when unchecked
+    // For physical copies, default to true; for digital, default to false
+    const copyType = body.copyType as GameCopyType;
+    let lendable: boolean;
+    if (body.lendable !== undefined) {
+        lendable = parseCheckboxBoolean(body.lendable);
+    } else {
+        // Default based on copy type: physical = true, digital = false
+        lendable = copyType === GameCopyType.PHYSICAL_COPY;
+    }
+    
     // Create game item using itemService
     return await itemService.createGameItem({
         name: gameName,
         gameReleaseId: body.gameReleaseId,
-        gameCopyType: body.copyType as GameCopyType,
+        gameCopyType: copyType,
         externalAccountId: body.externalAccountId || null,
         externalGameId: body.externalGameId || null,
         locationId: body.locationId || null,
         condition: (body.condition as ItemCondition) || null,
         description: body.notes?.trim() || null,
-        lendable: body.lendable,
+        lendable,
         acquiredAt: body.acquiredAt || null,
         ownerId,
     });

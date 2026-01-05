@@ -324,6 +324,50 @@ block content
                             .col-md-6
                                 label.form-label.small Players Max Override
                                 input.form-control.form-control-sm.text-bg-dark(type="number" name="playersOverrideMax" value=release.playersOverrideMax || '' min="1")
+                            
+                            //- Mode support overrides
+                            .col-12
+                                h6.text-white-50.small.mt-2 Mode Support Override
+                            .col-md-4
+                                .form-check
+                                    input.form-check-input(type="checkbox" name="overrideSupportsOnline" value="true" id="editOverrideOnline" checked=release.overrideSupportsOnline)
+                                    label.form-check-label.text-primary(for="editOverrideOnline")
+                                        i.bi.bi-globe.me-1
+                                        | Online
+                            .col-md-4
+                                .form-check
+                                    input.form-check-input(type="checkbox" name="overrideSupportsLocal" value="true" id="editOverrideLocal" checked=release.overrideSupportsLocal)
+                                    label.form-check-label.text-success(for="editOverrideLocal")
+                                        i.bi.bi-display.me-1
+                                        | Local
+                            .col-md-4
+                                .form-check
+                                    input.form-check-input(type="checkbox" name="overrideSupportsPhysical" value="true" id="editOverridePhysical" checked=release.overrideSupportsPhysical)
+                                    label.form-check-label.text-warning(for="editOverridePhysical")
+                                        i.bi.bi-dice-5.me-1
+                                        | Physical
+                            
+                            //- Mode-specific player counts
+                            .col-12
+                                h6.text-white-50.small.mt-2 Mode Player Counts
+                            .col-md-3
+                                label.form-label.small.text-primary Online Min
+                                input.form-control.form-control-sm.text-bg-dark(type="number" name="overrideOnlineMin" value=release.overrideOnlineMin || '' min="1")
+                            .col-md-3
+                                label.form-label.small.text-primary Online Max
+                                input.form-control.form-control-sm.text-bg-dark(type="number" name="overrideOnlineMax" value=release.overrideOnlineMax || '' min="1")
+                            .col-md-3
+                                label.form-label.small.text-success Local Min
+                                input.form-control.form-control-sm.text-bg-dark(type="number" name="overrideLocalMin" value=release.overrideLocalMin || '' min="1")
+                            .col-md-3
+                                label.form-label.small.text-success Local Max
+                                input.form-control.form-control-sm.text-bg-dark(type="number" name="overrideLocalMax" value=release.overrideLocalMax || '' min="1")
+                            .col-md-3
+                                label.form-label.small.text-warning Physical Min
+                                input.form-control.form-control-sm.text-bg-dark(type="number" name="overridePhysicalMin" value=release.overridePhysicalMin || '' min="1")
+                            .col-md-3
+                                label.form-label.small.text-warning Physical Max
+                                input.form-control.form-control-sm.text-bg-dark(type="number" name="overridePhysicalMax" value=release.overridePhysicalMax || '' min="1")
                     .modal-footer.border-secondary
                         button.btn.btn-secondary(type="button" data-bs-dismiss="modal") Cancel
                         button.btn.btn-primary(type="submit" form="editReleaseForm")
@@ -338,4 +382,26 @@ block scripts
             const isDigital = this.value === 'digital_license';
             document.getElementById('physicalFields')?.classList.toggle('d-none', isDigital);
             document.getElementById('digitalFields')?.classList.toggle('d-none', !isDigital);
+        });
+        
+        // Initialize Select2 for merge dropdown
+        $(document).ready(function() {
+            $('select[name="targetId"]').select2({
+                theme: 'bootstrap-5',
+                placeholder: 'Search releases...',
+                allowClear: true,
+                dropdownParent: $('#mergeReleaseModal')
+            });
+            $('select[name="locationId"]').select2({
+                theme: 'bootstrap-5',
+                placeholder: 'Select location...',
+                allowClear: true,
+                dropdownParent: $('#addCopyModal')
+            });
+            $('select[name="externalAccountId"]').select2({
+                theme: 'bootstrap-5',
+                placeholder: 'Select account...',
+                allowClear: true,
+                dropdownParent: $('#addCopyModal')
+            });
         });
