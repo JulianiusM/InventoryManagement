@@ -3,7 +3,7 @@
  * Defines the interface for game library connectors (Steam, Epic, etc.)
  */
 
-import {GameProvider, ConnectorCapability} from '../../../types/InventoryEnums';
+import {ConnectorCapability} from '../../../types/InventoryEnums';
 
 /**
  * External game data returned by connectors
@@ -17,6 +17,9 @@ export interface ExternalGame {
     isInstalled?: boolean;
     coverImageUrl?: string;
     rawPayload?: object;
+    
+    // Platform for this game (user-defined string, e.g. "PC", "PlayStation 5")
+    platform?: string;
     
     // Player profile metadata (provided by connector when available)
     overallMinPlayers?: number;
@@ -44,7 +47,7 @@ export interface ConnectorManifest {
     id: string;
     name: string;
     description: string;
-    provider: GameProvider;
+    provider: string; // Changed from enum to string for user-defined providers
     capabilities: ConnectorCapability[];
     version: string;
     configSchema?: object; // JSON Schema for connector configuration

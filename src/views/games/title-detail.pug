@@ -9,8 +9,8 @@ block content
     - const allTitles = (data && data.allTitles) ? data.allTitles : []
     - const gameTypes = ['video_game', 'board_game', 'card_game', 'tabletop_rpg', 'other_physical_game']
     - const typeLabels = {video_game: 'Video Game', board_game: 'Board Game', card_game: 'Card Game', tabletop_rpg: 'Tabletop RPG', other_physical_game: 'Other Physical'}
-    - const platforms = ['pc', 'ps5', 'ps4', 'xbox_series', 'xbox_one', 'switch', 'mobile', 'physical_only', 'other']
-    - const platformLabels = {pc: 'PC', ps5: 'PS5', ps4: 'PS4', xbox_series: 'Xbox Series', xbox_one: 'Xbox One', switch: 'Switch', mobile: 'Mobile', physical_only: 'Physical Only', other: 'Other'}
+    //- Common platform suggestions (user can enter custom values)
+    - const platformSuggestions = ['PC', 'PlayStation 5', 'PlayStation 4', 'Xbox Series X|S', 'Xbox One', 'Nintendo Switch', 'Mobile', 'Physical Only']
 
     #liveAlerts
 
@@ -250,9 +250,10 @@ block content
                         form#addReleaseForm.row.g-3(method="post" action=`/games/titles/${title.id}/releases`)
                             .col-md-6
                                 label.form-label Platform
-                                select.form-select.text-bg-dark(name="platform")
-                                    each p in platforms
-                                        option(value=p) #{platformLabels[p]}
+                                input.form-control.text-bg-dark(type="text" name="platform" placeholder="e.g., PC, PlayStation 5" value="PC" list="platformList")
+                                datalist#platformList
+                                    each p in platformSuggestions
+                                        option(value=p)
                             .col-md-6
                                 label.form-label Edition
                                 input.form-control.text-bg-dark(type="text" name="edition" placeholder="e.g., GOTY, Collector's")

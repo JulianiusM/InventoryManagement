@@ -25,9 +25,7 @@ import {GameRelease} from '../modules/database/entities/gameRelease/GameRelease'
 import {Item} from '../modules/database/entities/item/Item';
 import {
     GameType, 
-    GamePlatform, 
     GameCopyType, 
-    GameProvider, 
     ItemCondition,
     ItemType,
     LoanDirection,
@@ -218,7 +216,7 @@ export async function createGameRelease(body: CreateGameReleaseBody, ownerId: nu
     
     return await gameReleaseService.createGameRelease({
         gameTitleId: body.gameTitleId,
-        platform: (body.platform as GamePlatform) || GamePlatform.OTHER,
+        platform: body.platform?.trim() || 'PC', // Now a user-defined string
         edition: body.edition?.trim() || null,
         region: body.region?.trim() || null,
         releaseDate: body.releaseDate || null,
@@ -483,8 +481,12 @@ export async function createExternalAccount(body: CreateExternalAccountBody, own
         throw new ExpectedError('Account name is required', 'error', 400);
     }
     
+    if (!body.provider || body.provider.trim() === '') {
+        throw new ExpectedError('Provider is required', 'error', 400);
+    }
+    
     return await externalAccountService.createExternalAccount({
-        provider: body.provider as GameProvider,
+        provider: body.provider.trim(), // Now a user-defined string
         accountName: body.accountName.trim(),
         externalUserId: body.externalUserId?.trim() || null,
         tokenRef: body.tokenRef || null,
@@ -560,7 +562,7 @@ async function createTitleAndReleaseFromMapping(
     // Create a release for this title
     const release = await gameReleaseService.createGameRelease({
         gameTitleId: title.id,
-        platform: GamePlatform.PC, // Default to PC for digital games
+        platform: 'PC', // Default to PC for digital games
         ownerId: userId,
     });
     

@@ -8,7 +8,6 @@ import {
     RelationId,
 } from "typeorm";
 import {User} from "../user/User";
-import {GameProvider} from "../../../../types/InventoryEnums";
 import {Item} from "../item/Item";
 import {ExternalLibraryEntry} from "../externalLibraryEntry/ExternalLibraryEntry";
 import {SyncJob} from "../syncJob/SyncJob";
@@ -18,11 +17,9 @@ export class ExternalAccount {
     @PrimaryGeneratedColumn("uuid")
     id!: string;
 
-    @Column({
-        type: "enum",
-        enum: GameProvider,
-    })
-    provider!: GameProvider;
+    // Changed from enum to varchar for user-defined providers (Issue 6)
+    @Column("varchar", {name: "provider", length: 100})
+    provider!: string;
 
     @Column("varchar", {name: "account_name", length: 255})
     accountName!: string;

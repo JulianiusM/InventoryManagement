@@ -22,11 +22,9 @@ import * as gameReleaseService from '../database/services/GameReleaseService';
 import * as itemService from '../database/services/ItemService';
 import * as syncJobService from '../database/services/SyncJobService';
 import {
-    GameProvider, 
     GameCopyType, 
     MappingStatus, 
-    GameType, 
-    GamePlatform
+    GameType
 } from '../../types/InventoryEnums';
 
 export interface SyncStats {
@@ -37,17 +35,16 @@ export interface SyncStats {
     copiesCreated: number;
 }
 
-// Map provider to default platform
-const providerPlatformMap: Record<GameProvider, GamePlatform> = {
-    [GameProvider.STEAM]: GamePlatform.PC,
-    [GameProvider.EPIC]: GamePlatform.PC,
-    [GameProvider.GOG]: GamePlatform.PC,
-    [GameProvider.XBOX]: GamePlatform.XBOX_SERIES,
-    [GameProvider.PLAYSTATION]: GamePlatform.PS5,
-    [GameProvider.NINTENDO]: GamePlatform.SWITCH,
-    [GameProvider.ORIGIN]: GamePlatform.PC,
-    [GameProvider.UBISOFT]: GamePlatform.PC,
-    [GameProvider.OTHER]: GamePlatform.OTHER,
+// Map provider to default platform (user-defined platforms now, so using common defaults)
+const providerPlatformDefaults: Record<string, string> = {
+    'steam': 'PC',
+    'epic': 'PC',
+    'gog': 'PC',
+    'xbox': 'Xbox Series',
+    'playstation': 'PlayStation 5',
+    'nintendo': 'Nintendo Switch',
+    'origin': 'PC',
+    'ubisoft': 'PC',
 };
 
 // Store scheduled sync intervals (in-memory for now)
@@ -180,7 +177,7 @@ export async function syncExternalAccount(
  */
 async function processGamesWithAutoCreate(
     accountId: string,
-    provider: GameProvider,
+    provider: string,
     games: ExternalGame[],
     ownerId: number
 ): Promise<SyncStats> {
@@ -189,7 +186,8 @@ async function processGamesWithAutoCreate(
     let titlesCreated = 0;
     let copiesCreated = 0;
     
-    const platform = providerPlatformMap[provider] || GamePlatform.OTHER;
+    // Use provider-specific platform default or 'PC' as fallback
+    const platform = providerPlatformDefaults[provider.toLowerCase()] || 'PC';
     
     for (const game of games) {
         // Step 1: Upsert library entry (snapshot of external data)
@@ -223,7 +221,9 @@ async function processGamesWithAutoCreate(
         
         // Step 3: If no mapping exists or mapping is pending, auto-create
         if (!mapping || mapping.status === MappingStatus.PENDING) {
-            const {title, release} = await autoCreateGameFromMetadata(game, provider, platform, ownerId);
+            // Use platform from game metadata if available, otherwise use provider default
+            const gamePlatform = game.platform || platform;
+            const {title, release} = await autoCreateGameFromMetadata(game, gamePlatform, ownerId);
             titlesCreated++;
             
             // Create or update the mapping
@@ -305,8 +305,7 @@ async function processGamesWithAutoCreate(
  */
 async function autoCreateGameFromMetadata(
     game: ExternalGame,
-    _provider: GameProvider,
-    platform: GamePlatform,
+    platform: string,
     ownerId: number
 ): Promise<{title: Awaited<ReturnType<typeof gameTitleService.createGameTitle>>; release: Awaited<ReturnType<typeof gameReleaseService.createGameRelease>>}> {
     // Create game title with metadata from connector
@@ -329,7 +328,7 @@ async function autoCreateGameFromMetadata(
         ownerId,
     });
     
-    // Create a release for this platform
+    // Create a release for this platform (user-defined string)
     const release = await gameReleaseService.createGameRelease({
         gameTitleId: title.id,
         platform,

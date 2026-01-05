@@ -4,7 +4,6 @@
  */
 
 import {GameConnector, ConnectorManifest} from './ConnectorInterface';
-import {GameProvider} from '../../../types/InventoryEnums';
 import {SteamStubConnector} from './SteamStubConnector';
 
 class ConnectorRegistry {
@@ -26,11 +25,12 @@ class ConnectorRegistry {
     }
     
     /**
-     * Get a connector by provider
+     * Get a connector by provider (case-insensitive match)
      */
-    getByProvider(provider: GameProvider): GameConnector | undefined {
+    getByProvider(provider: string): GameConnector | undefined {
+        const providerLower = provider.toLowerCase();
         for (const connector of this.connectors.values()) {
-            if (connector.getManifest().provider === provider) {
+            if (connector.getManifest().provider.toLowerCase() === providerLower) {
                 return connector;
             }
         }
@@ -56,6 +56,13 @@ class ConnectorRegistry {
      */
     has(id: string): boolean {
         return this.connectors.has(id);
+    }
+    
+    /**
+     * Check if a connector exists for a provider
+     */
+    hasProvider(provider: string): boolean {
+        return this.getByProvider(provider) !== undefined;
     }
 }
 

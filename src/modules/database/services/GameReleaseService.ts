@@ -2,11 +2,10 @@ import {AppDataSource} from '../dataSource';
 import {GameRelease} from '../entities/gameRelease/GameRelease';
 import {GameTitle} from '../entities/gameTitle/GameTitle';
 import {User} from '../entities/user/User';
-import {GamePlatform} from '../../../types/InventoryEnums';
 
 export interface CreateGameReleaseData {
     gameTitleId: string;
-    platform?: GamePlatform;
+    platform?: string;
     edition?: string | null;
     region?: string | null;
     releaseDate?: string | null;
@@ -29,7 +28,7 @@ export async function createGameRelease(data: CreateGameReleaseData): Promise<Ga
     const repo = AppDataSource.getRepository(GameRelease);
     const release = new GameRelease();
     release.gameTitle = {id: data.gameTitleId} as GameTitle;
-    release.platform = data.platform || GamePlatform.OTHER;
+    release.platform = data.platform || 'PC';
     release.edition = data.edition ?? null;
     release.region = data.region ?? null;
     release.releaseDate = data.releaseDate ?? null;
@@ -82,6 +81,24 @@ export async function updateGameRelease(id: string, data: Partial<Omit<GameRelea
 
 export async function deleteGameRelease(id: string): Promise<void> {
     const repo = AppDataSource.getRepository(GameRelease);
+    const itemRepo = AppDataSource.getRepository('Item');
+    const barcodeRepo = AppDataSource.getRepository('Barcode');
+    const gameMappingRepo = AppDataSource.getRepository('GameExternalMapping');
+    
+    // Get the release with its items/copies
+    const release = await repo.findOne({where: {id}, relations: ['items']});
+    if (release && release.items) {
+        // Delete barcodes for each item first (Issue 3)
+        for (const item of release.items) {
+            await barcodeRepo.delete({item: {id: item.id}});
+        }
+        // Delete the items/copies (Issue 3)
+        await itemRepo.delete({gameRelease: {id}});
+    }
+    
+    // Delete associated mappings so that re-sync can recreate them (Issue 2)
+    await gameMappingRepo.delete({gameRelease: {id}});
+    
     await repo.delete({id});
 }
 

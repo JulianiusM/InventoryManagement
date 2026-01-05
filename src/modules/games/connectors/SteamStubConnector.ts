@@ -5,13 +5,13 @@
  */
 
 import {BaseConnector, ConnectorManifest, ExternalGame, SyncResult} from './ConnectorInterface';
-import {GameProvider, ConnectorCapability} from '../../../types/InventoryEnums';
+import {ConnectorCapability} from '../../../types/InventoryEnums';
 
 const STEAM_STUB_MANIFEST: ConnectorManifest = {
     id: 'steam-stub',
     name: 'Steam (Stub)',
     description: 'Mock Steam connector for testing and development. Returns sample game data with complete metadata.',
-    provider: GameProvider.STEAM,
+    provider: 'steam', // Changed from enum to string
     capabilities: [
         ConnectorCapability.LIBRARY_SYNC,
         ConnectorCapability.PLAYTIME_SYNC,
@@ -38,6 +38,7 @@ const SAMPLE_GAMES: ExternalGame[] = [
         isInstalled: true,
         coverImageUrl: 'https://cdn.cloudflare.steamstatic.com/steam/apps/570/header.jpg',
         rawPayload: {appid: 570, name: 'Dota 2'},
+        platform: 'PC', // Platform now as string
         // Player metadata
         overallMinPlayers: 1,
         overallMaxPlayers: 10,
@@ -59,6 +60,7 @@ const SAMPLE_GAMES: ExternalGame[] = [
         isInstalled: true,
         coverImageUrl: 'https://cdn.cloudflare.steamstatic.com/steam/apps/730/header.jpg',
         rawPayload: {appid: 730, name: 'Counter-Strike 2'},
+        platform: 'PC',
         overallMinPlayers: 1,
         overallMaxPlayers: 10,
         supportsOnline: true,
@@ -79,6 +81,7 @@ const SAMPLE_GAMES: ExternalGame[] = [
         isInstalled: false,
         coverImageUrl: 'https://cdn.cloudflare.steamstatic.com/steam/apps/1091500/header.jpg',
         rawPayload: {appid: 1091500, name: 'Cyberpunk 2077'},
+        platform: 'PC',
         overallMinPlayers: 1,
         overallMaxPlayers: 1,
         supportsOnline: false,
@@ -97,6 +100,7 @@ const SAMPLE_GAMES: ExternalGame[] = [
         isInstalled: false,
         coverImageUrl: 'https://cdn.cloudflare.steamstatic.com/steam/apps/292030/header.jpg',
         rawPayload: {appid: 292030, name: 'The Witcher 3: Wild Hunt'},
+        platform: 'PC',
         overallMinPlayers: 1,
         overallMaxPlayers: 1,
         supportsOnline: false,
@@ -115,6 +119,7 @@ const SAMPLE_GAMES: ExternalGame[] = [
         isInstalled: true,
         coverImageUrl: 'https://cdn.cloudflare.steamstatic.com/steam/apps/1245620/header.jpg',
         rawPayload: {appid: 1245620, name: 'Elden Ring'},
+        platform: 'PC',
         overallMinPlayers: 1,
         overallMaxPlayers: 4,
         supportsOnline: true,
@@ -135,6 +140,7 @@ const SAMPLE_GAMES: ExternalGame[] = [
         isInstalled: false,
         coverImageUrl: 'https://cdn.cloudflare.steamstatic.com/steam/apps/1174180/header.jpg',
         rawPayload: {appid: 1174180, name: 'Red Dead Redemption 2'},
+        platform: 'PC',
         overallMinPlayers: 1,
         overallMaxPlayers: 32,
         supportsOnline: true,

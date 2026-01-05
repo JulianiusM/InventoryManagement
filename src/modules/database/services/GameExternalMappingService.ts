@@ -3,10 +3,10 @@ import {GameExternalMapping} from '../entities/gameExternalMapping/GameExternalM
 import {GameTitle} from '../entities/gameTitle/GameTitle';
 import {GameRelease} from '../entities/gameRelease/GameRelease';
 import {User} from '../entities/user/User';
-import {GameProvider, MappingStatus} from '../../../types/InventoryEnums';
+import {MappingStatus} from '../../../types/InventoryEnums';
 
 export interface CreateMappingData {
-    provider: GameProvider;
+    provider: string;
     externalGameId: string;
     externalGameName?: string | null;
     gameTitleId?: string | null;
@@ -42,7 +42,7 @@ export async function getMappingById(id: string): Promise<GameExternalMapping | 
     });
 }
 
-export async function getMappingByExternalId(provider: GameProvider, externalGameId: string, ownerId: number): Promise<GameExternalMapping | null> {
+export async function getMappingByExternalId(provider: string, externalGameId: string, ownerId: number): Promise<GameExternalMapping | null> {
     const repo = AppDataSource.getRepository(GameExternalMapping);
     return await repo.findOne({
         where: {

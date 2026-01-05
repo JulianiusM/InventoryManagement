@@ -99,6 +99,12 @@ export async function updateGameTitle(id: string, data: Partial<Omit<GameTitle, 
 
 export async function deleteGameTitle(id: string): Promise<void> {
     const repo = AppDataSource.getRepository(GameTitle);
+    const gameMappingRepo = AppDataSource.getRepository('GameExternalMapping');
+    
+    // Delete associated mappings so that re-sync can recreate the games (Issue 2)
+    await gameMappingRepo.delete({gameTitle: {id}});
+    
+    // Delete the title (cascades to releases, which cascades to items via FK)
     await repo.delete({id});
 }
 

@@ -6,7 +6,6 @@ block meta
 block content
     - const release = (data && data.release) ? data.release : null
     - const copies = (data && data.copies) ? data.copies : []
-    - const platformLabels = {pc: 'PC', ps5: 'PS5', ps4: 'PS4', xbox_series: 'Xbox Series', xbox_one: 'Xbox One', switch: 'Switch', mobile: 'Mobile', physical_only: 'Physical Only', other: 'Other'}
     - const conditions = ['new', 'like_new', 'good', 'fair', 'poor']
 
     #liveAlerts
@@ -23,7 +22,7 @@ block content
                     i.bi.bi-box.me-2
                     | #{release.gameTitle ? release.gameTitle.name : 'Release'}
                 .d-flex.flex-wrap.gap-2.align-items-center
-                    span.badge.text-bg-info #{platformLabels[release.platform] || release.platform}
+                    span.badge.text-bg-info #{release.platform}
                     if release.edition
                         span.badge.text-bg-secondary #{release.edition}
                     if release.region
@@ -84,7 +83,7 @@ block content
                             dt.col-sm-5
                                 i.bi.bi-cpu.me-1
                                 | Platform
-                            dd.col-sm-7 #{platformLabels[release.platform] || release.platform}
+                            dd.col-sm-7 #{release.platform}
                             
                             dt.col-sm-5
                                 i.bi.bi-bookmark.me-1
@@ -100,6 +99,68 @@ block content
                                 i.bi.bi-calendar.me-1
                                 | Release Date
                             dd.col-sm-7 #{release.releaseDate || '—'}
+
+                //- Player Override Card (Issue 7: Show release-specific overrides)
+                - const hasPlayerOverride = release.playersOverrideMin || release.playersOverrideMax || release.overrideSupportsOnline !== null || release.overrideSupportsLocal !== null || release.overrideSupportsPhysical !== null
+                if hasPlayerOverride
+                    .card.text-bg-dark.border-secondary.mb-3
+                        .card-header
+                            h2.h5.mb-0
+                                i.bi.bi-people.me-2
+                                | Player Override
+                                span.badge.text-bg-info.ms-2.small Release-specific
+                        .card-body
+                            dl.row.mb-0
+                                if release.playersOverrideMin || release.playersOverrideMax
+                                    dt.col-sm-5
+                                        i.bi.bi-people.me-1
+                                        | Overall
+                                    dd.col-sm-7 #{release.playersOverrideMin || '?'} - #{release.playersOverrideMax || '?'} players
+                                
+                                if release.overrideSupportsOnline
+                                    dt.col-sm-5.text-primary
+                                        i.bi.bi-globe.me-1
+                                        | Online
+                                    dd.col-sm-7
+                                        if release.overrideOnlineMin || release.overrideOnlineMax
+                                            | #{release.overrideOnlineMin || '?'} - #{release.overrideOnlineMax || '?'} players
+                                        else
+                                            span.text-white-50 Enabled (uses overall)
+                                else if release.overrideSupportsOnline === false
+                                    dt.col-sm-5.text-white-50
+                                        i.bi.bi-globe.me-1
+                                        | Online
+                                    dd.col-sm-7.text-white-50 Disabled
+                                
+                                if release.overrideSupportsLocal
+                                    dt.col-sm-5.text-success
+                                        i.bi.bi-display.me-1
+                                        | Local
+                                    dd.col-sm-7
+                                        if release.overrideLocalMin || release.overrideLocalMax
+                                            | #{release.overrideLocalMin || '?'} - #{release.overrideLocalMax || '?'} players
+                                        else
+                                            span.text-white-50 Enabled (uses overall)
+                                else if release.overrideSupportsLocal === false
+                                    dt.col-sm-5.text-white-50
+                                        i.bi.bi-display.me-1
+                                        | Local
+                                    dd.col-sm-7.text-white-50 Disabled
+                                
+                                if release.overrideSupportsPhysical
+                                    dt.col-sm-5.text-warning
+                                        i.bi.bi-dice-5.me-1
+                                        | Physical
+                                    dd.col-sm-7
+                                        if release.overridePhysicalMin || release.overridePhysicalMax
+                                            | #{release.overridePhysicalMin || '?'} - #{release.overridePhysicalMax || '?'} players
+                                        else
+                                            span.text-white-50 Enabled (uses overall)
+                                else if release.overrideSupportsPhysical === false
+                                    dt.col-sm-5.text-white-50
+                                        i.bi.bi-dice-5.me-1
+                                        | Physical
+                                    dd.col-sm-7.text-white-50 Disabled
 
                 //- Merge actions
                 - const allReleases = (data && data.allReleases) ? data.allReleases : []
@@ -212,7 +273,7 @@ block content
                             select.form-select.text-bg-dark(name="targetId" required)
                                 option(value="") Select target release...
                                 each r in allReleases
-                                    option(value=r.id) #{platformLabels[r.platform] || r.platform}#{r.edition ? ' - ' + r.edition : ''}
+                                    option(value=r.id) #{r.edition || 'Standard'} (#{platformLabels[r.platform] || r.platform})#{r.region ? ' - ' + r.region : ''}
                     .modal-footer.border-secondary
                         button.btn.btn-secondary(type="button" data-bs-dismiss="modal") Cancel
                         button.btn.btn-warning(type="submit" form="mergeReleaseForm" onclick="return confirm('This will permanently merge the releases. Continue?')")

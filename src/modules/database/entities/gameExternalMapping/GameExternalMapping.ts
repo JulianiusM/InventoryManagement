@@ -9,18 +9,16 @@ import {
 import {User} from "../user/User";
 import {GameTitle} from "../gameTitle/GameTitle";
 import {GameRelease} from "../gameRelease/GameRelease";
-import {GameProvider, MappingStatus} from "../../../../types/InventoryEnums";
+import {MappingStatus} from "../../../../types/InventoryEnums";
 
 @Entity("game_external_mappings")
 export class GameExternalMapping {
     @PrimaryGeneratedColumn("uuid")
     id!: string;
 
-    @Column({
-        type: "enum",
-        enum: GameProvider,
-    })
-    provider!: GameProvider;
+    // Changed from enum to varchar for user-defined providers (Issue 6)
+    @Column("varchar", {name: "provider", length: 100})
+    provider!: string;
 
     @Column("varchar", {name: "external_game_id", length: 255})
     externalGameId!: string;

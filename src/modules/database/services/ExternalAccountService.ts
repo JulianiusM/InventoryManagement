@@ -1,10 +1,9 @@
 import {AppDataSource} from '../dataSource';
 import {ExternalAccount} from '../entities/externalAccount/ExternalAccount';
 import {User} from '../entities/user/User';
-import {GameProvider} from '../../../types/InventoryEnums';
 
 export interface CreateExternalAccountData {
-    provider: GameProvider;
+    provider: string;
     accountName: string;
     externalUserId?: string | null;
     tokenRef?: string | null;
@@ -38,7 +37,7 @@ export async function getAllExternalAccounts(ownerId: number): Promise<ExternalA
     });
 }
 
-export async function getExternalAccountsByProvider(ownerId: number, provider: GameProvider): Promise<ExternalAccount[]> {
+export async function getExternalAccountsByProvider(ownerId: number, provider: string): Promise<ExternalAccount[]> {
     const repo = AppDataSource.getRepository(ExternalAccount);
     return await repo.find({
         where: {

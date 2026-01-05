@@ -65,7 +65,7 @@ export class CreateGamesTables1736092800000 implements MigrationInterface {
             CREATE TABLE IF NOT EXISTS game_releases (
                 id VARCHAR(36) NOT NULL,
                 game_title_id VARCHAR(36) NOT NULL,
-                platform ENUM('pc', 'ps5', 'ps4', 'xbox_series', 'xbox_one', 'switch', 'mobile', 'physical_only', 'other') NOT NULL DEFAULT 'other',
+                platform VARCHAR(100) NOT NULL DEFAULT 'PC',
                 edition VARCHAR(100) NULL,
                 region VARCHAR(50) NULL,
                 release_date DATE NULL,
@@ -100,7 +100,7 @@ export class CreateGamesTables1736092800000 implements MigrationInterface {
         await queryRunner.query(`
             CREATE TABLE IF NOT EXISTS external_accounts (
                 id VARCHAR(36) NOT NULL,
-                provider ENUM('steam', 'epic', 'gog', 'xbox', 'playstation', 'nintendo', 'origin', 'ubisoft', 'other') NOT NULL,
+                provider VARCHAR(100) NOT NULL,
                 account_name VARCHAR(255) NOT NULL,
                 external_user_id VARCHAR(255) NULL,
                 token_ref VARCHAR(500) NULL,
@@ -151,7 +151,7 @@ export class CreateGamesTables1736092800000 implements MigrationInterface {
         await queryRunner.query(`
             CREATE TABLE IF NOT EXISTS game_external_mappings (
                 id VARCHAR(36) NOT NULL,
-                provider ENUM('steam', 'epic', 'gog', 'xbox', 'playstation', 'nintendo', 'origin', 'ubisoft', 'other') NOT NULL,
+                provider VARCHAR(100) NOT NULL,
                 external_game_id VARCHAR(255) NOT NULL,
                 game_title_id VARCHAR(36) NULL,
                 game_release_id VARCHAR(36) NULL,

@@ -10,7 +10,6 @@ import {
 import {User} from "../user/User";
 import {GameTitle} from "../gameTitle/GameTitle";
 import {Item} from "../item/Item";
-import {GamePlatform} from "../../../../types/InventoryEnums";
 
 @Entity("game_releases")
 export class GameRelease {
@@ -24,12 +23,9 @@ export class GameRelease {
     @RelationId((release: GameRelease) => release.gameTitle)
     gameTitleId!: string;
 
-    @Column({
-        type: "enum",
-        enum: GamePlatform,
-        default: GamePlatform.OTHER,
-    })
-    platform!: GamePlatform;
+    // Changed from enum to varchar for user-defined platforms (Issue 4)
+    @Column("varchar", {name: "platform", length: 100, default: "PC"})
+    platform!: string;
 
     @Column("varchar", {name: "edition", length: 100, nullable: true})
     edition?: string | null;
