@@ -223,7 +223,10 @@ export async function getGameReleaseDetail(id: string, userId: number) {
     const copies = await itemService.getGameItemsByReleaseId(id);
     const locations = await locationService.getAllLocations(userId);
     const accounts = await externalAccountService.getAllExternalAccounts(userId);
-    return {release, copies, locations, accounts};
+    // Get all releases for the same title (for merge dropdown, excluding current)
+    const allReleases = (await gameReleaseService.getGameReleasesByTitleId(release.gameTitleId))
+        .filter(r => r.id !== id);
+    return {release, copies, locations, accounts, allReleases};
 }
 
 export async function deleteGameRelease(id: string, userId: number): Promise<void> {

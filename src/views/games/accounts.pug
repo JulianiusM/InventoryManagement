@@ -50,8 +50,10 @@ block content
                     i.bi.bi-plus-lg.me-1
                     | Link Your First Account
     else
+        - const providersWithConnectors = connectors.map(c => c.provider)
         .row.g-3
             each account in accounts
+                - const hasConnector = providersWithConnectors.includes(account.provider)
                 .col-md-6.col-lg-4
                     .card.text-bg-dark.border-secondary.h-100
                         .card-body
@@ -61,26 +63,29 @@ block content
                                         i.bi.bi-cloud.me-2
                                         | #{account.accountName}
                                     span.badge.text-bg-info #{providerLabels[account.provider] || account.provider}
+                                    if !hasConnector
+                                        span.badge.text-bg-warning.ms-1 Manual
                                 .dropdown
                                     button.btn.btn-sm.btn-outline-secondary.dropdown-toggle(type="button" data-bs-toggle="dropdown")
                                         i.bi.bi-three-dots-vertical
                                     ul.dropdown-menu.dropdown-menu-dark.dropdown-menu-end
-                                        li
-                                            form(method="post" action=`/games/accounts/${account.id}/sync`)
-                                                button.dropdown-item(type="submit")
-                                                    i.bi.bi-arrow-repeat.me-2
-                                                    | Sync Now
-                                        li
-                                            button.dropdown-item(type="button" data-bs-toggle="modal" data-bs-target=`#scheduleModal-${account.id}`)
-                                                i.bi.bi-clock.me-2
-                                                | Schedule Sync
-                                        li
-                                            form(method="post" action=`/games/accounts/${account.id}/unschedule`)
-                                                button.dropdown-item(type="submit")
-                                                    i.bi.bi-clock-history.me-2
-                                                    | Cancel Schedule
-                                        li
-                                            hr.dropdown-divider
+                                        if hasConnector
+                                            li
+                                                form(method="post" action=`/games/accounts/${account.id}/sync`)
+                                                    button.dropdown-item(type="submit")
+                                                        i.bi.bi-arrow-repeat.me-2
+                                                        | Sync Now
+                                            li
+                                                button.dropdown-item(type="button" data-bs-toggle="modal" data-bs-target=`#scheduleModal-${account.id}`)
+                                                    i.bi.bi-clock.me-2
+                                                    | Schedule Sync
+                                            li
+                                                form(method="post" action=`/games/accounts/${account.id}/unschedule`)
+                                                    button.dropdown-item(type="submit")
+                                                        i.bi.bi-clock-history.me-2
+                                                        | Cancel Schedule
+                                            li
+                                                hr.dropdown-divider
                                         li
                                             form(method="post" action=`/games/accounts/${account.id}/delete`)
                                                 button.dropdown-item.text-danger(type="submit" onclick="return confirm('Remove this account?')")
@@ -88,18 +93,26 @@ block content
                                                     | Remove
                             
                             .small.text-white-50
-                                if account.lastSyncedAt
+                                if !hasConnector
+                                    i.bi.bi-info-circle.me-1
+                                    | Manual account (no connector) - use to track games without auto-sync
+                                else if account.lastSyncedAt
                                     i.bi.bi-clock.me-1
                                     | Last synced: #{new Date(account.lastSyncedAt).toLocaleString()}
                                 else
                                     i.bi.bi-exclamation-circle.me-1
                                     | Never synced
                         .card-footer.bg-transparent.border-secondary
-                            .d-flex.gap-2
-                                form.flex-grow-1(method="post" action=`/games/accounts/${account.id}/sync`)
-                                    button.btn.btn-sm.btn-outline-primary.w-100(type="submit")
-                                        i.bi.bi-arrow-repeat.me-1
-                                        | Sync Library
+                            if hasConnector
+                                .d-flex.gap-2
+                                    form.flex-grow-1(method="post" action=`/games/accounts/${account.id}/sync`)
+                                        button.btn.btn-sm.btn-outline-primary.w-100(type="submit")
+                                            i.bi.bi-arrow-repeat.me-1
+                                            | Sync Library
+                            else
+                                .text-center.text-white-50.small
+                                    i.bi.bi-hand-index.me-1
+                                    | Link games manually from the copy detail page
                     
                     //- Schedule Modal for this account
                     .modal.fade(id=`scheduleModal-${account.id}` tabindex="-1")
@@ -157,12 +170,13 @@ block content
                         | Link External Account
                     button.btn-close.btn-close-white(type="button" data-bs-dismiss="modal")
                 .modal-body
+                    - const allProviders = [{id: 'steam', name: 'Steam'}, {id: 'epic', name: 'Epic Games'}, {id: 'gog', name: 'GOG'}, {id: 'xbox', name: 'Xbox'}, {id: 'playstation', name: 'PlayStation'}, {id: 'nintendo', name: 'Nintendo'}, {id: 'origin', name: 'Origin'}, {id: 'ubisoft', name: 'Ubisoft Connect'}, {id: 'other', name: 'Other'}]
                     form#addAccountForm.row.g-3(method="post" action="/games/accounts")
                         .col-12
                             label.form-label Provider *
                             select.form-select.text-bg-dark(name="provider" required)
-                                each conn in connectors
-                                    option(value=conn.provider) #{conn.name}
+                                each p in allProviders
+                                    option(value=p.id) #{p.name}
                         .col-12
                             label.form-label Account Name *
                             input.form-control.text-bg-dark(type="text" name="accountName" required placeholder="e.g., My Steam Account")

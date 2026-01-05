@@ -101,6 +101,19 @@ block content
                                 | Release Date
                             dd.col-sm-7 #{release.releaseDate || '—'}
 
+                //- Merge actions
+                - const allReleases = (data && data.allReleases) ? data.allReleases : []
+                if allReleases.length > 0
+                    .card.text-bg-dark.border-secondary.mb-3
+                        .card-header
+                            h2.h5.mb-0
+                                i.bi.bi-arrow-left-right.me-2
+                                | Merge
+                        .card-body
+                            button.btn.btn-outline-light.w-100(type="button" data-bs-toggle="modal" data-bs-target="#mergeReleaseModal")
+                                i.bi.bi-arrow-left-right.me-1
+                                | Merge Into Another Release
+
                 //- Danger zone
                 .card.text-bg-dark.border-danger
                     .card-header.text-danger
@@ -177,6 +190,34 @@ block content
                     button.btn.btn-primary(type="submit" form="addCopyForm")
                         i.bi.bi-plus-lg.me-1
                         | Add Copy
+
+    //- Merge Release Modal
+    - const allReleases = (data && data.allReleases) ? data.allReleases : []
+    if release && allReleases.length > 0
+        #mergeReleaseModal.modal.fade(tabindex="-1")
+            .modal-dialog
+                .modal-content.text-bg-dark
+                    .modal-header.border-secondary
+                        h5.modal-title
+                            i.bi.bi-arrow-left-right.me-2
+                            | Merge Into Another Release
+                        button.btn-close.btn-close-white(type="button" data-bs-dismiss="modal")
+                    .modal-body
+                        .alert.alert-warning
+                            i.bi.bi-exclamation-triangle.me-2
+                            | This will move all copies from this release to the selected target, then delete this release.
+                        form#mergeReleaseForm(method="post" action="/games/releases/merge")
+                            input(type="hidden" name="sourceId" value=release.id)
+                            label.form-label Target Release
+                            select.form-select.text-bg-dark(name="targetId" required)
+                                option(value="") Select target release...
+                                each r in allReleases
+                                    option(value=r.id) #{platformLabels[r.platform] || r.platform}#{r.edition ? ' - ' + r.edition : ''}
+                    .modal-footer.border-secondary
+                        button.btn.btn-secondary(type="button" data-bs-dismiss="modal") Cancel
+                        button.btn.btn-warning(type="submit" form="mergeReleaseForm" onclick="return confirm('This will permanently merge the releases. Continue?')")
+                            i.bi.bi-arrow-left-right.me-1
+                            | Merge
 
 block scripts
     script(type="module" src="/js/stub.gen.js")
