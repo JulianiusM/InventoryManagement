@@ -4,7 +4,7 @@
  */
 
 import {GameConnector, ConnectorManifest} from './ConnectorInterface';
-import {SteamStubConnector} from './SteamStubConnector';
+import {SteamConnector} from './SteamConnector';
 
 class ConnectorRegistry {
     private connectors: Map<string, GameConnector> = new Map();
@@ -71,8 +71,8 @@ export const connectorRegistry = new ConnectorRegistry();
 
 // Register default connectors
 export function initializeConnectors(): void {
-    // Register Steam stub connector
-    connectorRegistry.register(new SteamStubConnector());
+    // Register production Steam connector
+    connectorRegistry.register(new SteamConnector());
     
     // Add more connectors here as they are implemented
     // connectorRegistry.register(new EpicConnector());
