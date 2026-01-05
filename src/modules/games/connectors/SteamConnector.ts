@@ -412,7 +412,7 @@ export class SteamConnector extends BaseConnector {
                 ? `https://cdn.cloudflare.steamstatic.com/steam/apps/${game.appid}/header.jpg`
                 : undefined,
             platform: 'PC',
-            rawPayload: game as unknown as object,
+            rawPayload: {...game}, // Spread creates a plain object copy
         }));
     }
 

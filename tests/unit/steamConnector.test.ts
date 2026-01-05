@@ -78,13 +78,12 @@ describe('SteamConnector', () => {
                 json: async () => mockResolveVanityFailResponse,
             });
 
-            try {
-                await connector.resolveVanityUrl('nonexistent');
-                fail('Expected error to be thrown');
-            } catch (error) {
-                expect(error).toBeInstanceOf(SteamConnectorError);
-                expect((error as SteamConnectorError).code).toBe('VANITY_NOT_FOUND');
-            }
+            await expect(connector.resolveVanityUrl('nonexistent')).rejects.toThrow(
+                expect.objectContaining({
+                    name: 'SteamConnectorError',
+                    code: 'VANITY_NOT_FOUND',
+                })
+            );
         });
 
         test('throws error when API key not configured', async () => {
@@ -120,13 +119,12 @@ describe('SteamConnector', () => {
                 json: async () => mockEmptyPlayerSummaryResponse,
             });
 
-            try {
-                await connector.getPlayerSummary(TEST_STEAM_ID);
-                fail('Expected error to be thrown');
-            } catch (error) {
-                expect(error).toBeInstanceOf(SteamConnectorError);
-                expect((error as SteamConnectorError).code).toBe('PROFILE_NOT_FOUND');
-            }
+            await expect(connector.getPlayerSummary(TEST_STEAM_ID)).rejects.toThrow(
+                expect.objectContaining({
+                    name: 'SteamConnectorError',
+                    code: 'PROFILE_NOT_FOUND',
+                })
+            );
         });
     });
 
