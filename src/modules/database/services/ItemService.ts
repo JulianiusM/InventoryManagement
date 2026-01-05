@@ -71,7 +71,7 @@ export async function getAllItems(ownerId: number): Promise<Item[]> {
     const repo = AppDataSource.getRepository(Item);
     return await repo.find({
         where: {owner: {id: ownerId}},
-        relations: ['location'],
+        relations: ['location', 'gameRelease'],
         order: {createdAt: 'DESC'},
     });
 }

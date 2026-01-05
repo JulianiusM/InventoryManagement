@@ -1,0 +1,100 @@
+extends ../layout
+
+block meta
+    title Platforms | Inventory Management
+
+block content
+    - const platforms = (data && data.platforms) ? data.platforms : []
+
+    #liveAlerts
+
+    .d-flex.justify-content-between.align-items-center.mb-3.flex-wrap.gap-2
+        h1.h3.mb-0.text-white
+            i.bi.bi-cpu.me-2
+            | Platforms
+            if platforms.length > 0
+                span.badge.text-bg-secondary.ms-2.fs-6 #{platforms.length}
+        
+        button.btn.btn-primary(type="button" data-bs-toggle="modal" data-bs-target="#addPlatformModal")
+            i.bi.bi-plus-lg.me-1
+            | Add Platform
+
+    //- Info card
+    .card.text-bg-dark.border-secondary.mb-3
+        .card-body
+            i.bi.bi-info-circle.me-2
+            | Platforms define where games can be played. You can add custom platforms to track your game collection across any device or format.
+            ul.mb-0.mt-2
+                li 
+                    strong Default platforms
+                    |  are provided as a starting point and cannot be deleted
+                li 
+                    strong Custom platforms
+                    |  can be added for any device or format you use
+                li 
+                    strong Prevent duplicates
+                    |  by using consistent platform names (e.g., "PlayStation 5" instead of "PS5")
+
+    //- Platforms list
+    if platforms.length === 0
+        .card.text-bg-dark.border-secondary
+            .card-body.text-center.py-5
+                i.bi.bi-cpu.display-1.text-white-50.mb-3.d-block
+                p.text-white-50.mb-3 No platforms yet.
+                button.btn.btn-outline-light(type="button" data-bs-toggle="modal" data-bs-target="#addPlatformModal")
+                    i.bi.bi-plus-lg.me-1
+                    | Add Your First Platform
+    else
+        .card.text-bg-dark.border-secondary
+            .card-body
+                .table-responsive
+                    table.table.table-dark.table-hover.align-middle.mb-0
+                        thead
+                            tr
+                                th Platform Name
+                                th Description
+                                th Type
+                                th.text-end Actions
+                        tbody
+                            each platform in platforms
+                                tr
+                                    td
+                                        i.bi.bi-cpu.me-2
+                                        | #{platform.name}
+                                    td.text-white-50 #{platform.description || '—'}
+                                    td
+                                        if platform.isDefault
+                                            span.badge.text-bg-info Default
+                                        else
+                                            span.badge.text-bg-secondary Custom
+                                    td.text-end
+                                        if !platform.isDefault
+                                            form.d-inline(method="post" action=`/games/platforms/${platform.id}/delete`)
+                                                button.btn.btn-sm.btn-outline-danger(type="submit" title="Delete" onclick="return confirm('Delete this platform?')")
+                                                    i.bi.bi-trash
+                                        else
+                                            span.text-white-50.small Protected
+
+    //- Add Platform Modal
+    #addPlatformModal.modal.fade(tabindex="-1")
+        .modal-dialog
+            .modal-content.text-bg-dark
+                .modal-header.border-secondary
+                    h5.modal-title
+                        i.bi.bi-plus-circle.me-2
+                        | Add Platform
+                    button.btn-close.btn-close-white(type="button" data-bs-dismiss="modal")
+                .modal-body
+                    form#addPlatformForm.row.g-3(method="post" action="/games/platforms")
+                        .col-12
+                            label.form-label Platform Name *
+                            input.form-control.text-bg-dark(type="text" name="name" required placeholder="e.g., Steam Deck, Atari 2600, etc.")
+                            .form-text.text-white-50 Enter a unique platform name.
+                        .col-12
+                            label.form-label Description
+                            input.form-control.text-bg-dark(type="text" name="description" placeholder="Optional description")
+                .modal-footer.border-secondary
+                    button.btn.btn-secondary(type="button" data-bs-dismiss="modal") Cancel
+                    button.btn.btn-primary(type="submit" form="addPlatformForm")
+                        i.bi.bi-plus-lg.me-1
+                        | Add Platform

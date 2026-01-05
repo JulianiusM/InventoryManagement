@@ -285,4 +285,30 @@ router.post('/accounts/:id/unschedule', asyncHandler(async (req: Request, res: R
     res.redirect('/games/accounts');
 }));
 
+// ============ Platforms ============
+
+// List platforms
+router.get('/platforms', asyncHandler(async (req: Request, res: Response) => {
+    const userId = req.session.user!.id;
+    const data = await gamesController.listPlatforms(userId);
+    renderer.renderWithData(res, 'games/platforms', data);
+}));
+
+// Create platform
+router.post('/platforms', asyncHandler(async (req: Request, res: Response) => {
+    const userId = req.session.user!.id;
+    await gamesController.createPlatform(req.body, userId);
+    req.flash('success', 'Platform created successfully');
+    res.redirect('/games/platforms');
+}));
+
+// Delete platform
+router.post('/platforms/:id/delete', asyncHandler(async (req: Request, res: Response) => {
+    const id = req.params.id;
+    const userId = req.session.user!.id;
+    await gamesController.deletePlatform(id, userId);
+    req.flash('success', 'Platform deleted successfully');
+    res.redirect('/games/platforms');
+}));
+
 export default router;

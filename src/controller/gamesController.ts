@@ -16,6 +16,7 @@ import * as gameMappingService from '../modules/database/services/GameExternalMa
 import * as locationService from '../modules/database/services/LocationService';
 import * as partyService from '../modules/database/services/PartyService';
 import * as gameSyncService from '../modules/games/GameSyncService';
+import * as platformService from '../modules/database/services/PlatformService';
 import {connectorRegistry, initializeConnectors} from '../modules/games/connectors/ConnectorRegistry';
 import {validatePlayerProfile, PlayerProfileValidationError} from '../modules/database/services/GameValidationService';
 import {ExpectedError} from '../modules/lib/errors';
@@ -103,11 +104,16 @@ export async function getGameTitleDetail(id: string, userId: number) {
     }
     checkOwnership(title, userId);
     
+    // Ensure default platforms exist for user
+    await platformService.ensureDefaultPlatforms(userId);
+    
     const releases = await gameReleaseService.getGameReleasesByTitleId(id);
     // Get all titles for merge dropdown (excluding current)
     const allTitles = (await gameTitleService.getAllGameTitles(userId))
         .filter(t => t.id !== id);
-    return {title, releases, allTitles};
+    // Get all platforms for dropdown
+    const platforms = await platformService.getAllPlatforms(userId);
+    return {title, releases, allTitles, platforms};
 }
 
 export async function createGameTitle(body: CreateGameTitleBody, ownerId: number): Promise<GameTitle> {
@@ -788,4 +794,56 @@ export async function cancelScheduledSync(accountId: string, userId: number): Pr
  */
 export function getScheduledSyncs(): string[] {
     return gameSyncService.getScheduledSyncs();
+}
+
+// ============ Platforms ============
+
+/**
+ * Get all platforms for user
+ */
+export async function listPlatforms(userId: number) {
+    requireAuthenticatedUser(userId);
+    // Ensure default platforms exist
+    await platformService.ensureDefaultPlatforms(userId);
+    const platforms = await platformService.getAllPlatforms(userId);
+    return {platforms};
+}
+
+/**
+ * Create a new platform
+ */
+export async function createPlatform(body: {name: string; description?: string}, userId: number) {
+    requireAuthenticatedUser(userId);
+    
+    if (!body.name || body.name.trim() === '') {
+        throw new ExpectedError('Platform name is required', 'error', 400);
+    }
+    
+    try {
+        return await platformService.createPlatform({
+            name: body.name.trim(),
+            description: body.description?.trim() || null,
+        }, userId);
+    } catch (error) {
+        if (error instanceof Error && error.message.includes('already exists')) {
+            throw new ExpectedError(error.message, 'error', 400);
+        }
+        throw error;
+    }
+}
+
+/**
+ * Delete a platform (non-default only)
+ */
+export async function deletePlatform(id: string, userId: number): Promise<void> {
+    requireAuthenticatedUser(userId);
+    
+    try {
+        await platformService.deletePlatform(id, userId);
+    } catch (error) {
+        if (error instanceof Error) {
+            throw new ExpectedError(error.message, 'error', 400);
+        }
+        throw error;
+    }
 }

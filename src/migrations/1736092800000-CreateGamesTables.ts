@@ -60,6 +60,23 @@ export class CreateGamesTables1736092800000 implements MigrationInterface {
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
         `);
 
+        // Create platforms table (user-defined platforms)
+        await queryRunner.query(`
+            CREATE TABLE IF NOT EXISTS platforms (
+                id VARCHAR(36) NOT NULL,
+                name VARCHAR(100) NOT NULL,
+                description VARCHAR(255) NULL,
+                is_default BOOLEAN NOT NULL DEFAULT FALSE,
+                
+                owner_id INT NOT NULL,
+                created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                PRIMARY KEY (id),
+                INDEX FK_platform_owner (owner_id),
+                UNIQUE INDEX UQ_platform_name_owner (name, owner_id),
+                CONSTRAINT FK_platform_owner FOREIGN KEY (owner_id) REFERENCES users(id) ON DELETE CASCADE
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+        `);
+
         // Create game_releases table
         await queryRunner.query(`
             CREATE TABLE IF NOT EXISTS game_releases (
@@ -209,6 +226,7 @@ export class CreateGamesTables1736092800000 implements MigrationInterface {
         
         await queryRunner.query(`DROP TABLE IF EXISTS external_accounts`);
         await queryRunner.query(`DROP TABLE IF EXISTS game_releases`);
+        await queryRunner.query(`DROP TABLE IF EXISTS platforms`);
         await queryRunner.query(`DROP TABLE IF EXISTS game_titles`);
         
         // Remove game-specific columns from items

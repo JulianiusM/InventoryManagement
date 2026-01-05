@@ -170,28 +170,86 @@ block content
                         | Link External Account
                     button.btn-close.btn-close-white(type="button" data-bs-dismiss="modal")
                 .modal-body
-                    //- Common provider suggestions (user can enter custom values)
-                    - const providerSuggestions = ['Steam', 'Epic Games', 'GOG', 'Xbox', 'PlayStation', 'Nintendo', 'Origin', 'Ubisoft Connect', 'Humble Bundle', 'itch.io']
+                    //- Known providers that have connectors or are commonly used
+                    - const knownProviders = ['Steam', 'Epic Games', 'GOG', 'Xbox', 'PlayStation', 'Nintendo', 'Origin', 'Ubisoft Connect', 'Humble Bundle', 'itch.io']
                     form#addAccountForm.row.g-3(method="post" action="/games/accounts")
                         .col-12
                             label.form-label Provider *
-                            input.form-control.text-bg-dark(type="text" name="provider" placeholder="e.g., Steam, Epic Games" value="Steam" list="providerList" required)
-                            datalist#providerList
-                                each p in providerSuggestions
-                                    option(value=p)
-                            .form-text.text-white-50 Enter any provider name. Use existing names for connectors to work.
+                            select#providerSelect.form-select.text-bg-dark(name="provider" required)
+                                each p in knownProviders
+                                    option(value=p selected=(p === 'Steam')) #{p}
+                                option(value="Other") Other (Manual only)
+                        
+                        //- Custom provider name (only visible when "Other" selected)
+                        #customProviderField.col-12.d-none
+                            label.form-label Custom Provider Name *
+                            input#customProviderInput.form-control.text-bg-dark(type="text" placeholder="e.g., My Custom Store")
+                            .form-text.text-white-50 No connector available. Games must be added manually.
+                        
                         .col-12
                             label.form-label Account Name *
                             input.form-control.text-bg-dark(type="text" name="accountName" required placeholder="e.g., My Steam Account")
-                        .col-12
-                            label.form-label User ID / Steam ID
-                            input.form-control.text-bg-dark(type="text" name="externalUserId" placeholder="Your external user ID")
-                        .col-12
-                            label.form-label API Key / Token (optional)
-                            input.form-control.text-bg-dark(type="password" name="tokenRef" placeholder="API key or token if required")
-                            .form-text.text-white-50 This will be stored securely and used for syncing.
+                        
+                        //- Credential fields (hidden for "Other")
+                        #credentialFields
+                            .col-12
+                                label.form-label User ID / Steam ID
+                                input.form-control.text-bg-dark(type="text" name="externalUserId" placeholder="Your external user ID")
+                            .col-12.mt-2
+                                label.form-label API Key / Token (optional)
+                                input.form-control.text-bg-dark(type="password" name="tokenRef" placeholder="API key or token if required")
+                                .form-text.text-white-50 This will be stored securely and used for syncing.
+                        
+                        //- Manual account notice (only visible when "Other" selected)
+                        #manualAccountNotice.col-12.d-none
+                            .alert.alert-warning.mb-0
+                                i.bi.bi-hand-index.me-2
+                                strong Manual Account:
+                                |  No automatic sync available. You can manually link games to this account from the copy detail page.
                 .modal-footer.border-secondary
                     button.btn.btn-secondary(type="button" data-bs-dismiss="modal") Cancel
                     button.btn.btn-primary(type="submit" form="addAccountForm")
                         i.bi.bi-link-45deg.me-1
                         | Link Account
+
+block scripts
+    script.
+        document.addEventListener('DOMContentLoaded', function() {
+            const providerSelect = document.getElementById('providerSelect');
+            const customProviderField = document.getElementById('customProviderField');
+            const customProviderInput = document.getElementById('customProviderInput');
+            const credentialFields = document.getElementById('credentialFields');
+            const manualAccountNotice = document.getElementById('manualAccountNotice');
+            const addAccountForm = document.getElementById('addAccountForm');
+            
+            if (providerSelect) {
+                providerSelect.addEventListener('change', function() {
+                    const isOther = this.value === 'Other';
+                    
+                    if (isOther) {
+                        customProviderField.classList.remove('d-none');
+                        credentialFields.classList.add('d-none');
+                        manualAccountNotice.classList.remove('d-none');
+                        customProviderInput.required = true;
+                    } else {
+                        customProviderField.classList.add('d-none');
+                        credentialFields.classList.remove('d-none');
+                        manualAccountNotice.classList.add('d-none');
+                        customProviderInput.required = false;
+                    }
+                });
+                
+                // On form submit, if "Other" is selected, use custom provider name
+                addAccountForm.addEventListener('submit', function(e) {
+                    if (providerSelect.value === 'Other') {
+                        // Replace the select value with custom provider input
+                        providerSelect.name = '';
+                        const hiddenInput = document.createElement('input');
+                        hiddenInput.type = 'hidden';
+                        hiddenInput.name = 'provider';
+                        hiddenInput.value = customProviderInput.value.trim() || 'Other';
+                        addAccountForm.appendChild(hiddenInput);
+                    }
+                });
+            }
+        });
