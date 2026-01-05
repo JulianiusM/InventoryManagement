@@ -3,64 +3,63 @@ extends ../layout
 block meta
     title Locations | Inventory Management
 
-//- Improved tree node with accordion-style cards
-mixin treeNodeCard(node, depth, index)
+//- Simpler tree node with minimal borders
+mixin treeNodeSimple(node, depth)
     - depth = depth || 0
-    - index = index || 0
     - const hasChildren = node.childrenNodes && node.childrenNodes.length > 0
     - const nodeId = `location-${node.id}`
     
-    .card.text-bg-dark.border-secondary.mb-2(style=depth > 0 ? `margin-left: ${depth * 1.5}rem` : '')
-        .card-body.py-2.px-3
-            .d-flex.align-items-center.justify-content-between
-                .d-flex.align-items-center.flex-grow-1
-                    //- Collapse indicator
-                    if hasChildren
-                        button.btn.btn-sm.btn-link.text-white-50.p-0.me-2(
-                            type="button"
-                            data-bs-toggle="collapse"
-                            data-bs-target=`#${nodeId}`
-                            aria-expanded="true"
-                            aria-controls=nodeId
-                        )
-                            i.bi.bi-chevron-down
-                    else
-                        i.bi.bi-dot.me-2.text-white-50
-                    
-                    //- Location icon based on kind
-                    case node.kind
-                        when 'room'
-                            i.bi.bi-house.me-2.text-info
-                        when 'shelf'
-                            i.bi.bi-columns-gap.me-2.text-info
-                        when 'box'
-                            i.bi.bi-box.me-2.text-info
-                        when 'bin'
-                            i.bi.bi-archive.me-2.text-info
-                        when 'drawer'
-                            i.bi.bi-layout-sidebar.me-2.text-info
-                        when 'cabinet'
-                            i.bi.bi-grid.me-2.text-info
-                        default
-                            i.bi.bi-geo.me-2.text-info
-                    
-                    //- Location link
-                    a.text-white.text-decoration-none.fw-medium(href=`/locations/${node.id}`)
-                        | #{node.name}
+    .location-tree-node.py-2(style=depth > 0 ? `padding-left: ${depth * 2}rem` : '')
+        .d-flex.align-items-center.justify-content-between
+            .d-flex.align-items-center.flex-grow-1.gap-2
+                //- Collapse indicator
+                if hasChildren
+                    button.btn.btn-sm.btn-link.text-white-50.p-0(
+                        type="button"
+                        data-bs-toggle="collapse"
+                        data-bs-target=`#${nodeId}`
+                        aria-expanded="true"
+                        aria-controls=nodeId
+                        style="width: 1.5rem; text-decoration: none;"
+                    )
+                        i.bi.bi-chevron-down
+                else
+                    span(style="width: 1.5rem; display: inline-block;")
                 
-                //- Badges
-                .d-flex.align-items-center.gap-2
-                    span.badge.text-bg-secondary #{node.kind}
-                    if node.qrCode
-                        span.badge.text-bg-dark.border.border-secondary
-                            i.bi.bi-qr-code.me-1
-                            | QR
-        
-        //- Children
-        if hasChildren
-            .collapse.show(id=nodeId)
-                each child, idx in node.childrenNodes
-                    +treeNodeCard(child, depth + 1, idx)
+                //- Location icon based on kind
+                case node.kind
+                    when 'room'
+                        i.bi.bi-house.text-info
+                    when 'shelf'
+                        i.bi.bi-columns-gap.text-info
+                    when 'box'
+                        i.bi.bi-box.text-info
+                    when 'bin'
+                        i.bi.bi-archive.text-info
+                    when 'drawer'
+                        i.bi.bi-layout-sidebar.text-info
+                    when 'cabinet'
+                        i.bi.bi-grid.text-info
+                    default
+                        i.bi.bi-geo.text-info
+                
+                //- Location link
+                a.text-white.text-decoration-none(href=`/locations/${node.id}`)
+                    | #{node.name}
+            
+            //- Badges
+            .d-flex.align-items-center.gap-2
+                span.badge.text-bg-secondary.small #{node.kind}
+                if node.qrCode
+                    span.badge.text-bg-dark.border.border-secondary.small
+                        i.bi.bi-qr-code.me-1
+                        | QR
+    
+    //- Children
+    if hasChildren
+        .collapse.show(id=nodeId)
+            each child in node.childrenNodes
+                +treeNodeSimple(child, depth + 1)
 
 block content
     - const locations = (data && data.locations) ? data.locations : []
@@ -143,8 +142,8 @@ block content
                     | Location Hierarchy
             .card-body(style="max-height: 70vh; overflow-y: auto;")
                 if tree.length > 0
-                    each root, idx in tree
-                        +treeNodeCard(root, 0, idx)
+                    each root in tree
+                        +treeNodeSimple(root, 0)
                 else
                     .text-center.py-4
                         i.bi.bi-search.display-4.text-white-50.mb-2.d-block
