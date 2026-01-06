@@ -6,9 +6,8 @@
 import {
     SteamConnector,
     SteamConnectorError,
-    parseTokenRef,
-    createTokenRef,
 } from '../../src/modules/games/connectors/SteamConnector';
+import {ConnectorCredentials} from '../../src/modules/games/connectors/ConnectorInterface';
 import {
     parseInputTestData,
     parseInputInvalidData,
@@ -223,7 +222,8 @@ describe('SteamConnector', () => {
                 json: async () => mockOwnedGamesResponse,
             });
 
-            const result = await connector.syncLibrary(TEST_STEAM_ID);
+            const credentials: ConnectorCredentials = {externalUserId: TEST_STEAM_ID};
+            const result = await connector.syncLibrary(credentials);
             expect(result.success).toBe(true);
             expect(result.games).toHaveLength(3);
             expect(result.games[0].externalGameId).toBe('570');
@@ -246,20 +246,23 @@ describe('SteamConnector', () => {
                 json: async () => mockPrivatePlayerSummaryResponse,
             });
 
-            const result = await connector.syncLibrary(TEST_STEAM_ID);
+            const credentials: ConnectorCredentials = {externalUserId: TEST_STEAM_ID};
+            const result = await connector.syncLibrary(credentials);
             expect(result.success).toBe(true);
             expect(result.games).toHaveLength(0);
             expect(result.error).toContain('privacy');
         });
 
         test('returns error for invalid SteamID format', async () => {
-            const result = await connector.syncLibrary('invalid');
+            const credentials: ConnectorCredentials = {externalUserId: 'invalid'};
+            const result = await connector.syncLibrary(credentials);
             expect(result.success).toBe(false);
             expect(result.error).toContain('Invalid SteamID64');
         });
 
-        test('returns error for empty tokenRef', async () => {
-            const result = await connector.syncLibrary('');
+        test('returns error for empty externalUserId', async () => {
+            const credentials: ConnectorCredentials = {externalUserId: ''};
+            const result = await connector.syncLibrary(credentials);
             expect(result.success).toBe(false);
             expect(result.error).toContain('Invalid SteamID64');
         });
@@ -273,12 +276,14 @@ describe('SteamConnector', () => {
                 json: async () => mockPlayerSummaryResponse,
             });
 
-            const result = await connector.validateCredentials(TEST_STEAM_ID);
+            const credentials: ConnectorCredentials = {externalUserId: TEST_STEAM_ID};
+            const result = await connector.validateCredentials(credentials);
             expect(result).toBe(true);
         });
 
         test('returns false for invalid SteamID format', async () => {
-            const result = await connector.validateCredentials('invalid');
+            const credentials: ConnectorCredentials = {externalUserId: 'invalid'};
+            const result = await connector.validateCredentials(credentials);
             expect(result).toBe(false);
         });
 
@@ -289,7 +294,8 @@ describe('SteamConnector', () => {
                 json: async () => mockEmptyPlayerSummaryResponse,
             });
 
-            const result = await connector.validateCredentials(TEST_STEAM_ID);
+            const credentials: ConnectorCredentials = {externalUserId: TEST_STEAM_ID};
+            const result = await connector.validateCredentials(credentials);
             expect(result).toBe(false);
         });
     });
@@ -368,28 +374,35 @@ describe('SteamConnector', () => {
         });
     });
 
-    describe('tokenRef parsing', () => {
-        test('parses simple SteamID64', () => {
-            const result = parseTokenRef(TEST_STEAM_ID);
-            expect(result.steamId).toBe(TEST_STEAM_ID);
-            expect(result.userApiKey).toBeUndefined();
+    describe('credentials format', () => {
+        test('accepts credentials with externalUserId only', async () => {
+            mockFetch.mockResolvedValueOnce({
+                ok: true,
+                status: 200,
+                json: async () => mockOwnedGamesResponse,
+            });
+
+            const credentials: ConnectorCredentials = {externalUserId: TEST_STEAM_ID};
+            const result = await connector.syncLibrary(credentials);
+            expect(result.success).toBe(true);
         });
 
-        test('parses SteamID64 with API key', () => {
-            const tokenRef = `${TEST_STEAM_ID}:my-api-key-123`;
-            const result = parseTokenRef(tokenRef);
-            expect(result.steamId).toBe(TEST_STEAM_ID);
-            expect(result.userApiKey).toBe('my-api-key-123');
-        });
+        test('accepts credentials with externalUserId and tokenRef', async () => {
+            mockFetch.mockResolvedValueOnce({
+                ok: true,
+                status: 200,
+                json: async () => mockOwnedGamesResponse,
+            });
 
-        test('creates tokenRef without API key', () => {
-            const result = createTokenRef(TEST_STEAM_ID);
-            expect(result).toBe(TEST_STEAM_ID);
-        });
-
-        test('creates tokenRef with API key', () => {
-            const result = createTokenRef(TEST_STEAM_ID, 'my-api-key');
-            expect(result).toBe(`${TEST_STEAM_ID}:my-api-key`);
+            const credentials: ConnectorCredentials = {
+                externalUserId: TEST_STEAM_ID,
+                tokenRef: 'user-api-key',
+            };
+            const result = await connector.syncLibrary(credentials);
+            expect(result.success).toBe(true);
+            expect(mockFetch).toHaveBeenCalledWith(
+                expect.stringContaining('key=user-api-key')
+            );
         });
     });
 
@@ -422,32 +435,36 @@ describe('SteamConnector', () => {
             );
         });
 
-        test('syncLibrary uses user API key from tokenRef', async () => {
-            const tokenRefWithKey = `${TEST_STEAM_ID}:user-sync-key`;
-            
+        test('syncLibrary uses user API key from credentials.tokenRef', async () => {
             mockFetch.mockResolvedValueOnce({
                 ok: true,
                 status: 200,
                 json: async () => mockOwnedGamesResponse,
             });
 
-            await connector.syncLibrary(tokenRefWithKey);
+            const credentials: ConnectorCredentials = {
+                externalUserId: TEST_STEAM_ID,
+                tokenRef: 'user-sync-key',
+            };
+            await connector.syncLibrary(credentials);
             
             expect(mockFetch).toHaveBeenCalledWith(
                 expect.stringContaining('key=user-sync-key')
             );
         });
 
-        test('validateCredentials uses user API key from tokenRef', async () => {
-            const tokenRefWithKey = `${TEST_STEAM_ID}:user-validate-key`;
-            
+        test('validateCredentials uses user API key from credentials.tokenRef', async () => {
             mockFetch.mockResolvedValueOnce({
                 ok: true,
                 status: 200,
                 json: async () => mockPlayerSummaryResponse,
             });
 
-            await connector.validateCredentials(tokenRefWithKey);
+            const credentials: ConnectorCredentials = {
+                externalUserId: TEST_STEAM_ID,
+                tokenRef: 'user-validate-key',
+            };
+            await connector.validateCredentials(credentials);
             
             expect(mockFetch).toHaveBeenCalledWith(
                 expect.stringContaining('key=user-validate-key')

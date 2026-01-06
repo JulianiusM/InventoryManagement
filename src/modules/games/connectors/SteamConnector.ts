@@ -8,9 +8,13 @@
  * - Account validation via GetPlayerSummaries API
  * - Library sync via GetOwnedGames API
  * - Configurable sync options (appinfo, playtime, free games, etc.)
+ * 
+ * Credentials:
+ * - externalUserId: SteamID64 (17-digit number)
+ * - tokenRef: Optional user-provided Steam Web API key for private profiles
  */
 
-import {BaseConnector, ConnectorManifest, ExternalGame, SyncResult} from './ConnectorInterface';
+import {BaseConnector, ConnectorCredentials, ConnectorManifest, ExternalGame, SyncResult} from './ConnectorInterface';
 import {ConnectorCapability} from '../../../types/InventoryEnums';
 
 // Steam Web API base URL
@@ -35,37 +39,6 @@ export interface SteamConnectorConfig {
     skipUnvettedApps?: boolean;
     /** Include extended app info */
     includeExtendedAppInfo?: boolean;
-}
-
-/**
- * Token reference format for Steam connector
- * Stores both SteamID64 and optional user-provided API key
- * Format: "steamId64" or "steamId64:apiKey"
- */
-export interface SteamTokenRef {
-    steamId: string;
-    userApiKey?: string;
-}
-
-/**
- * Parse token reference to extract SteamID64 and optional API key
- */
-export function parseTokenRef(tokenRef: string): SteamTokenRef {
-    const parts = tokenRef.split(':');
-    if (parts.length === 2) {
-        return {steamId: parts[0], userApiKey: parts[1]};
-    }
-    return {steamId: tokenRef};
-}
-
-/**
- * Create token reference from SteamID64 and optional API key
- */
-export function createTokenRef(steamId: string, userApiKey?: string): string {
-    if (userApiKey) {
-        return `${steamId}:${userApiKey}`;
-    }
-    return steamId;
 }
 
 const DEFAULT_CONFIG: Required<SteamConnectorConfig> = {
@@ -339,12 +312,11 @@ export class SteamConnector extends BaseConnector {
 
     /**
      * Sync game library from Steam
-     * @param tokenRef Token reference containing SteamID64 and optional API key (format: "steamId64" or "steamId64:apiKey")
+     * @param credentials - externalUserId is SteamID64, tokenRef is optional user API key
      */
-    async syncLibrary(tokenRef: string): Promise<SyncResult> {
+    async syncLibrary(credentials: ConnectorCredentials): Promise<SyncResult> {
         try {
-            // Parse token reference to extract SteamID64 and optional user API key
-            const {steamId, userApiKey} = parseTokenRef(tokenRef);
+            const {externalUserId: steamId, tokenRef: userApiKey} = credentials;
             const apiKey = this.getApiKey(userApiKey);
             
             // Validate SteamID64 format
@@ -399,11 +371,11 @@ export class SteamConnector extends BaseConnector {
 
     /**
      * Validate credentials by checking if the SteamID64 is valid
-     * @param tokenRef Token reference containing SteamID64 and optional API key
+     * @param credentials - externalUserId is SteamID64, tokenRef is optional user API key
      */
-    async validateCredentials(tokenRef: string): Promise<boolean> {
+    async validateCredentials(credentials: ConnectorCredentials): Promise<boolean> {
         try {
-            const {steamId, userApiKey} = parseTokenRef(tokenRef);
+            const {externalUserId: steamId, tokenRef: userApiKey} = credentials;
             if (!steamId || !/^\d{17}$/.test(steamId)) {
                 return false;
             }

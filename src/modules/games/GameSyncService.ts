@@ -13,7 +13,7 @@
  */
 
 import {connectorRegistry} from './connectors/ConnectorRegistry';
-import {ExternalGame} from './connectors/ConnectorInterface';
+import {ConnectorCredentials, ExternalGame} from './connectors/ConnectorInterface';
 import * as externalAccountService from '../database/services/ExternalAccountService';
 import * as externalLibraryEntryService from '../database/services/ExternalLibraryEntryService';
 import * as gameMappingService from '../database/services/GameExternalMappingService';
@@ -133,8 +133,20 @@ export async function syncExternalAccount(
         // Start job
         await syncJobService.startSyncJob(job.id);
         
+        // Validate external user ID is set
+        if (!account.externalUserId) {
+            await syncJobService.failSyncJob(job.id, 'External user ID not configured for this account');
+            return {success: false, error: 'External user ID not configured for this account', jobId: job.id};
+        }
+        
+        // Build credentials from account
+        const credentials: ConnectorCredentials = {
+            externalUserId: account.externalUserId,
+            tokenRef: account.tokenRef || undefined,
+        };
+        
         // Sync library
-        const result = await connector.syncLibrary(account.tokenRef || '');
+        const result = await connector.syncLibrary(credentials);
         if (!result.success) {
             await syncJobService.failSyncJob(job.id, result.error || 'Sync failed');
             return {success: false, error: result.error, jobId: job.id};
