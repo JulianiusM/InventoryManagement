@@ -7,6 +7,7 @@
  * - Automatic digital copy creation for synced games
  * - No manual mapping required - games are imported automatically
  * - Scheduled sync support for periodic execution
+ * - Metadata enrichment from Steam Store API for player info
  * 
  * Game copies are stored as Items with type=GAME_DIGITAL,
  * using the existing Item entity instead of a separate GameCopy entity.
@@ -14,6 +15,9 @@
 
 import {connectorRegistry} from './connectors/ConnectorRegistry';
 import {ConnectorCredentials, ExternalGame} from './connectors/ConnectorInterface';
+import {metadataProviderRegistry, initializeMetadataProviders} from './metadata/MetadataProviderRegistry';
+import {GameMetadata} from './metadata/MetadataProviderInterface';
+import {extractEdition} from './GameNameUtils';
 import * as externalAccountService from '../database/services/ExternalAccountService';
 import * as externalLibraryEntryService from '../database/services/ExternalLibraryEntryService';
 import * as gameMappingService from '../database/services/GameExternalMappingService';
@@ -27,6 +31,9 @@ import {
     MappingStatus, 
     GameType
 } from '../../types/InventoryEnums';
+
+// Initialize metadata providers
+initializeMetadataProviders();
 
 export interface SyncStats {
     entriesProcessed: number;
@@ -183,10 +190,11 @@ export async function syncExternalAccount(
  * Process synced games with automatic game title and copy creation
  * 
  * For each game from the connector:
- * 1. Create/update library entry snapshot
- * 2. Check if we have an existing mapping
- * 3. If no mapping exists, automatically create game title + release from metadata
- * 4. Create/update the digital copy item
+ * 1. Enrich with metadata from provider (player info, multiplayer flags)
+ * 2. Create/update library entry snapshot
+ * 3. Check if we have an existing mapping
+ * 4. If no mapping exists, automatically create game title + release from metadata
+ * 5. Create/update the digital copy item
  */
 async function processGamesWithAutoCreate(
     accountId: string,
@@ -202,21 +210,44 @@ async function processGamesWithAutoCreate(
     // Use provider-specific platform default or 'PC' as fallback
     const platform = providerPlatformDefaults[provider.toLowerCase()] || 'PC';
     
+    // Pre-fetch metadata for all games to enrich player info
+    // This is done in batches to avoid rate limiting
+    const metadataProvider = metadataProviderRegistry.getById(provider);
+    const metadataCache = new Map<string, GameMetadata>();
+    
+    if (metadataProvider) {
+        try {
+            const externalIds = games.map(g => g.externalGameId);
+            const metadataList = await metadataProvider.getGamesMetadata(externalIds);
+            for (const meta of metadataList) {
+                if (meta) {
+                    metadataCache.set(meta.externalId, meta);
+                }
+            }
+        } catch (error) {
+            // Metadata fetch failed - continue without enrichment
+            console.warn(`Failed to fetch metadata for ${provider}:`, error);
+        }
+    }
+    
     for (const game of games) {
+        // Enrich game with metadata from provider
+        const enrichedGame = enrichGameWithMetadata(game, metadataCache.get(game.externalGameId));
+        
         // Step 1: Upsert library entry (snapshot of external data)
         const existingEntry = await externalLibraryEntryService.getLibraryEntryByExternalId(
             accountId, 
-            game.externalGameId
+            enrichedGame.externalGameId
         );
         
         await externalLibraryEntryService.upsertLibraryEntry({
             externalAccountId: accountId,
-            externalGameId: game.externalGameId,
-            externalGameName: game.name,
-            rawPayload: game.rawPayload,
-            playtimeMinutes: game.playtimeMinutes,
-            lastPlayedAt: game.lastPlayedAt,
-            isInstalled: game.isInstalled,
+            externalGameId: enrichedGame.externalGameId,
+            externalGameName: enrichedGame.name,
+            rawPayload: enrichedGame.rawPayload,
+            playtimeMinutes: enrichedGame.playtimeMinutes,
+            lastPlayedAt: enrichedGame.lastPlayedAt,
+            isInstalled: enrichedGame.isInstalled,
         });
         
         if (existingEntry) {
@@ -228,15 +259,15 @@ async function processGamesWithAutoCreate(
         // Step 2: Get or create mapping with auto-creation
         let mapping = await gameMappingService.getMappingByExternalId(
             provider,
-            game.externalGameId,
+            enrichedGame.externalGameId,
             ownerId
         );
         
         // Step 3: If no mapping exists or mapping is pending, auto-create
         if (!mapping || mapping.status === MappingStatus.PENDING) {
             // Use platform from game metadata if available, otherwise use provider default
-            const gamePlatform = game.platform || platform;
-            const {title, release} = await autoCreateGameFromMetadata(game, gamePlatform, ownerId);
+            const gamePlatform = enrichedGame.platform || platform;
+            const {title, release} = await autoCreateGameFromMetadata(enrichedGame, gamePlatform, ownerId);
             titlesCreated++;
             
             // Create or update the mapping
@@ -249,8 +280,8 @@ async function processGamesWithAutoCreate(
             } else {
                 await gameMappingService.createMapping({
                     provider,
-                    externalGameId: game.externalGameId,
-                    externalGameName: game.name,
+                    externalGameId: enrichedGame.externalGameId,
+                    externalGameName: enrichedGame.name,
                     gameTitleId: title.id,
                     gameReleaseId: release.id,
                     status: MappingStatus.MAPPED,
@@ -261,7 +292,7 @@ async function processGamesWithAutoCreate(
             // Refresh mapping
             mapping = await gameMappingService.getMappingByExternalId(
                 provider,
-                game.externalGameId,
+                enrichedGame.externalGameId,
                 ownerId
             );
         }
@@ -275,20 +306,20 @@ async function processGamesWithAutoCreate(
         if (mapping?.gameReleaseId) {
             const existingItem = await itemService.findGameItemByExternalId(
                 accountId,
-                game.externalGameId
+                enrichedGame.externalGameId
             );
             
             if (!existingItem) {
                 // Create digital game item
                 await itemService.createGameItem({
-                    name: game.name,
+                    name: enrichedGame.name,
                     gameReleaseId: mapping.gameReleaseId,
                     gameCopyType: GameCopyType.DIGITAL_LICENSE,
                     externalAccountId: accountId,
-                    externalGameId: game.externalGameId,
-                    playtimeMinutes: game.playtimeMinutes,
-                    lastPlayedAt: game.lastPlayedAt,
-                    isInstalled: game.isInstalled,
+                    externalGameId: enrichedGame.externalGameId,
+                    playtimeMinutes: enrichedGame.playtimeMinutes,
+                    lastPlayedAt: enrichedGame.lastPlayedAt,
+                    isInstalled: enrichedGame.isInstalled,
                     lendable: false,
                     ownerId,
                 });
@@ -296,9 +327,9 @@ async function processGamesWithAutoCreate(
             } else {
                 // Update existing item with latest data
                 await itemService.updateItem(existingItem.id, {
-                    playtimeMinutes: game.playtimeMinutes,
-                    lastPlayedAt: game.lastPlayedAt,
-                    isInstalled: game.isInstalled,
+                    playtimeMinutes: enrichedGame.playtimeMinutes,
+                    lastPlayedAt: enrichedGame.lastPlayedAt,
+                    isInstalled: enrichedGame.isInstalled,
                 });
             }
         }
@@ -314,7 +345,81 @@ async function processGamesWithAutoCreate(
 }
 
 /**
+ * Enrich a game with metadata from provider
+ * Adds player info, multiplayer flags, and other metadata
+ */
+function enrichGameWithMetadata(
+    game: ExternalGame,
+    metadata: GameMetadata | undefined
+): ExternalGame {
+    if (!metadata) {
+        return game;
+    }
+    
+    const enriched: ExternalGame = {...game};
+    
+    // Only override if not already set by connector
+    if (enriched.description === undefined && metadata.description) {
+        enriched.description = metadata.description;
+    }
+    
+    if (enriched.releaseDate === undefined && metadata.releaseDate) {
+        enriched.releaseDate = metadata.releaseDate;
+    }
+    
+    if (enriched.developer === undefined && metadata.developers?.[0]) {
+        enriched.developer = metadata.developers[0];
+    }
+    
+    if (enriched.publisher === undefined && metadata.publishers?.[0]) {
+        enriched.publisher = metadata.publishers[0];
+    }
+    
+    if (enriched.genres === undefined && metadata.genres) {
+        enriched.genres = metadata.genres;
+    }
+    
+    // Enrich player info from metadata provider
+    if (metadata.playerInfo) {
+        if (enriched.overallMinPlayers === undefined) {
+            enriched.overallMinPlayers = metadata.playerInfo.overallMinPlayers;
+        }
+        if (enriched.overallMaxPlayers === undefined) {
+            enriched.overallMaxPlayers = metadata.playerInfo.overallMaxPlayers;
+        }
+        if (enriched.supportsOnline === undefined) {
+            enriched.supportsOnline = metadata.playerInfo.supportsOnline;
+        }
+        if (enriched.supportsLocal === undefined) {
+            enriched.supportsLocal = metadata.playerInfo.supportsLocal;
+        }
+        if (enriched.onlineMaxPlayers === undefined) {
+            enriched.onlineMaxPlayers = metadata.playerInfo.onlineMaxPlayers;
+        }
+        if (enriched.localMaxPlayers === undefined) {
+            enriched.localMaxPlayers = metadata.playerInfo.localMaxPlayers;
+        }
+    }
+    
+    return enriched;
+}
+
+// Default maximum players for multiplayer games when not specified
+const DEFAULT_MULTIPLAYER_MAX_PLAYERS = 4;
+
+/**
+ * Determine if a game has multiplayer support based on available metadata
+ */
+function hasMultiplayerSupport(game: ExternalGame): boolean {
+    const supportsOnline = game.supportsOnline ?? false;
+    const supportsLocal = game.supportsLocal ?? false;
+    const hasMultipleMaxPlayers = game.overallMaxPlayers !== undefined && game.overallMaxPlayers > 1;
+    return supportsOnline || supportsLocal || hasMultipleMaxPlayers;
+}
+
+/**
  * Automatically create a game title and release from connector metadata
+ * Extracts edition from game name and creates appropriate structures
  */
 async function autoCreateGameFromMetadata(
     game: ExternalGame,
@@ -324,31 +429,40 @@ async function autoCreateGameFromMetadata(
     // Ensure the platform exists in the database (auto-create if missing)
     await platformService.getOrCreatePlatform(platform, ownerId);
     
+    // Extract edition from game name (e.g., "Game - GOTY Edition" -> "Game" + "GOTY Edition")
+    const {baseName, edition} = extractEdition(game.name);
+    
+    // Determine player info with sensible defaults for multiplayer games
+    const supportsOnline = game.supportsOnline ?? false;
+    const supportsLocal = game.supportsLocal ?? false;
+    const hasMultiplayer = hasMultiplayerSupport(game);
+    
     // Create game title with metadata from connector
     const title = await gameTitleService.createGameTitle({
-        name: game.name,
+        name: baseName, // Use base name without edition
         type: GameType.VIDEO_GAME,
         description: game.description || null,
         coverImageUrl: game.coverImageUrl || null,
         overallMinPlayers: game.overallMinPlayers ?? 1,
-        overallMaxPlayers: game.overallMaxPlayers ?? 1,
-        supportsOnline: game.supportsOnline ?? false,
-        supportsLocal: game.supportsLocal ?? false,
+        overallMaxPlayers: game.overallMaxPlayers ?? (hasMultiplayer ? DEFAULT_MULTIPLAYER_MAX_PLAYERS : 1),
+        supportsOnline,
+        supportsLocal,
         supportsPhysical: game.supportsPhysical ?? false,
-        onlineMinPlayers: game.onlineMinPlayers ?? null,
-        onlineMaxPlayers: game.onlineMaxPlayers ?? null,
-        localMinPlayers: game.localMinPlayers ?? null,
-        localMaxPlayers: game.localMaxPlayers ?? null,
+        onlineMinPlayers: supportsOnline ? (game.onlineMinPlayers ?? 1) : null,
+        onlineMaxPlayers: supportsOnline ? (game.onlineMaxPlayers ?? DEFAULT_MULTIPLAYER_MAX_PLAYERS) : null,
+        localMinPlayers: supportsLocal ? (game.localMinPlayers ?? 1) : null,
+        localMaxPlayers: supportsLocal ? (game.localMaxPlayers ?? DEFAULT_MULTIPLAYER_MAX_PLAYERS) : null,
         physicalMinPlayers: null,
         physicalMaxPlayers: null,
         ownerId,
     });
     
-    // Create a release for this platform (user-defined string)
+    // Create a release for this platform with edition info
     const release = await gameReleaseService.createGameRelease({
         gameTitleId: title.id,
         platform,
         releaseDate: game.releaseDate || null,
+        edition, // Store detected edition
         ownerId,
     });
     

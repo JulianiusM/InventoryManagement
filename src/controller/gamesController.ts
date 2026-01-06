@@ -68,6 +68,8 @@ function parseOptionalCheckboxBoolean(value: boolean | string | undefined): bool
 
 // ============ Game Titles ============
 
+import {fuzzySearchGames} from '../modules/games/GameNameUtils';
+
 export async function listGameTitles(ownerId: number, options?: {
     search?: string;
     typeFilter?: string;
@@ -80,8 +82,8 @@ export async function listGameTitles(ownerId: number, options?: {
     
     // Apply filters
     if (options?.search) {
-        const searchLower = options.search.toLowerCase();
-        titles = titles.filter(t => t.name.toLowerCase().includes(searchLower));
+        // Use fuzzy search for better matching (handles punctuation variations)
+        titles = fuzzySearchGames(titles, options.search);
     }
     
     if (options?.typeFilter) {
