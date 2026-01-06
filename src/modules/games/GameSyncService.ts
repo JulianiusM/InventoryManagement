@@ -211,24 +211,8 @@ async function processGamesWithAutoCreate(
     const platform = providerPlatformDefaults[provider.toLowerCase()] || 'PC';
     
     // Pre-fetch metadata for all games to enrich player info
-    // This is done in batches to avoid rate limiting
-    const metadataProvider = metadataProviderRegistry.getById(provider);
-    const metadataCache = new Map<string, GameMetadata>();
-    
-    if (metadataProvider) {
-        try {
-            const externalIds = games.map(g => g.externalGameId);
-            const metadataList = await metadataProvider.getGamesMetadata(externalIds);
-            for (const meta of metadataList) {
-                if (meta) {
-                    metadataCache.set(meta.externalId, meta);
-                }
-            }
-        } catch (error) {
-            // Metadata fetch failed - continue without enrichment
-            console.warn(`Failed to fetch metadata for ${provider}:`, error);
-        }
-    }
+    // Uses appIds from the games to fetch from appropriate metadata provider
+    const metadataCache = await fetchMetadataForGames(games, provider);
     
     for (const game of games) {
         // Enrich game with metadata from provider
@@ -342,6 +326,81 @@ async function processGamesWithAutoCreate(
         titlesCreated,
         copiesCreated,
     };
+}
+
+/**
+ * Fetch metadata for all games using available providers
+ * Tries primary provider first (matching provider), then falls back to secondary providers
+ * Uses game appIds to lookup metadata
+ */
+async function fetchMetadataForGames(
+    games: ExternalGame[],
+    provider: string
+): Promise<Map<string, GameMetadata>> {
+    const metadataCache = new Map<string, GameMetadata>();
+    const externalIds = games.map(g => g.externalGameId);
+    
+    // Get primary provider (matching the game source, e.g., Steam for Steam games)
+    const primaryProvider = metadataProviderRegistry.getById(provider);
+    
+    // Get all providers for fallback
+    const allProviders = metadataProviderRegistry.getAll();
+    
+    // Step 1: Try primary provider first (batched for performance)
+    if (primaryProvider) {
+        console.log(`Fetching metadata from primary provider: ${provider} for ${externalIds.length} games`);
+        try {
+            const metadataList = await primaryProvider.getGamesMetadata(externalIds);
+            for (const meta of metadataList) {
+                if (meta) {
+                    metadataCache.set(meta.externalId, meta);
+                }
+            }
+            console.log(`Primary provider returned metadata for ${metadataCache.size}/${externalIds.length} games`);
+        } catch (error) {
+            console.warn(`Primary provider ${provider} failed:`, error);
+        }
+    }
+    
+    // Step 2: For games without metadata, try secondary providers
+    const missingIds = externalIds.filter(id => !metadataCache.has(id));
+    
+    if (missingIds.length > 0) {
+        console.log(`Attempting fallback for ${missingIds.length} games without metadata`);
+        
+        for (const secondaryProvider of allProviders) {
+            const manifest = secondaryProvider.getManifest();
+            if (manifest.id === provider) continue; // Skip primary
+            
+            // For non-matching providers, we need to search by game name
+            // This is slower but provides fallback coverage
+            const gamesNeedingMetadata = games.filter(g => missingIds.includes(g.externalGameId));
+            
+            for (const game of gamesNeedingMetadata) {
+                if (metadataCache.has(game.externalGameId)) continue;
+                
+                try {
+                    // Search for game by name
+                    const searchResults = await secondaryProvider.searchGames(game.name, 1);
+                    if (searchResults.length > 0) {
+                        const metadata = await secondaryProvider.getGameMetadata(searchResults[0].externalId);
+                        if (metadata) {
+                            // Store with original game's externalId for lookup
+                            metadataCache.set(game.externalGameId, {
+                                ...metadata,
+                                externalId: game.externalGameId, // Keep original ID for mapping
+                            });
+                        }
+                    }
+                } catch {
+                    // Individual game lookup failed, continue
+                }
+            }
+        }
+    }
+    
+    console.log(`Total metadata fetched: ${metadataCache.size}/${externalIds.length} games`);
+    return metadataCache;
 }
 
 /**

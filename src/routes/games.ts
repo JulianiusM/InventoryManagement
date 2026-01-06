@@ -221,16 +221,16 @@ router.post('/accounts/:id/delete', asyncHandler(async (req: Request, res: Respo
     res.redirect('/games/accounts');
 }));
 
-// Trigger sync
+// Trigger sync (async - starts job in background)
 router.post('/accounts/:id/sync', asyncHandler(async (req: Request, res: Response) => {
     const id = req.params.id;
     const userId = req.session.user!.id;
-    const result = await gamesController.triggerSync(id, userId);
-    if (result.success) {
-        req.flash('success', `Sync completed: ${result.stats?.entriesProcessed || 0} games processed`);
-    } else {
-        req.flash('error', `Sync failed: ${result.error}`);
-    }
+    
+    // Start sync in background - don't wait for completion
+    gamesController.triggerSyncAsync(id, userId)
+        .catch(err => console.error(`Background sync error for account ${id}:`, err));
+    
+    req.flash('success', 'Sync started in background. Refresh to see progress.');
     res.redirect('/games/accounts');
 }));
 

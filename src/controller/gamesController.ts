@@ -615,6 +615,33 @@ export async function triggerSync(accountId: string, userId: number) {
     return await gameSyncService.syncExternalAccount(accountId, userId);
 }
 
+/**
+ * Trigger sync asynchronously (for background execution)
+ * Same as triggerSync but designed to be called without awaiting
+ */
+export async function triggerSyncAsync(accountId: string, userId: number) {
+    requireAuthenticatedUser(userId);
+    
+    const account = await externalAccountService.getExternalAccountById(accountId);
+    if (!account) {
+        console.error(`Async sync failed: Account ${accountId} not found`);
+        return;
+    }
+    
+    if (account.ownerId !== userId) {
+        console.error(`Async sync failed: Access denied for account ${accountId}`);
+        return;
+    }
+    
+    // Run sync and log result
+    const result = await gameSyncService.syncExternalAccount(accountId, userId);
+    if (result.success) {
+        console.log(`Async sync completed for account ${accountId}: ${result.stats?.entriesProcessed || 0} games`);
+    } else {
+        console.error(`Async sync failed for account ${accountId}: ${result.error}`);
+    }
+}
+
 export async function getSyncStatus(accountId: string, userId: number) {
     requireAuthenticatedUser(userId);
     

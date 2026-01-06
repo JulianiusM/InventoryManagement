@@ -5,6 +5,7 @@
 
 import {MetadataProvider, MetadataProviderManifest} from './MetadataProviderInterface';
 import {SteamMetadataProvider} from './SteamMetadataProvider';
+import {RawgMetadataProvider} from './RawgMetadataProvider';
 
 class MetadataProviderRegistry {
     private providers: Map<string, MetadataProvider> = new Map();
@@ -51,10 +52,9 @@ export const metadataProviderRegistry = new MetadataProviderRegistry();
 
 // Register default providers
 export function initializeMetadataProviders(): void {
-    // Register Steam metadata provider
+    // Register Steam metadata provider (primary, no API key required)
     metadataProviderRegistry.register(new SteamMetadataProvider());
     
-    // Add more providers here as they are implemented
-    // metadataProviderRegistry.register(new IGDBMetadataProvider());
-    // metadataProviderRegistry.register(new RAWGMetadataProvider());
+    // Register RAWG metadata provider (secondary, requires API key)
+    metadataProviderRegistry.register(new RawgMetadataProvider());
 }

@@ -15,6 +15,7 @@ import {
     GameMetadata,
     MetadataSearchResult,
 } from './MetadataProviderInterface';
+import {stripHtml} from '../../lib/htmlUtils';
 
 const STEAM_STORE_API_BASE = 'https://store.steampowered.com/api';
 const STEAM_SEARCH_URL = 'https://store.steampowered.com/search/suggest';
@@ -260,11 +261,15 @@ export class SteamMetadataProvider extends BaseMetadataProvider {
         if (data.platforms?.mac) platforms.push('macOS');
         if (data.platforms?.linux) platforms.push('Linux');
         
+        // Strip HTML from descriptions
+        const description = stripHtml(data.about_the_game || data.detailed_description || '');
+        const shortDescription = stripHtml(data.short_description || '');
+        
         return {
             externalId: String(data.steam_appid),
             name: data.name,
-            description: data.about_the_game || data.detailed_description,
-            shortDescription: data.short_description,
+            description: description || undefined,
+            shortDescription: shortDescription || undefined,
             coverImageUrl: data.capsule_imagev5 || data.capsule_image,
             headerImageUrl: data.header_image,
             screenshots: data.screenshots?.map(s => s.path_full),
