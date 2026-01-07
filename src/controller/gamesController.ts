@@ -19,6 +19,7 @@ import * as gameSyncService from '../modules/games/GameSyncService';
 import * as platformService from '../modules/database/services/PlatformService';
 import {connectorRegistry, initializeConnectors} from '../modules/games/connectors/ConnectorRegistry';
 import {metadataProviderRegistry} from '../modules/games/metadata/MetadataProviderRegistry';
+import {mergePlayerCounts, type GameMetadata} from '../modules/games/metadata/MetadataProviderInterface';
 import {validatePlayerProfile, PlayerProfileValidationError} from '../modules/database/services/GameValidationService';
 import {ExpectedError} from '../modules/lib/errors';
 import {checkOwnership, requireAuthenticatedUser} from '../middleware/authMiddleware';
@@ -287,7 +288,7 @@ export async function fetchMetadataForTitle(
     const query = searchQuery?.trim() || title.name;
     
     // Track what we found and from where
-    let foundMetadata: import('../modules/games/metadata/MetadataProviderInterface').GameMetadata | null = null;
+    let foundMetadata: GameMetadata | null = null;
     let primaryProviderName = '';
     
     // Step 1: Get basic metadata from primary providers
@@ -328,13 +329,8 @@ export async function fetchMetadataForTitle(
                 if (igdbResults.length > 0) {
                     const igdbMeta = await igdbProvider.getGameMetadata(igdbResults[0].externalId);
                     if (igdbMeta?.playerInfo) {
-                        // Merge IGDB player counts into metadata
-                        foundMetadata.playerInfo = {
-                            ...foundMetadata.playerInfo,
-                            onlineMaxPlayers: igdbMeta.playerInfo.onlineMaxPlayers ?? foundMetadata.playerInfo?.onlineMaxPlayers,
-                            localMaxPlayers: igdbMeta.playerInfo.localMaxPlayers ?? foundMetadata.playerInfo?.localMaxPlayers,
-                            overallMaxPlayers: igdbMeta.playerInfo.overallMaxPlayers ?? foundMetadata.playerInfo?.overallMaxPlayers,
-                        };
+                        // Merge IGDB player counts into metadata using utility
+                        foundMetadata.playerInfo = mergePlayerCounts(foundMetadata.playerInfo, igdbMeta.playerInfo);
                         primaryProviderName += ' + IGDB';
                     }
                 }

@@ -16,7 +16,7 @@
 import {connectorRegistry} from './connectors/ConnectorRegistry';
 import {ConnectorCredentials, ExternalGame} from './connectors/ConnectorInterface';
 import {metadataProviderRegistry, initializeMetadataProviders} from './metadata/MetadataProviderRegistry';
-import {GameMetadata} from './metadata/MetadataProviderInterface';
+import {GameMetadata, mergePlayerCounts} from './metadata/MetadataProviderInterface';
 import {extractEdition} from './GameNameUtils';
 import * as externalAccountService from '../database/services/ExternalAccountService';
 import * as externalLibraryEntryService from '../database/services/ExternalLibraryEntryService';
@@ -402,18 +402,11 @@ async function fetchMetadataForGames(
                     if (searchResults.length > 0) {
                         const igdbMeta = await igdbProvider.getGameMetadata(searchResults[0].externalId);
                         if (igdbMeta?.playerInfo) {
-                            // Merge IGDB player counts into existing metadata
+                            // Merge IGDB player counts into existing metadata using utility
                             const existingMeta = metadataCache.get(game.externalGameId)!;
-                            const enrichedPlayerInfo = {
-                                ...existingMeta.playerInfo,
-                                // Only override if IGDB has actual data (not undefined)
-                                onlineMaxPlayers: igdbMeta.playerInfo.onlineMaxPlayers ?? existingMeta.playerInfo?.onlineMaxPlayers,
-                                localMaxPlayers: igdbMeta.playerInfo.localMaxPlayers ?? existingMeta.playerInfo?.localMaxPlayers,
-                                overallMaxPlayers: igdbMeta.playerInfo.overallMaxPlayers ?? existingMeta.playerInfo?.overallMaxPlayers,
-                            };
                             metadataCache.set(game.externalGameId, {
                                 ...existingMeta,
-                                playerInfo: enrichedPlayerInfo,
+                                playerInfo: mergePlayerCounts(existingMeta.playerInfo, igdbMeta.playerInfo),
                             });
                         }
                     }

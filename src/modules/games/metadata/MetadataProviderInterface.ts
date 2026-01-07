@@ -193,3 +193,28 @@ export abstract class BaseMetadataProvider implements MetadataProvider {
     
     abstract getGameUrl(externalId: string): string;
 }
+
+/**
+ * Player info type alias for convenience
+ */
+export type PlayerInfo = NonNullable<GameMetadata['playerInfo']>;
+
+/**
+ * Merge player counts from enrichment source into existing player info
+ * Only overrides undefined values in existing info with values from enrichment
+ */
+export function mergePlayerCounts(
+    existing: PlayerInfo | undefined,
+    enrichment: PlayerInfo | undefined
+): PlayerInfo | undefined {
+    if (!enrichment) return existing;
+    if (!existing) return enrichment;
+    
+    return {
+        ...existing,
+        overallMaxPlayers: enrichment.overallMaxPlayers ?? existing.overallMaxPlayers,
+        onlineMaxPlayers: enrichment.onlineMaxPlayers ?? existing.onlineMaxPlayers,
+        localMaxPlayers: enrichment.localMaxPlayers ?? existing.localMaxPlayers,
+        physicalMaxPlayers: enrichment.physicalMaxPlayers ?? existing.physicalMaxPlayers,
+    };
+}

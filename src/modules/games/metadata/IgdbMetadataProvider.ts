@@ -234,8 +234,10 @@ export class IgdbMetadataProvider extends BaseMetadataProvider {
             return [];
         }
         
+        // Escape backslashes first, then double quotes for IGDB query syntax
+        const escapedQuery = query.replace(/\\/g, '\\\\').replace(/"/g, '\\"');
         const body = `
-            search "${query.replace(/"/g, '\\"')}";
+            search "${escapedQuery}";
             fields id, name, cover.image_id, first_release_date;
             limit ${Math.min(limit, 50)};
         `;
@@ -477,14 +479,31 @@ export class IgdbMetadataProvider extends BaseMetadataProvider {
             // Don't set a specific number since we don't know - leave undefined
         }
         
+        // Determine minimum players: games that support any mode start at 1 player
+        const overallMinPlayers = this.calculateMinPlayers(isSinglePlayer, overallMaxPlayers);
+        
         return {
-            overallMinPlayers: isSinglePlayer || (overallMaxPlayers !== undefined && overallMaxPlayers > 0) ? 1 : undefined,
+            overallMinPlayers,
             overallMaxPlayers,
             supportsOnline,
             supportsLocal,
             onlineMaxPlayers: supportsOnline ? onlineMaxPlayers : undefined,
             localMaxPlayers: supportsLocal ? localMaxPlayers : undefined,
         };
+    }
+    
+    /**
+     * Calculate minimum players based on game modes
+     * Games that support single-player or have any max players defined start at 1
+     */
+    private calculateMinPlayers(isSinglePlayer: boolean, overallMaxPlayers: number | undefined): number | undefined {
+        if (isSinglePlayer) {
+            return 1;
+        }
+        if (overallMaxPlayers !== undefined && overallMaxPlayers > 0) {
+            return 1;
+        }
+        return undefined;
     }
     
     /**
@@ -500,6 +519,6 @@ export class IgdbMetadataProvider extends BaseMetadataProvider {
             11: 'M', // Mature
             12: 'AO', // Adults Only
         };
-        return ratings[rating] || undefined as unknown as string;
+        return ratings[rating];
     }
 }
