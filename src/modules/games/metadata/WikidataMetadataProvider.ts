@@ -208,16 +208,43 @@ LIMIT 50`;
      * Search for a game by name and return best match with full metadata
      */
     async findByGameName(name: string): Promise<GameMetadata | null> {
-        const searchResults = await this.searchGames(name, 5);
+        const searchResults = await this.searchGames(name, 10);
         if (searchResults.length === 0) {
             return null;
         }
 
-        // Find best match
+        // Find best match with improved matching
         const normalizedQuery = name.toLowerCase().trim();
-        const bestMatch = searchResults.find(
+        
+        // Priority 1: Exact match (case-insensitive)
+        let bestMatch = searchResults.find(
             r => r.name.toLowerCase().trim() === normalizedQuery
-        ) || searchResults[0];
+        );
+        
+        // Priority 2: Query starts with the normalized query followed by non-alphanumeric
+        // This prevents "Carcassonne: The City" from matching when searching for "Carcassonne"
+        if (!bestMatch) {
+            bestMatch = searchResults.find(r => {
+                const rNorm = r.name.toLowerCase().trim();
+                // Check if the result starts with query and next char (if any) is not alphanumeric
+                if (!rNorm.startsWith(normalizedQuery)) return false;
+                if (rNorm.length === normalizedQuery.length) return true;
+                const nextChar = rNorm.charAt(normalizedQuery.length);
+                return !/[a-z0-9]/i.test(nextChar);
+            });
+        }
+        
+        // Priority 3: Name ends with the query (e.g. "The Game: Carcassonne" matches "Carcassonne")
+        if (!bestMatch) {
+            bestMatch = searchResults.find(
+                r => r.name.toLowerCase().trim().endsWith(normalizedQuery)
+            );
+        }
+        
+        // Priority 4: First result if nothing better
+        if (!bestMatch) {
+            bestMatch = searchResults[0];
+        }
 
         return this.getGameMetadata(bestMatch.externalId);
     }

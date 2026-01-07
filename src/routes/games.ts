@@ -97,6 +97,34 @@ router.post('/titles/:id/fetch-metadata', asyncHandler(async (req: Request, res:
     res.redirect(`/games/titles/${id}`);
 }));
 
+// Search metadata options for a game title - returns list for user to select
+router.get('/titles/:id/search-metadata', asyncHandler(async (req: Request, res: Response) => {
+    const id = req.params.id;
+    const userId = req.session.user!.id;
+    const searchQuery = req.query.q as string | undefined;
+    const data = await gamesController.searchMetadataOptions(id, userId, searchQuery);
+    renderer.renderWithData(res, 'games/select-metadata', {...data, searchQuery: searchQuery || data.title.name});
+}));
+
+// Apply selected metadata option to a game title
+router.post('/titles/:id/apply-metadata', asyncHandler(async (req: Request, res: Response) => {
+    const id = req.params.id;
+    const userId = req.session.user!.id;
+    const {providerId, externalId} = req.body;
+    if (!providerId || !externalId) {
+        req.flash('error', 'Please select a metadata option');
+        res.redirect(`/games/titles/${id}/search-metadata`);
+        return;
+    }
+    const result = await gamesController.applyMetadataOption(id, userId, providerId, externalId);
+    if (result.updated) {
+        req.flash('success', result.message);
+    } else {
+        req.flash('info', result.message);
+    }
+    res.redirect(`/games/titles/${id}`);
+}));
+
 // Bulk delete game titles
 router.post('/titles/bulk-delete', asyncHandler(async (req: Request, res: Response) => {
     const userId = req.session.user!.id;

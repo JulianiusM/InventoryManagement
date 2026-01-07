@@ -69,7 +69,13 @@ export class BoardGameGeekMetadataProvider extends BaseMetadataProvider {
         });
 
         try {
-            const response = await fetch(`${BGG_API_BASE}/search?${params.toString()}`);
+            // BGG requires a proper User-Agent header to prevent 401/403 errors
+            const response = await fetch(`${BGG_API_BASE}/search?${params.toString()}`, {
+                headers: {
+                    'User-Agent': 'InventoryManagement/1.0 (Board Game Library Tracker)',
+                    'Accept': 'application/xml',
+                },
+            });
 
             if (!response.ok) {
                 return [];
@@ -118,7 +124,13 @@ export class BoardGameGeekMetadataProvider extends BaseMetadataProvider {
         });
 
         try {
-            const response = await fetch(`${BGG_API_BASE}/thing?${params.toString()}`);
+            // BGG requires a proper User-Agent header to prevent 401/403 errors
+            const response = await fetch(`${BGG_API_BASE}/thing?${params.toString()}`, {
+                headers: {
+                    'User-Agent': 'InventoryManagement/1.0 (Board Game Library Tracker)',
+                    'Accept': 'application/xml',
+                },
+            });
 
             if (!response.ok) {
                 return null;

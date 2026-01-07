@@ -19,7 +19,7 @@ import * as gameSyncService from '../modules/games/GameSyncService';
 import * as platformService from '../modules/database/services/PlatformService';
 import {connectorRegistry, initializeConnectors} from '../modules/games/connectors/ConnectorRegistry';
 import {metadataProviderRegistry} from '../modules/games/metadata/MetadataProviderRegistry';
-import {mergePlayerCounts, type GameMetadata} from '../modules/games/metadata/MetadataProviderInterface';
+import {mergePlayerCounts, type GameMetadata, type MetadataSearchResult} from '../modules/games/metadata/MetadataProviderInterface';
 import {validatePlayerProfile, PlayerProfileValidationError} from '../modules/database/services/GameValidationService';
 import {ExpectedError} from '../modules/lib/errors';
 import {checkOwnership, requireAuthenticatedUser} from '../middleware/authMiddleware';
@@ -378,6 +378,213 @@ export async function fetchMetadataForTitle(
         }
         
         // Handle local mode - only set player counts if supportsLocal is true
+        if (foundMetadata.playerInfo.supportsLocal !== undefined) {
+            updates.supportsLocal = foundMetadata.playerInfo.supportsLocal;
+            if (!foundMetadata.playerInfo.supportsLocal) {
+                updates.localMinPlayers = null;
+                updates.localMaxPlayers = null;
+            }
+        }
+        const willSupportLocal = updates.supportsLocal ?? title.supportsLocal;
+        if (willSupportLocal) {
+            if (foundMetadata.playerInfo.localMaxPlayers !== undefined && foundMetadata.playerInfo.localMaxPlayers !== null) {
+                updates.localMaxPlayers = foundMetadata.playerInfo.localMaxPlayers;
+            }
+        }
+        
+        // Handle physical mode
+        if (foundMetadata.playerInfo.supportsPhysical !== undefined) {
+            updates.supportsPhysical = foundMetadata.playerInfo.supportsPhysical;
+            if (!foundMetadata.playerInfo.supportsPhysical) {
+                updates.physicalMinPlayers = null;
+                updates.physicalMaxPlayers = null;
+            }
+        }
+        const willSupportPhysical = updates.supportsPhysical ?? title.supportsPhysical;
+        if (willSupportPhysical) {
+            if (foundMetadata.playerInfo.physicalMaxPlayers !== undefined && foundMetadata.playerInfo.physicalMaxPlayers !== null) {
+                updates.physicalMaxPlayers = foundMetadata.playerInfo.physicalMaxPlayers;
+            }
+        }
+    }
+    
+    if (Object.keys(updates).length > 0) {
+        await gameTitleService.updateGameTitle(titleId, updates);
+        return {
+            updated: true, 
+            message: `Updated from ${primaryProviderName}: ${Object.keys(updates).join(', ')}`
+        };
+    }
+    
+    return {updated: false, message: `No new data from ${primaryProviderName}`};
+}
+
+/**
+ * Search for metadata options for a game title
+ * Returns a list of potential matches so the user can select the correct one
+ */
+export async function searchMetadataOptions(
+    titleId: string,
+    userId: number,
+    searchQuery?: string
+): Promise<{title: GameTitle; options: MetadataSearchResult[]}> {
+    requireAuthenticatedUser(userId);
+    
+    const title = await gameTitleService.getGameTitleById(titleId);
+    if (!title) {
+        throw new ExpectedError('Game title not found', 'error', 404);
+    }
+    checkOwnership(title, userId);
+    
+    // Get providers based on game type
+    const providers = metadataProviderRegistry.getByGameType(title.type);
+    if (providers.length === 0) {
+        return {title, options: []};
+    }
+    
+    // Search query defaults to game name
+    const query = searchQuery?.trim() || title.name;
+    
+    // Collect all search results from all providers
+    const allResults: MetadataSearchResult[] = [];
+    
+    for (const provider of providers) {
+        try {
+            const results = await provider.searchGames(query, 10);
+            allResults.push(...results);
+        } catch (error) {
+            console.warn(`Metadata search from ${provider.getManifest().id} failed:`, error);
+        }
+    }
+    
+    // Deduplicate by name (keep first occurrence of each unique name)
+    const seenNames = new Set<string>();
+    const uniqueResults = allResults.filter(r => {
+        const key = r.name.toLowerCase().trim();
+        if (seenNames.has(key)) return false;
+        seenNames.add(key);
+        return true;
+    });
+    
+    // Sort by relevance: exact match first, then prefix match, then others
+    const normalizedQuery = query.toLowerCase().trim();
+    uniqueResults.sort((a, b) => {
+        const aName = a.name.toLowerCase().trim();
+        const bName = b.name.toLowerCase().trim();
+        
+        // Exact match priority
+        const aExact = aName === normalizedQuery ? 0 : 1;
+        const bExact = bName === normalizedQuery ? 0 : 1;
+        if (aExact !== bExact) return aExact - bExact;
+        
+        // Prefix match priority
+        const aPrefix = aName.startsWith(normalizedQuery) ? 0 : 1;
+        const bPrefix = bName.startsWith(normalizedQuery) ? 0 : 1;
+        if (aPrefix !== bPrefix) return aPrefix - bPrefix;
+        
+        // Shorter names preferred
+        return aName.length - bName.length;
+    });
+    
+    return {title, options: uniqueResults.slice(0, 15)};
+}
+
+/**
+ * Apply metadata from a selected provider result to a game title
+ */
+export async function applyMetadataOption(
+    titleId: string,
+    userId: number,
+    providerId: string,
+    externalId: string
+): Promise<{updated: boolean; message: string}> {
+    requireAuthenticatedUser(userId);
+    
+    const title = await gameTitleService.getGameTitleById(titleId);
+    if (!title) {
+        throw new ExpectedError('Game title not found', 'error', 404);
+    }
+    checkOwnership(title, userId);
+    
+    // Get the specific provider
+    const provider = metadataProviderRegistry.getById(providerId);
+    if (!provider) {
+        return {updated: false, message: `Provider '${providerId}' not found`};
+    }
+    
+    // Fetch full metadata
+    let foundMetadata: GameMetadata | null = null;
+    let primaryProviderName = provider.getManifest().name;
+    
+    try {
+        foundMetadata = await provider.getGameMetadata(externalId);
+    } catch (error) {
+        console.warn(`Metadata fetch from ${providerId} failed:`, error);
+        return {updated: false, message: `Failed to fetch metadata from ${primaryProviderName}`};
+    }
+    
+    if (!foundMetadata) {
+        return {updated: false, message: `No metadata found for ID ${externalId}`};
+    }
+    
+    // Enrich with IGDB if needed
+    const hasMultiplayer = foundMetadata.playerInfo?.supportsOnline || foundMetadata.playerInfo?.supportsLocal;
+    const hasSpecificCounts = foundMetadata.playerInfo?.onlineMaxPlayers !== undefined || 
+                              foundMetadata.playerInfo?.localMaxPlayers !== undefined;
+    
+    if (hasMultiplayer && !hasSpecificCounts) {
+        const igdbProvider = metadataProviderRegistry.getById('igdb');
+        if (igdbProvider) {
+            try {
+                const igdbResults = await igdbProvider.searchGames(foundMetadata.name, 1);
+                if (igdbResults.length > 0) {
+                    const igdbMeta = await igdbProvider.getGameMetadata(igdbResults[0].externalId);
+                    if (igdbMeta?.playerInfo) {
+                        foundMetadata.playerInfo = mergePlayerCounts(foundMetadata.playerInfo, igdbMeta.playerInfo);
+                        primaryProviderName += ' + IGDB';
+                    }
+                }
+            } catch (error) {
+                console.warn('IGDB enrichment failed:', error);
+            }
+        }
+    }
+    
+    // Apply metadata updates to title
+    const updates: Partial<GameTitle> = {};
+    
+    if (foundMetadata.description) {
+        updates.description = foundMetadata.shortDescription || foundMetadata.description;
+    }
+    
+    if (foundMetadata.coverImageUrl) {
+        updates.coverImageUrl = foundMetadata.coverImageUrl;
+    }
+    
+    if (foundMetadata.playerInfo) {
+        if (foundMetadata.playerInfo.overallMinPlayers) {
+            updates.overallMinPlayers = foundMetadata.playerInfo.overallMinPlayers;
+        }
+        if (foundMetadata.playerInfo.overallMaxPlayers) {
+            updates.overallMaxPlayers = foundMetadata.playerInfo.overallMaxPlayers;
+        }
+        
+        // Handle online mode
+        if (foundMetadata.playerInfo.supportsOnline !== undefined) {
+            updates.supportsOnline = foundMetadata.playerInfo.supportsOnline;
+            if (!foundMetadata.playerInfo.supportsOnline) {
+                updates.onlineMinPlayers = null;
+                updates.onlineMaxPlayers = null;
+            }
+        }
+        const willSupportOnline = updates.supportsOnline ?? title.supportsOnline;
+        if (willSupportOnline) {
+            if (foundMetadata.playerInfo.onlineMaxPlayers !== undefined && foundMetadata.playerInfo.onlineMaxPlayers !== null) {
+                updates.onlineMaxPlayers = foundMetadata.playerInfo.onlineMaxPlayers;
+            }
+        }
+        
+        // Handle local mode
         if (foundMetadata.playerInfo.supportsLocal !== undefined) {
             updates.supportsLocal = foundMetadata.playerInfo.supportsLocal;
             if (!foundMetadata.playerInfo.supportsLocal) {
