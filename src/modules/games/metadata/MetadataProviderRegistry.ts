@@ -7,8 +7,8 @@ import {MetadataProvider, MetadataProviderManifest} from './MetadataProviderInte
 import {SteamMetadataProvider} from './SteamMetadataProvider';
 import {RawgMetadataProvider} from './RawgMetadataProvider';
 import {BoardGameGeekMetadataProvider} from './BoardGameGeekMetadataProvider';
-import {BoardGameAtlasMetadataProvider} from './BoardGameAtlasMetadataProvider';
-import {TabletopiaMetadataProvider} from './TabletopiaMetadataProvider';
+import {BggPlusMetadataProvider} from './BggPlusMetadataProvider';
+import {WikidataMetadataProvider} from './WikidataMetadataProvider';
 import {IgdbMetadataProvider} from './IgdbMetadataProvider';
 
 class MetadataProviderRegistry {
@@ -57,13 +57,13 @@ class MetadataProviderRegistry {
     getByGameType(gameType: string): MetadataProvider[] {
         const type = gameType.toLowerCase();
         if (type === 'board_game' || type === 'card_game' || type === 'tabletop_rpg') {
-            // Board games use Board Game Atlas (primary, has reliable player counts) and Tabletopia (enhanced BGG with retries)
-            const bga = this.getById('boardgameatlas');
-            const tabletopia = this.getById('tabletopia');
+            // Board games use BGG Plus (primary, enhanced retry logic) and Wikidata (secondary, structured data)
+            const bggplus = this.getById('bggplus');
+            const wikidata = this.getById('wikidata');
             const bgg = this.getById('boardgamegeek');
             const providers: MetadataProvider[] = [];
-            if (bga) providers.push(bga);
-            if (tabletopia) providers.push(tabletopia);
+            if (bggplus) providers.push(bggplus);
+            if (wikidata) providers.push(wikidata);
             if (bgg) providers.push(bgg); // Fallback
             return providers;
         }
@@ -81,17 +81,17 @@ class MetadataProviderRegistry {
     
     /**
      * Get providers that have accurate player count data
-     * IGDB for video games, Board Game Atlas/Tabletopia for board games
+     * IGDB for video games, BGG Plus/Wikidata for board games
      */
     getPlayerCountProviders(gameType?: string): MetadataProvider[] {
         const type = (gameType || '').toLowerCase();
         if (type === 'board_game' || type === 'card_game' || type === 'tabletop_rpg') {
-            // For board games, Board Game Atlas and Tabletopia both provide reliable player counts
-            const bga = this.getById('boardgameatlas');
-            const tabletopia = this.getById('tabletopia');
+            // For board games, BGG Plus and Wikidata both provide reliable player counts
+            const bggplus = this.getById('bggplus');
+            const wikidata = this.getById('wikidata');
             const providers: MetadataProvider[] = [];
-            if (bga) providers.push(bga);
-            if (tabletopia) providers.push(tabletopia);
+            if (bggplus) providers.push(bggplus);
+            if (wikidata) providers.push(wikidata);
             return providers;
         }
         // For video games, use IGDB
@@ -114,13 +114,13 @@ export function initializeMetadataProviders(): void {
     // Register RAWG metadata provider (secondary for video games, requires API key)
     metadataProviderRegistry.register(new RawgMetadataProvider());
     
-    // Register Board Game Atlas metadata provider (primary for board games, requires API key)
-    // Provides reliable player count data
-    metadataProviderRegistry.register(new BoardGameAtlasMetadataProvider());
+    // Register BGG Plus metadata provider (primary for board games, enhanced retry logic)
+    // Provides reliable player count data without requiring API key
+    metadataProviderRegistry.register(new BggPlusMetadataProvider());
     
-    // Register Tabletopia metadata provider (enhanced BGG with better error handling)
-    // Provides reliable player count data for board games without requiring API key
-    metadataProviderRegistry.register(new TabletopiaMetadataProvider());
+    // Register Wikidata metadata provider (secondary for board games, structured data)
+    // Provides player counts, designers, and publishers without requiring API key
+    metadataProviderRegistry.register(new WikidataMetadataProvider());
     
     // Register BoardGameGeek metadata provider (legacy fallback for board/card games)
     metadataProviderRegistry.register(new BoardGameGeekMetadataProvider());

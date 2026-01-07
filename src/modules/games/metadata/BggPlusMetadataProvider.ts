@@ -1,14 +1,14 @@
 /**
- * Tabletopia/TheDiceOwl Metadata Provider
- * Uses BGG XML API with enhanced error handling and retry logic
+ * BGG Plus Metadata Provider
+ * Enhanced BoardGameGeek provider with improved retry logic
  * 
- * This provider wraps BoardGameGeek with:
- * - Retry logic for 202 status (BGG processing) and rate limits
- * - Conservative rate limiting (2 seconds between requests)
- * - Better XML parsing for player counts
+ * Uses the BGG XML API2 with:
+ * - Retry logic for 202 status (BGG processing)
+ * - Better error handling
+ * - Reliable player count data
  * 
- * Acts as a reliable fallback provider when Board Game Atlas is not configured
- * or doesn't have the game. Provides reliable player count information.
+ * No API key required - uses public BGG API
+ * Rate limiting: BGG asks for no more than 1 request/second
  */
 
 import {
@@ -19,39 +19,35 @@ import {
 } from './MetadataProviderInterface';
 import {stripHtml, truncateText} from '../../lib/htmlUtils';
 
-// BGG API endpoints for reliable board game data
 const BGG_API_BASE = 'https://boardgamegeek.com/xmlapi2';
 
-// Rate limiting - conservative to avoid bans
-const RATE_LIMIT_MS = 2000; // 2 seconds between requests
+// Rate limiting - BGG asks for ~1 request/second
+const RATE_LIMIT_MS = 1200;
 let lastRequestTime = 0;
 
-// Retry configuration
-const MAX_RETRIES = 3;
-const RETRY_DELAY_MS = 2000;
+// Retry configuration for BGG 202 status
+const MAX_RETRIES = 4;
+const RETRY_DELAY_MS = 2500;
 
 // Short description max length (2-4 lines)
 const MAX_SHORT_DESCRIPTION_LENGTH = 250;
 
-// Maximum payload size to store in rawPayload
-const MAX_RAW_PAYLOAD_LENGTH = 5000;
-
-const TABLETOPIA_METADATA_MANIFEST: MetadataProviderManifest = {
-    id: 'tabletopia',
-    name: 'Tabletopia Board Games',
-    description: 'Reliable board game metadata with accurate player counts. Uses BGG with enhanced error handling.',
+const BGG_HOT_METADATA_MANIFEST: MetadataProviderManifest = {
+    id: 'bggplus',
+    name: 'BGG Plus',
+    description: 'Enhanced BoardGameGeek provider with reliable player counts and improved retry logic.',
     version: '1.0.0',
     requiresApiKey: false,
     gameUrlPattern: 'https://boardgamegeek.com/boardgame/{id}',
 };
 
-export class TabletopiaMetadataProvider extends BaseMetadataProvider {
+export class BggPlusMetadataProvider extends BaseMetadataProvider {
     constructor() {
-        super(TABLETOPIA_METADATA_MANIFEST);
+        super(BGG_HOT_METADATA_MANIFEST);
     }
 
     /**
-     * Rate limiting helper with more conservative timing
+     * Rate limiting helper
      */
     private async rateLimit(): Promise<void> {
         const now = Date.now();
@@ -63,7 +59,7 @@ export class TabletopiaMetadataProvider extends BaseMetadataProvider {
     }
 
     /**
-     * Fetch with retry logic
+     * Fetch with retry logic for BGG's 202 processing status
      */
     private async fetchWithRetry(url: string, retries = MAX_RETRIES): Promise<Response | null> {
         for (let attempt = 0; attempt < retries; attempt++) {
@@ -73,6 +69,7 @@ export class TabletopiaMetadataProvider extends BaseMetadataProvider {
                 
                 // BGG returns 202 when processing - need to wait and retry
                 if (response.status === 202) {
+                    console.log(`BGG returned 202 (processing), attempt ${attempt + 1}/${retries}`);
                     await new Promise(resolve => setTimeout(resolve, RETRY_DELAY_MS));
                     continue;
                 }
@@ -83,18 +80,46 @@ export class TabletopiaMetadataProvider extends BaseMetadataProvider {
                 
                 // Rate limited - wait longer
                 if (response.status === 429) {
+                    console.log('BGG rate limit hit, waiting...');
                     await new Promise(resolve => setTimeout(resolve, RETRY_DELAY_MS * 2));
                     continue;
                 }
                 
+                // Other error - don't retry
+                console.warn(`BGG API error: ${response.status}`);
+                return null;
+                
             } catch (error) {
-                console.warn(`Tabletopia fetch attempt ${attempt + 1} failed:`, error);
+                console.warn(`BGG fetch attempt ${attempt + 1} failed:`, error);
                 if (attempt < retries - 1) {
                     await new Promise(resolve => setTimeout(resolve, RETRY_DELAY_MS));
                 }
             }
         }
+        console.warn('BGG fetch exhausted all retries');
         return null;
+    }
+
+    /**
+     * Decode XML entities safely
+     */
+    private decodeXmlEntities(text: string): string {
+        // First decode numeric entities
+        let result = text
+            .replace(/&#(\d+);/g, (_match, dec) => String.fromCharCode(parseInt(dec, 10)))
+            .replace(/&#x([0-9a-fA-F]+);/g, (_match, hex) => String.fromCharCode(parseInt(hex, 16)));
+        
+        // Then decode named entities except &amp;
+        result = result
+            .replace(/&lt;/g, '<')
+            .replace(/&gt;/g, '>')
+            .replace(/&quot;/g, '"')
+            .replace(/&apos;/g, "'");
+        
+        // Decode &amp; last
+        result = result.replace(/&amp;/g, '&');
+        
+        return result;
     }
 
     /**
@@ -119,13 +144,12 @@ export class TabletopiaMetadataProvider extends BaseMetadataProvider {
             }
 
             const xml = await response.text();
-
-            // Parse search results from XML using regex
-            // Note: A full XML parser would be heavier - this is sufficient for BGG's predictable format
+            
+            // Parse search results from XML
             const results: MetadataSearchResult[] = [];
             
-            // Match items - the [\s\S]*? pattern allows matching across newlines
-            const itemMatches = xml.matchAll(/<item[^>]*type="[^"]*"[^>]*id="(\d+)"[^>]*>[\s\S]*?<\/item>/gi);
+            // Match items with more flexible regex
+            const itemMatches = xml.matchAll(/<item[^>]*id="(\d+)"[^>]*>[\s\S]*?<\/item>/gi);
             
             for (const itemMatch of itemMatches) {
                 if (results.length >= limit) break;
@@ -134,7 +158,8 @@ export class TabletopiaMetadataProvider extends BaseMetadataProvider {
                 const id = itemMatch[1];
                 
                 // Get primary name
-                const nameMatch = itemXml.match(/<name[^>]*type="primary"[^>]*value="([^"]*)"/);
+                const nameMatch = itemXml.match(/<name[^>]*type="primary"[^>]*value="([^"]*)"/) ||
+                                  itemXml.match(/<name[^>]*value="([^"]*)"/);
                 if (!nameMatch) continue;
                 
                 const name = this.decodeXmlEntities(nameMatch[1]);
@@ -147,19 +172,18 @@ export class TabletopiaMetadataProvider extends BaseMetadataProvider {
                     externalId: id,
                     name,
                     releaseDate: year,
-                    coverImageUrl: undefined, // BGG doesn't return images in search
-                    provider: 'tabletopia',
+                    coverImageUrl: undefined,
+                    provider: 'bggplus',
                 });
             }
 
-            // Sort by relevance - exact matches first
+            // Sort by relevance
             const normalizedQuery = query.toLowerCase().trim();
             results.sort((a, b) => {
                 const aExact = a.name.toLowerCase() === normalizedQuery ? 0 : 1;
                 const bExact = b.name.toLowerCase() === normalizedQuery ? 0 : 1;
                 if (aExact !== bExact) return aExact - bExact;
                 
-                // Then by name starting with query
                 const aStarts = a.name.toLowerCase().startsWith(normalizedQuery) ? 0 : 1;
                 const bStarts = b.name.toLowerCase().startsWith(normalizedQuery) ? 0 : 1;
                 return aStarts - bStarts;
@@ -167,7 +191,7 @@ export class TabletopiaMetadataProvider extends BaseMetadataProvider {
 
             return results;
         } catch (error) {
-            console.warn('Tabletopia search error:', error);
+            console.warn('BGG Plus search error:', error);
             return [];
         }
     }
@@ -201,7 +225,7 @@ export class TabletopiaMetadataProvider extends BaseMetadataProvider {
 
             return this.parseGameXml(xml, externalId);
         } catch (error) {
-            console.warn('Tabletopia get metadata error:', error);
+            console.warn('BGG Plus get metadata error:', error);
             return null;
         }
     }
@@ -215,14 +239,13 @@ export class TabletopiaMetadataProvider extends BaseMetadataProvider {
             return null;
         }
 
-        // Find best match - exact match first, then by similarity
+        // Find best match
         const normalizedQuery = name.toLowerCase().trim();
         let bestMatch = searchResults.find(
             r => r.name.toLowerCase().trim() === normalizedQuery
         );
         
         if (!bestMatch) {
-            // Find match that starts with the query
             bestMatch = searchResults.find(
                 r => r.name.toLowerCase().startsWith(normalizedQuery)
             );
@@ -243,34 +266,10 @@ export class TabletopiaMetadataProvider extends BaseMetadataProvider {
     }
 
     /**
-     * Decode XML entities
-     * Order is important: decode numeric entities first, then named entities,
-     * with &amp; last to avoid double-unescaping
-     */
-    private decodeXmlEntities(text: string): string {
-        // First decode numeric entities (they can't create new entity sequences)
-        let result = text
-            .replace(/&#(\d+);/g, (_match, dec) => String.fromCharCode(parseInt(dec, 10)))
-            .replace(/&#x([0-9a-fA-F]+);/g, (_match, hex) => String.fromCharCode(parseInt(hex, 16)));
-        
-        // Then decode named entities except &amp; (in order that doesn't create new sequences)
-        result = result
-            .replace(/&lt;/g, '<')
-            .replace(/&gt;/g, '>')
-            .replace(/&quot;/g, '"')
-            .replace(/&apos;/g, "'");
-        
-        // Decode &amp; last to avoid creating new entity sequences from double-encoded input
-        result = result.replace(/&amp;/g, '&');
-        
-        return result;
-    }
-
-    /**
-     * Parse BGG XML response to GameMetadata - improved parsing
+     * Parse BGG XML response to GameMetadata
      */
     private parseGameXml(xml: string, externalId: string): GameMetadata {
-        // Extract primary name - more robust regex
+        // Extract primary name with multiple pattern support
         let name = `BoardGame ${externalId}`;
         const namePatterns = [
             /<name[^>]*type="primary"[^>]*value="([^"]*)"/,
@@ -284,7 +283,7 @@ export class TabletopiaMetadataProvider extends BaseMetadataProvider {
             }
         }
 
-        // Extract description (it's CDATA encoded)
+        // Extract description (CDATA encoded)
         let rawDescription = '';
         const descPatterns = [
             /<description><!\[CDATA\[([\s\S]*?)\]\]><\/description>/,
@@ -303,7 +302,7 @@ export class TabletopiaMetadataProvider extends BaseMetadataProvider {
         const yearMatch = xml.match(/<yearpublished[^>]*value="([^"]*)"/);
         const releaseDate = yearMatch ? yearMatch[1] : undefined;
 
-        // Extract player count - THIS IS THE KEY DATA WE NEED
+        // Extract player count - THE KEY DATA
         const minPlayersMatch = xml.match(/<minplayers[^>]*value="(\d+)"/);
         const maxPlayersMatch = xml.match(/<maxplayers[^>]*value="(\d+)"/);
         const minPlayers = minPlayersMatch ? parseInt(minPlayersMatch[1], 10) : 1;
@@ -327,7 +326,7 @@ export class TabletopiaMetadataProvider extends BaseMetadataProvider {
         const publisherMatches = xml.matchAll(/<link[^>]*type="boardgamepublisher"[^>]*value="([^"]*)"/gi);
         const publishers = Array.from(publisherMatches).map(m => this.decodeXmlEntities(m[1]));
 
-        // Extract BGG rating - look for average rating
+        // Extract BGG rating
         const ratingMatch = xml.match(/<average[^>]*value="([^"]*)"/);
         const rating = ratingMatch ? Math.round(parseFloat(ratingMatch[1]) * 10) : undefined;
 
@@ -353,7 +352,7 @@ export class TabletopiaMetadataProvider extends BaseMetadataProvider {
                 physicalMaxPlayers: maxPlayers,
                 localMaxPlayers: maxPlayers,
             },
-            rawPayload: {xml: xml.substring(0, MAX_RAW_PAYLOAD_LENGTH)}, // Truncate for storage
+            rawPayload: {xml: xml.substring(0, 5000)},
         };
     }
 }
