@@ -342,12 +342,48 @@ export class SteamMetadataProvider extends BaseMetadataProvider {
         const isMultiplayer = categoryIds.has(1) || categoryIds.has(9) || categoryIds.has(20) || categoryIds.has(49);
         const hasOnline = categoryIds.has(36) || categoryIds.has(38) || categoryIds.has(27);
         const hasLocal = categoryIds.has(24) || categoryIds.has(37) || categoryIds.has(39);
+        const isMMO = categoryIds.has(20);
+        const isCoop = categoryIds.has(9) || categoryIds.has(38) || categoryIds.has(39);
+        
+        // Determine sensible defaults for max players based on game type
+        // Steam doesn't provide exact player counts, so we use reasonable estimates:
+        // - MMO: Very high player count (64+)
+        // - Standard multiplayer PvP: Usually 8-16 players
+        // - Co-op: Usually 2-4 players
+        // - Split screen/local: Usually 2-4 players
+        let overallMaxPlayers: number | undefined;
+        let onlineMaxPlayers: number | undefined;
+        let localMaxPlayers: number | undefined;
+        
+        if (!isMultiplayer) {
+            overallMaxPlayers = 1;
+        } else if (isMMO) {
+            overallMaxPlayers = 64; // Common MMO server size
+            onlineMaxPlayers = 64;
+        } else if (isCoop) {
+            // Co-op games typically support 2-4 players
+            overallMaxPlayers = 4;
+            if (hasOnline) onlineMaxPlayers = 4;
+            if (hasLocal) localMaxPlayers = 4;
+        } else {
+            // Competitive multiplayer - estimate based on mode
+            if (hasOnline) {
+                // Online-only typically supports more players
+                overallMaxPlayers = 8;
+                onlineMaxPlayers = 8;
+            } else {
+                overallMaxPlayers = 4;
+            }
+            if (hasLocal) localMaxPlayers = 4;
+        }
         
         return {
             overallMinPlayers: 1,
-            overallMaxPlayers: isMultiplayer ? undefined : 1,
+            overallMaxPlayers,
             supportsOnline: hasOnline,
             supportsLocal: hasLocal,
+            onlineMaxPlayers: hasOnline ? onlineMaxPlayers : undefined,
+            localMaxPlayers: hasLocal ? localMaxPlayers : undefined,
         };
     }
 

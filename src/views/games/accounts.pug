@@ -104,13 +104,23 @@ block content
                                 else
                                     i.bi.bi-exclamation-circle.me-1
                                     | Never synced
+                            
+                            //- Sync status container (updated via JavaScript)
+                            if hasConnector
+                                .sync-status-container.mt-2(data-account-id=account.id)
+                                    .sync-status.text-white-50.small
+                                        //- Status will be populated by JavaScript
+
                         .card-footer.bg-transparent.border-secondary
                             if hasConnector
                                 .d-flex.gap-2
                                     form.flex-grow-1(method="post" action=`/games/accounts/${account.id}/sync`)
-                                        button.btn.btn-sm.btn-outline-primary.w-100(type="submit")
-                                            i.bi.bi-arrow-repeat.me-1
+                                        button.btn.btn-sm.btn-outline-primary.w-100.sync-btn(type="submit" data-account-id=account.id)
+                                            i.bi.bi-arrow-repeat.me-1.sync-icon
                                             | Sync Library
+                                    button.btn.btn-sm.btn-outline-secondary(type="button" onclick=`checkSyncStatus('${account.id}')`)
+                                        i.bi.bi-arrow-clockwise.me-1
+                                        | Check Status
                             else
                                 .text-center.text-white-50.small
                                     i.bi.bi-hand-index.me-1
@@ -254,4 +264,116 @@ block scripts
                     }
                 });
             }
+            
+            // Check sync status on page load for all accounts
+            const statusContainers = document.querySelectorAll('.sync-status-container');
+            statusContainers.forEach(container => {
+                const accountId = container.dataset.accountId;
+                if (accountId) {
+                    checkSyncStatus(accountId);
+                }
+            });
         });
+        
+        // Track accounts being polled
+        const pollingIntervals = {};
+        
+        // Check sync status for an account
+        async function checkSyncStatus(accountId) {
+            try {
+                const response = await fetch(`/games/accounts/${accountId}/status`);
+                if (!response.ok) return;
+                
+                const status = await response.json();
+                updateSyncStatusUI(accountId, status);
+                
+                // If sync is in progress, start polling
+                if (status.latestJob && status.latestJob.status === 'in_progress') {
+                    startPolling(accountId);
+                } else {
+                    stopPolling(accountId);
+                }
+            } catch (err) {
+                console.error('Failed to check sync status:', err);
+            }
+        }
+        
+        // Update the UI with sync status
+        function updateSyncStatusUI(accountId, status) {
+            const container = document.querySelector(`.sync-status-container[data-account-id="${accountId}"]`);
+            if (!container) return;
+            
+            const statusDiv = container.querySelector('.sync-status');
+            const syncBtn = document.querySelector(`.sync-btn[data-account-id="${accountId}"]`);
+            const syncIcon = syncBtn?.querySelector('.sync-icon');
+            
+            if (!status.latestJob) {
+                statusDiv.innerHTML = '';
+                return;
+            }
+            
+            const job = status.latestJob;
+            let html = '';
+            let spinIcon = false;
+            
+            switch (job.status) {
+                case 'pending':
+                    html = '<i class="bi bi-hourglass-start me-1"></i>Sync pending...';
+                    spinIcon = true;
+                    break;
+                case 'in_progress':
+                    html = '<i class="bi bi-arrow-repeat me-1 sync-spin"></i>Sync in progress...';
+                    if (job.entriesProcessed !== null) {
+                        html += ` (${job.entriesProcessed} games processed)`;
+                    }
+                    spinIcon = true;
+                    break;
+                case 'completed':
+                    html = `<i class="bi bi-check-circle me-1 text-success"></i>`;
+                    html += `Completed: ${job.entriesProcessed || 0} games`;
+                    break;
+                case 'failed':
+                    html = `<i class="bi bi-x-circle me-1 text-danger"></i>`;
+                    html += `Failed: ${job.errorMessage || 'Unknown error'}`;
+                    break;
+            }
+            
+            statusDiv.innerHTML = html;
+            
+            // Add/remove spinning animation on sync button
+            if (syncIcon) {
+                if (spinIcon) {
+                    syncIcon.classList.add('sync-spin');
+                    if (syncBtn) syncBtn.disabled = true;
+                } else {
+                    syncIcon.classList.remove('sync-spin');
+                    if (syncBtn) syncBtn.disabled = false;
+                }
+            }
+        }
+        
+        // Start polling for sync status
+        function startPolling(accountId) {
+            if (pollingIntervals[accountId]) return; // Already polling
+            
+            pollingIntervals[accountId] = setInterval(() => {
+                checkSyncStatus(accountId);
+            }, 3000); // Poll every 3 seconds
+        }
+        
+        // Stop polling for sync status
+        function stopPolling(accountId) {
+            if (pollingIntervals[accountId]) {
+                clearInterval(pollingIntervals[accountId]);
+                delete pollingIntervals[accountId];
+            }
+        }
+    
+    style.
+        .sync-spin {
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }

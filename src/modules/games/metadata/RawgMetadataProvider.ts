@@ -321,11 +321,41 @@ export class RawgMetadataProvider extends BaseMetadataProvider {
                         tagSlugs.has('local-multiplayer') ||
                         tagSlugs.has('split-screen');
         
+        const isMMO = tagSlugs.has('mmo') || tagSlugs.has('massively-multiplayer');
+        const isCoop = tagSlugs.has('co-op') || tagSlugs.has('online-co-op') || tagSlugs.has('local-co-op');
+        
+        // Determine sensible defaults for max players based on game type
+        // RAWG doesn't provide exact player counts, so we use reasonable estimates
+        let overallMaxPlayers: number | undefined;
+        let onlineMaxPlayers: number | undefined;
+        let localMaxPlayers: number | undefined;
+        
+        if (!hasMultiplayer) {
+            overallMaxPlayers = 1;
+        } else if (isMMO) {
+            overallMaxPlayers = 64;
+            onlineMaxPlayers = 64;
+        } else if (isCoop) {
+            overallMaxPlayers = 4;
+            if (hasOnline) onlineMaxPlayers = 4;
+            if (hasLocal) localMaxPlayers = 4;
+        } else {
+            if (hasOnline) {
+                overallMaxPlayers = 8;
+                onlineMaxPlayers = 8;
+            } else {
+                overallMaxPlayers = 4;
+            }
+            if (hasLocal) localMaxPlayers = 4;
+        }
+        
         return {
             overallMinPlayers: 1,
-            overallMaxPlayers: hasMultiplayer ? undefined : 1,
+            overallMaxPlayers,
             supportsOnline: hasOnline,
             supportsLocal: hasLocal,
+            onlineMaxPlayers: hasOnline ? onlineMaxPlayers : undefined,
+            localMaxPlayers: hasLocal ? localMaxPlayers : undefined,
         };
     }
 }

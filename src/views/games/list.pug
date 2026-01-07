@@ -76,12 +76,15 @@ block content
         //- Bulk delete form wrapper
         form#bulkDeleteForm(method="post" action="/games/titles/bulk-delete")
             //- Bulk actions bar (hidden until selections made)
-            #bulkActionsBar.alert.alert-secondary.d-none.mb-3
+            #bulkActionsBar.alert.text-bg-dark.border-secondary.d-none.mb-3
                 .d-flex.justify-content-between.align-items-center
-                    span
+                    span.text-white
                         span#selectedCount 0
                         |  game(s) selected
                     .d-flex.gap-2
+                        button.btn.btn-sm.btn-outline-light(type="button" onclick="toggleAllCheckboxes(true)")
+                            i.bi.bi-check2-square.me-1
+                            | Select All
                         button.btn.btn-sm.btn-outline-light(type="button" onclick="toggleAllCheckboxes(false)")
                             i.bi.bi-x-square.me-1
                             | Clear

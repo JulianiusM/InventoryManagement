@@ -271,6 +271,14 @@ router.post('/accounts/:id/sync', asyncHandler(async (req: Request, res: Respons
     res.redirect('/games/accounts');
 }));
 
+// Get sync status (AJAX endpoint for polling)
+router.get('/accounts/:id/status', asyncHandler(async (req: Request, res: Response) => {
+    const id = req.params.id;
+    const userId = req.session.user!.id;
+    const status = await gamesController.getSyncStatus(id, userId);
+    res.json(status);
+}));
+
 // ============ Mapping Queue ============
 
 // List pending mappings

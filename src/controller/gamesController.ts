@@ -310,23 +310,52 @@ export async function fetchMetadataForTitle(
                 if (metadata.playerInfo.overallMaxPlayers) {
                     updates.overallMaxPlayers = metadata.playerInfo.overallMaxPlayers;
                 }
+                
+                // Handle online mode - only set player counts if supportsOnline is true
                 if (metadata.playerInfo.supportsOnline !== undefined) {
                     updates.supportsOnline = metadata.playerInfo.supportsOnline;
+                    // When setting supportsOnline to false, clear the player counts
+                    if (!metadata.playerInfo.supportsOnline) {
+                        updates.onlineMinPlayers = null;
+                        updates.onlineMaxPlayers = null;
+                    }
                 }
+                // Only set online player counts if supportsOnline is or will be true
+                const willSupportOnline = updates.supportsOnline ?? title.supportsOnline;
+                if (willSupportOnline) {
+                    if (metadata.playerInfo.onlineMaxPlayers) {
+                        updates.onlineMaxPlayers = metadata.playerInfo.onlineMaxPlayers;
+                    }
+                }
+                
+                // Handle local mode - only set player counts if supportsLocal is true
                 if (metadata.playerInfo.supportsLocal !== undefined) {
                     updates.supportsLocal = metadata.playerInfo.supportsLocal;
+                    if (!metadata.playerInfo.supportsLocal) {
+                        updates.localMinPlayers = null;
+                        updates.localMaxPlayers = null;
+                    }
                 }
+                const willSupportLocal = updates.supportsLocal ?? title.supportsLocal;
+                if (willSupportLocal) {
+                    if (metadata.playerInfo.localMaxPlayers) {
+                        updates.localMaxPlayers = metadata.playerInfo.localMaxPlayers;
+                    }
+                }
+                
+                // Handle physical mode
                 if (metadata.playerInfo.supportsPhysical !== undefined) {
                     updates.supportsPhysical = metadata.playerInfo.supportsPhysical;
+                    if (!metadata.playerInfo.supportsPhysical) {
+                        updates.physicalMinPlayers = null;
+                        updates.physicalMaxPlayers = null;
+                    }
                 }
-                if (metadata.playerInfo.onlineMaxPlayers) {
-                    updates.onlineMaxPlayers = metadata.playerInfo.onlineMaxPlayers;
-                }
-                if (metadata.playerInfo.localMaxPlayers) {
-                    updates.localMaxPlayers = metadata.playerInfo.localMaxPlayers;
-                }
-                if (metadata.playerInfo.physicalMaxPlayers) {
-                    updates.physicalMaxPlayers = metadata.playerInfo.physicalMaxPlayers;
+                const willSupportPhysical = updates.supportsPhysical ?? title.supportsPhysical;
+                if (willSupportPhysical) {
+                    if (metadata.playerInfo.physicalMaxPlayers) {
+                        updates.physicalMaxPlayers = metadata.playerInfo.physicalMaxPlayers;
+                    }
                 }
             }
             
