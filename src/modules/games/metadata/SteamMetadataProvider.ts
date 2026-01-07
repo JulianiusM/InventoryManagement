@@ -15,13 +15,23 @@ import {
     GameMetadata,
     MetadataSearchResult,
 } from './MetadataProviderInterface';
-import {stripHtml} from '../../lib/htmlUtils';
+import {stripHtml, truncateText} from '../../lib/htmlUtils';
 
 const STEAM_STORE_API_BASE = 'https://store.steampowered.com/api';
 const STEAM_SEARCH_URL = 'https://store.steampowered.com/search/suggest';
 
 // Environment variable for Steam Web API key (optional)
 const STEAM_API_KEY_ENV = 'STEAM_WEB_API_KEY';
+
+// Rate limiting configuration - Steam API is strict about rate limits
+// Using conservative values to avoid being banned for large datasets
+const BATCH_SIZE = 3; // Smaller batch size to reduce concurrent requests
+const DELAY_BETWEEN_BATCHES_MS = 1000; // 1 second between batches (was 200ms)
+const DELAY_BETWEEN_INDIVIDUAL_MS = 350; // 350ms between individual requests
+const MAX_GAMES_TO_FETCH = 100; // Limit metadata fetches to avoid long sync times
+
+// Short description max length (2-4 lines)
+const MAX_SHORT_DESCRIPTION_LENGTH = 250;
 
 /**
  * Steam app details response structure
@@ -212,29 +222,37 @@ export class SteamMetadataProvider extends BaseMetadataProvider {
 
     /**
      * Get metadata for multiple games
-     * Steam API only allows single appid per request, so we batch
+     * Steam API only allows single appid per request, so we batch with rate limiting
+     * 
+     * Note: For large datasets, we limit the number of games fetched to avoid
+     * being rate-limited/banned by Steam (they block IPs after ~150 requests)
      */
     async getGamesMetadata(externalIds: string[], apiKey?: string): Promise<GameMetadata[]> {
         const results: GameMetadata[] = [];
         
-        // Steam rate limits: fetch in batches with delays
-        const batchSize = 5;
-        for (let i = 0; i < externalIds.length; i += batchSize) {
-            const batch = externalIds.slice(i, i + batchSize);
+        // Limit to avoid being banned by Steam for large libraries
+        const idsToFetch = externalIds.slice(0, MAX_GAMES_TO_FETCH);
+        if (externalIds.length > MAX_GAMES_TO_FETCH) {
+            console.log(`Steam metadata: limiting fetch to ${MAX_GAMES_TO_FETCH} of ${externalIds.length} games to avoid rate limits`);
+        }
+        
+        // Steam rate limits: fetch in small batches with longer delays
+        for (let i = 0; i < idsToFetch.length; i += BATCH_SIZE) {
+            const batch = idsToFetch.slice(i, i + BATCH_SIZE);
             
-            const batchResults = await Promise.all(
-                batch.map(id => this.getGameMetadata(id, apiKey))
-            );
-            
-            for (const result of batchResults) {
+            // Fetch batch one by one with small delays to be extra safe
+            for (const id of batch) {
+                const result = await this.getGameMetadata(id, apiKey);
                 if (result) {
                     results.push(result);
                 }
+                // Small delay between individual requests
+                await new Promise(resolve => setTimeout(resolve, DELAY_BETWEEN_INDIVIDUAL_MS));
             }
             
-            // Small delay between batches to avoid rate limiting
-            if (i + batchSize < externalIds.length) {
-                await new Promise(resolve => setTimeout(resolve, 200));
+            // Longer delay between batches to avoid rate limiting
+            if (i + BATCH_SIZE < idsToFetch.length) {
+                await new Promise(resolve => setTimeout(resolve, DELAY_BETWEEN_BATCHES_MS));
             }
         }
         
@@ -261,14 +279,16 @@ export class SteamMetadataProvider extends BaseMetadataProvider {
         if (data.platforms?.mac) platforms.push('macOS');
         if (data.platforms?.linux) platforms.push('Linux');
         
-        // Strip HTML from descriptions
-        const description = stripHtml(data.about_the_game || data.detailed_description || '');
-        const shortDescription = stripHtml(data.short_description || '');
+        // Strip HTML from descriptions and truncate for display
+        const fullDescription = stripHtml(data.about_the_game || data.detailed_description || '');
+        const steamShortDesc = stripHtml(data.short_description || '');
+        // Use Steam's short description if available, otherwise truncate the full description
+        const shortDescription = steamShortDesc || truncateText(fullDescription, MAX_SHORT_DESCRIPTION_LENGTH);
         
         return {
             externalId: String(data.steam_appid),
             name: data.name,
-            description: description || undefined,
+            description: fullDescription || undefined,
             shortDescription: shortDescription || undefined,
             coverImageUrl: data.capsule_imagev5 || data.capsule_image,
             headerImageUrl: data.header_image,

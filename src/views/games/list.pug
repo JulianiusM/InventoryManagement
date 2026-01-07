@@ -30,6 +30,10 @@ block content
             a.btn.btn-outline-light(href="/games/mappings")
                 i.bi.bi-link-45deg.me-1
                 | Mappings
+            form.d-inline(method="post" action="/games/resync-metadata" style="display:inline")
+                button.btn.btn-outline-info(type="submit" onclick="return confirm('This will resync metadata for all games in the background. Continue?')")
+                    i.bi.bi-cloud-download.me-1
+                    | Resync All Metadata
             button.btn.btn-primary(type="button" data-bs-toggle="modal" data-bs-target="#addGameModal")
                 i.bi.bi-plus-lg.me-1
                 | Add Game
@@ -69,46 +73,65 @@ block content
                     a.text-white(href="/games/accounts") link an external account
                     |  to sync your library.
     else
-        .row.g-3
-            each title in titles
-                .col-md-6.col-lg-4
-                    .card.text-bg-dark.border-secondary.h-100
-                        .card-body
-                            .d-flex.justify-content-between.align-items-start.mb-2
-                                div
-                                    a.text-white.text-decoration-none.h5(href=`/games/titles/${title.id}`)
-                                        i.bi.bi-controller.me-2
-                                        | #{title.name}
-                                span.badge.text-bg-info #{typeLabels[title.type] || title.type}
-                            
-                            .d-flex.flex-wrap.gap-1.mb-2
-                                span.badge.text-bg-secondary
-                                    i.bi.bi-people.me-1
-                                    | #{title.overallMinPlayers}-#{title.overallMaxPlayers} players
-                                if title.supportsOnline
-                                    span.badge.text-bg-primary
-                                        i.bi.bi-globe.me-1
-                                        | Online
-                                if title.supportsLocal
-                                    span.badge.text-bg-success
-                                        i.bi.bi-display.me-1
-                                        | Local
-                                if title.supportsPhysical
-                                    span.badge.text-bg-warning.text-dark
-                                        i.bi.bi-dice-5.me-1
-                                        | Physical
-                            
-                            if title.description
-                                p.small.text-white-50.mb-2.text-truncate #{title.description}
-                            
-                            if title.releases && title.releases.length > 0
-                                .small.text-white-50
-                                    i.bi.bi-box.me-1
-                                    | #{title.releases.length} release(s)
-                        .card-footer.bg-transparent.border-secondary
-                            a.btn.btn-sm.btn-outline-light(href=`/games/titles/${title.id}`)
-                                i.bi.bi-eye.me-1
-                                | View Details
+        //- Bulk delete form wrapper
+        form#bulkDeleteForm(method="post" action="/games/titles/bulk-delete")
+            //- Bulk actions bar (hidden until selections made)
+            #bulkActionsBar.alert.alert-secondary.d-none.mb-3
+                .d-flex.justify-content-between.align-items-center
+                    span
+                        span#selectedCount 0
+                        |  game(s) selected
+                    .d-flex.gap-2
+                        button.btn.btn-sm.btn-outline-light(type="button" onclick="toggleAllCheckboxes(false)")
+                            i.bi.bi-x-square.me-1
+                            | Clear
+                        button.btn.btn-sm.btn-danger(type="submit" onclick="return confirm('Delete selected games? This cannot be undone.')")
+                            i.bi.bi-trash.me-1
+                            | Delete Selected
+            
+            .row.g-3
+                each title in titles
+                    .col-md-6.col-lg-4
+                        .card.text-bg-dark.border-secondary.h-100
+                            .card-body
+                                .d-flex.justify-content-between.align-items-start.mb-2
+                                    .d-flex.align-items-start
+                                        .form-check.me-2
+                                            input.form-check-input.bulk-select(type="checkbox" name="ids" value=title.id onchange="updateBulkSelection()")
+                                        div
+                                            a.text-white.text-decoration-none.h5(href=`/games/titles/${title.id}`)
+                                                i.bi.bi-controller.me-2
+                                                | #{title.name}
+                                    span.badge.text-bg-info #{typeLabels[title.type] || title.type}
+                                
+                                .d-flex.flex-wrap.gap-1.mb-2
+                                    span.badge.text-bg-secondary
+                                        i.bi.bi-people.me-1
+                                        | #{title.overallMinPlayers}-#{title.overallMaxPlayers} players
+                                    if title.supportsOnline
+                                        span.badge.text-bg-primary
+                                            i.bi.bi-globe.me-1
+                                            | Online
+                                    if title.supportsLocal
+                                        span.badge.text-bg-success
+                                            i.bi.bi-display.me-1
+                                            | Local
+                                    if title.supportsPhysical
+                                        span.badge.text-bg-warning.text-dark
+                                            i.bi.bi-dice-5.me-1
+                                            | Physical
+                                
+                                if title.description
+                                    p.small.text-white-50.mb-2.text-truncate #{title.description}
+                                
+                                if title.releases && title.releases.length > 0
+                                    .small.text-white-50
+                                        i.bi.bi-box.me-1
+                                        | #{title.releases.length} release(s)
+                            .card-footer.bg-transparent.border-secondary
+                                a.btn.btn-sm.btn-outline-light(href=`/games/titles/${title.id}`)
+                                    i.bi.bi-eye.me-1
+                                    | View Details
         
         //- Pagination
         - const pagination = (data && data.pagination) ? data.pagination : {page: 1, totalPages: 1, hasNext: false, hasPrev: false, totalCount: 0}
@@ -245,3 +268,27 @@ block content
                     button.btn.btn-primary(type="submit" form="addGameForm")
                         i.bi.bi-plus-lg.me-1
                         | Create Game
+
+block scripts
+    script.
+        // Bulk selection functionality
+        function updateBulkSelection() {
+            const checkboxes = document.querySelectorAll('.bulk-select:checked');
+            const count = checkboxes.length;
+            const bar = document.getElementById('bulkActionsBar');
+            const countSpan = document.getElementById('selectedCount');
+            
+            if (count > 0) {
+                bar.classList.remove('d-none');
+                countSpan.textContent = count;
+            } else {
+                bar.classList.add('d-none');
+            }
+        }
+        
+        function toggleAllCheckboxes(checked) {
+            document.querySelectorAll('.bulk-select').forEach(cb => {
+                cb.checked = checked;
+            });
+            updateBulkSelection();
+        }

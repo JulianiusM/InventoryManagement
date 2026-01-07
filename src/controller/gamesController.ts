@@ -18,6 +18,7 @@ import * as partyService from '../modules/database/services/PartyService';
 import * as gameSyncService from '../modules/games/GameSyncService';
 import * as platformService from '../modules/database/services/PlatformService';
 import {connectorRegistry, initializeConnectors} from '../modules/games/connectors/ConnectorRegistry';
+import {metadataProviderRegistry} from '../modules/games/metadata/MetadataProviderRegistry';
 import {validatePlayerProfile, PlayerProfileValidationError} from '../modules/database/services/GameValidationService';
 import {ExpectedError} from '../modules/lib/errors';
 import {checkOwnership, requireAuthenticatedUser} from '../middleware/authMiddleware';
@@ -228,6 +229,156 @@ export async function deleteGameTitle(id: string, userId: number): Promise<void>
     }
     checkOwnership(title, userId);
     await gameTitleService.deleteGameTitle(id);
+}
+
+/**
+ * Bulk delete game titles
+ * @param ids Array of game title IDs to delete
+ * @param userId Owner user ID
+ * @returns Number of titles deleted
+ */
+export async function bulkDeleteGameTitles(ids: string[], userId: number): Promise<number> {
+    requireAuthenticatedUser(userId);
+    
+    if (!ids || ids.length === 0) {
+        throw new ExpectedError('No game titles selected', 'error', 400);
+    }
+    
+    let deleted = 0;
+    for (const id of ids) {
+        const title = await gameTitleService.getGameTitleById(id);
+        if (title && title.ownerId === userId) {
+            await gameTitleService.deleteGameTitle(id);
+            deleted++;
+        }
+    }
+    
+    return deleted;
+}
+
+/**
+ * Fetch metadata for a single game title
+ * Uses appropriate metadata provider based on game type
+ */
+export async function fetchMetadataForTitle(
+    titleId: string,
+    userId: number,
+    searchQuery?: string
+): Promise<{updated: boolean; message: string}> {
+    requireAuthenticatedUser(userId);
+    
+    const title = await gameTitleService.getGameTitleById(titleId);
+    if (!title) {
+        throw new ExpectedError('Game title not found', 'error', 404);
+    }
+    checkOwnership(title, userId);
+    
+    // Get providers based on game type
+    const providers = metadataProviderRegistry.getByGameType(title.type);
+    if (providers.length === 0) {
+        return {updated: false, message: 'No metadata providers available for this game type'};
+    }
+    
+    // Search query defaults to game name
+    const query = searchQuery?.trim() || title.name;
+    
+    for (const provider of providers) {
+        try {
+            // Search for the game
+            const searchResults = await provider.searchGames(query, 5);
+            if (searchResults.length === 0) continue;
+            
+            // Get full metadata for best match
+            const metadata = await provider.getGameMetadata(searchResults[0].externalId);
+            if (!metadata) continue;
+            
+            // Update title with metadata
+            const updates: Partial<GameTitle> = {};
+            
+            if (metadata.description && !title.description) {
+                updates.description = metadata.shortDescription || metadata.description;
+            }
+            
+            if (metadata.coverImageUrl && !title.coverImageUrl) {
+                updates.coverImageUrl = metadata.coverImageUrl;
+            }
+            
+            if (metadata.playerInfo) {
+                if (metadata.playerInfo.overallMinPlayers) {
+                    updates.overallMinPlayers = metadata.playerInfo.overallMinPlayers;
+                }
+                if (metadata.playerInfo.overallMaxPlayers) {
+                    updates.overallMaxPlayers = metadata.playerInfo.overallMaxPlayers;
+                }
+                if (metadata.playerInfo.supportsOnline !== undefined) {
+                    updates.supportsOnline = metadata.playerInfo.supportsOnline;
+                }
+                if (metadata.playerInfo.supportsLocal !== undefined) {
+                    updates.supportsLocal = metadata.playerInfo.supportsLocal;
+                }
+                if (metadata.playerInfo.supportsPhysical !== undefined) {
+                    updates.supportsPhysical = metadata.playerInfo.supportsPhysical;
+                }
+                if (metadata.playerInfo.onlineMaxPlayers) {
+                    updates.onlineMaxPlayers = metadata.playerInfo.onlineMaxPlayers;
+                }
+                if (metadata.playerInfo.localMaxPlayers) {
+                    updates.localMaxPlayers = metadata.playerInfo.localMaxPlayers;
+                }
+                if (metadata.playerInfo.physicalMaxPlayers) {
+                    updates.physicalMaxPlayers = metadata.playerInfo.physicalMaxPlayers;
+                }
+            }
+            
+            if (Object.keys(updates).length > 0) {
+                await gameTitleService.updateGameTitle(titleId, updates);
+                return {
+                    updated: true, 
+                    message: `Updated from ${provider.getManifest().name}: ${Object.keys(updates).join(', ')}`
+                };
+            }
+            
+            return {updated: false, message: `No new data from ${provider.getManifest().name}`};
+        } catch (error) {
+            console.warn(`Metadata fetch from ${provider.getManifest().id} failed:`, error);
+            // Continue to next provider
+        }
+    }
+    
+    return {updated: false, message: 'No metadata found from any provider'};
+}
+
+/**
+ * Resync metadata for all game titles (runs in background)
+ * Updates games with missing descriptions, cover images, or player info
+ */
+export async function resyncAllMetadataAsync(userId: number): Promise<void> {
+    requireAuthenticatedUser(userId);
+    
+    const titles = await gameTitleService.getAllGameTitles(userId);
+    
+    console.log(`Starting metadata resync for ${titles.length} games for user ${userId}`);
+    
+    let updated = 0;
+    let failed = 0;
+    
+    for (const title of titles) {
+        try {
+            const result = await fetchMetadataForTitle(title.id, userId);
+            if (result.updated) {
+                updated++;
+                console.log(`Updated metadata for: ${title.name}`);
+            }
+        } catch (error) {
+            failed++;
+            console.warn(`Failed to fetch metadata for ${title.name}:`, error);
+        }
+        
+        // Rate limit: wait 500ms between games to avoid API bans
+        await new Promise(resolve => setTimeout(resolve, 500));
+    }
+    
+    console.log(`Metadata resync complete: ${updated} updated, ${failed} failed out of ${titles.length} games`);
 }
 
 // ============ Game Releases ============

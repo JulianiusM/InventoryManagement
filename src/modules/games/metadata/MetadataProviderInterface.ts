@@ -70,8 +70,10 @@ export interface GameMetadata {
         overallMaxPlayers?: number;
         supportsOnline?: boolean;
         supportsLocal?: boolean;
+        supportsPhysical?: boolean;
         onlineMaxPlayers?: number;
         localMaxPlayers?: number;
+        physicalMaxPlayers?: number;
     };
     
     /** Price information */

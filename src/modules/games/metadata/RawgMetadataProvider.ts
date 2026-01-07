@@ -16,15 +16,15 @@ import {
     GameMetadata,
     MetadataSearchResult,
 } from './MetadataProviderInterface';
-import {stripHtml} from '../../lib/htmlUtils';
+import {stripHtml, truncateText} from '../../lib/htmlUtils';
 
 const RAWG_API_BASE = 'https://api.rawg.io/api';
 
 // Environment variable for RAWG API key
 const RAWG_API_KEY_ENV = 'RAWG_API_KEY';
 
-// Maximum length for short description
-const MAX_SHORT_DESCRIPTION_LENGTH = 300;
+// Maximum length for short description (2-4 lines)
+const MAX_SHORT_DESCRIPTION_LENGTH = 250;
 
 /**
  * RAWG game response structure
@@ -281,7 +281,7 @@ export class RawgMetadataProvider extends BaseMetadataProvider {
             externalId: String(data.id),
             name: data.name,
             description,
-            shortDescription: description ? description.slice(0, MAX_SHORT_DESCRIPTION_LENGTH) : undefined,
+            shortDescription: description ? truncateText(description, MAX_SHORT_DESCRIPTION_LENGTH) : undefined,
             coverImageUrl: data.background_image,
             headerImageUrl: data.background_image_additional || data.background_image,
             screenshots: data.short_screenshots?.map(s => s.image),

@@ -83,6 +83,43 @@ router.post('/titles/:id/delete', asyncHandler(async (req: Request, res: Respons
     res.redirect('/games');
 }));
 
+// Fetch metadata for a single game title
+router.post('/titles/:id/fetch-metadata', asyncHandler(async (req: Request, res: Response) => {
+    const id = req.params.id;
+    const userId = req.session.user!.id;
+    const searchQuery = req.body.searchQuery;
+    const result = await gamesController.fetchMetadataForTitle(id, userId, searchQuery);
+    if (result.updated) {
+        req.flash('success', result.message);
+    } else {
+        req.flash('info', result.message);
+    }
+    res.redirect(`/games/titles/${id}`);
+}));
+
+// Bulk delete game titles
+router.post('/titles/bulk-delete', asyncHandler(async (req: Request, res: Response) => {
+    const userId = req.session.user!.id;
+    const ids = req.body.ids;
+    // Handle both array and single value
+    const idsArray = Array.isArray(ids) ? ids : (ids ? [ids] : []);
+    const deleted = await gamesController.bulkDeleteGameTitles(idsArray, userId);
+    req.flash('success', `Deleted ${deleted} game(s)`);
+    res.redirect('/games');
+}));
+
+// Resync metadata for all games (async - runs in background)
+router.post('/resync-metadata', asyncHandler(async (req: Request, res: Response) => {
+    const userId = req.session.user!.id;
+    
+    // Start resync in background - don't wait for completion
+    gamesController.resyncAllMetadataAsync(userId)
+        .catch(err => console.error(`Background metadata resync error for user ${userId}:`, err));
+    
+    req.flash('success', 'Metadata resync started in background. Refresh to see updates.');
+    res.redirect('/games');
+}));
+
 // ============ Game Releases ============
 
 // Create release for title
