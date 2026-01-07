@@ -323,7 +323,7 @@ export async function fetchMetadataForTitle(
                 // Only set online player counts if supportsOnline is or will be true
                 const willSupportOnline = updates.supportsOnline ?? title.supportsOnline;
                 if (willSupportOnline) {
-                    if (metadata.playerInfo.onlineMaxPlayers) {
+                    if (metadata.playerInfo.onlineMaxPlayers !== undefined && metadata.playerInfo.onlineMaxPlayers !== null) {
                         updates.onlineMaxPlayers = metadata.playerInfo.onlineMaxPlayers;
                     }
                 }
@@ -338,7 +338,7 @@ export async function fetchMetadataForTitle(
                 }
                 const willSupportLocal = updates.supportsLocal ?? title.supportsLocal;
                 if (willSupportLocal) {
-                    if (metadata.playerInfo.localMaxPlayers) {
+                    if (metadata.playerInfo.localMaxPlayers !== undefined && metadata.playerInfo.localMaxPlayers !== null) {
                         updates.localMaxPlayers = metadata.playerInfo.localMaxPlayers;
                     }
                 }
@@ -353,7 +353,7 @@ export async function fetchMetadataForTitle(
                 }
                 const willSupportPhysical = updates.supportsPhysical ?? title.supportsPhysical;
                 if (willSupportPhysical) {
-                    if (metadata.playerInfo.physicalMaxPlayers) {
+                    if (metadata.playerInfo.physicalMaxPlayers !== undefined && metadata.playerInfo.physicalMaxPlayers !== null) {
                         updates.physicalMaxPlayers = metadata.playerInfo.physicalMaxPlayers;
                     }
                 }

@@ -118,7 +118,7 @@ block content
                                         button.btn.btn-sm.btn-outline-primary.w-100.sync-btn(type="submit" data-account-id=account.id)
                                             i.bi.bi-arrow-repeat.me-1.sync-icon
                                             | Sync Library
-                                    button.btn.btn-sm.btn-outline-secondary(type="button" onclick=`checkSyncStatus('${account.id}')`)
+                                    button.btn.btn-sm.btn-outline-secondary.check-status-btn(type="button" data-account-id=account.id)
                                         i.bi.bi-arrow-clockwise.me-1
                                         | Check Status
                             else
@@ -273,15 +273,37 @@ block scripts
                     checkSyncStatus(accountId);
                 }
             });
+            
+            // Add event listeners for check status buttons
+            document.querySelectorAll('.check-status-btn').forEach(btn => {
+                btn.addEventListener('click', function() {
+                    const accountId = this.dataset.accountId;
+                    if (accountId && isValidUUID(accountId)) {
+                        checkSyncStatus(accountId);
+                    }
+                });
+            });
         });
+        
+        // Validate that a string is a valid UUID format
+        function isValidUUID(str) {
+            const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+            return uuidRegex.test(str);
+        }
         
         // Track accounts being polled
         const pollingIntervals = {};
         
         // Check sync status for an account
         async function checkSyncStatus(accountId) {
+            // Validate accountId format to prevent path traversal
+            if (!accountId || !isValidUUID(accountId)) {
+                console.error('Invalid account ID format');
+                return;
+            }
+            
             try {
-                const response = await fetch(`/games/accounts/${accountId}/status`);
+                const response = await fetch(`/games/accounts/${encodeURIComponent(accountId)}/status`);
                 if (!response.ok) return;
                 
                 const status = await response.json();
