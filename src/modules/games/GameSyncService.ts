@@ -330,8 +330,16 @@ async function processGamesWithAutoCreate(
 
 /**
  * Fetch metadata for all games using available providers
- * Tries primary provider first (matching provider), then falls back to secondary providers
- * Uses game appIds to lookup metadata
+ * 
+ * Strategy:
+ * 1. Fetch from primary provider (e.g., Steam for Steam games)
+ * 2. For games missing player count data, enrich from IGDB (which has accurate counts)
+ * 3. For games without any metadata, fall back to other providers
+ * 
+ * This ensures we get the best data from each provider:
+ * - Steam: Basic info, description, images, multiplayer flags
+ * - IGDB: Accurate player counts (onlineMax, localMax, etc.)
+ * - RAWG: Fallback for games not in other providers
  */
 async function fetchMetadataForGames(
     games: ExternalGame[],
@@ -342,6 +350,9 @@ async function fetchMetadataForGames(
     
     // Get primary provider (matching the game source, e.g., Steam for Steam games)
     const primaryProvider = metadataProviderRegistry.getById(provider);
+    
+    // Get IGDB for accurate player counts
+    const igdbProvider = metadataProviderRegistry.getById('igdb');
     
     // Get all providers for fallback
     const allProviders = metadataProviderRegistry.getAll();
@@ -362,7 +373,58 @@ async function fetchMetadataForGames(
         }
     }
     
-    // Step 2: For games without metadata, try secondary providers
+    // Step 2: Enrich multiplayer games with player counts from IGDB
+    // IGDB has accurate player count data that Steam/RAWG don't provide
+    if (igdbProvider) {
+        const gamesNeedingPlayerCounts: ExternalGame[] = [];
+        
+        for (const game of games) {
+            const cachedMeta = metadataCache.get(game.externalGameId);
+            if (cachedMeta?.playerInfo) {
+                // If game has multiplayer but no specific player counts, enrich from IGDB
+                const hasMultiplayer = cachedMeta.playerInfo.supportsOnline || cachedMeta.playerInfo.supportsLocal;
+                const hasPlayerCounts = cachedMeta.playerInfo.onlineMaxPlayers !== undefined || 
+                                       cachedMeta.playerInfo.localMaxPlayers !== undefined;
+                
+                if (hasMultiplayer && !hasPlayerCounts) {
+                    gamesNeedingPlayerCounts.push(game);
+                }
+            }
+        }
+        
+        if (gamesNeedingPlayerCounts.length > 0) {
+            console.log(`Enriching ${gamesNeedingPlayerCounts.length} multiplayer games with player counts from IGDB`);
+            
+            for (const game of gamesNeedingPlayerCounts) {
+                try {
+                    // Search IGDB by game name
+                    const searchResults = await igdbProvider.searchGames(game.name, 1);
+                    if (searchResults.length > 0) {
+                        const igdbMeta = await igdbProvider.getGameMetadata(searchResults[0].externalId);
+                        if (igdbMeta?.playerInfo) {
+                            // Merge IGDB player counts into existing metadata
+                            const existingMeta = metadataCache.get(game.externalGameId)!;
+                            const enrichedPlayerInfo = {
+                                ...existingMeta.playerInfo,
+                                // Only override if IGDB has actual data (not undefined)
+                                onlineMaxPlayers: igdbMeta.playerInfo.onlineMaxPlayers ?? existingMeta.playerInfo?.onlineMaxPlayers,
+                                localMaxPlayers: igdbMeta.playerInfo.localMaxPlayers ?? existingMeta.playerInfo?.localMaxPlayers,
+                                overallMaxPlayers: igdbMeta.playerInfo.overallMaxPlayers ?? existingMeta.playerInfo?.overallMaxPlayers,
+                            };
+                            metadataCache.set(game.externalGameId, {
+                                ...existingMeta,
+                                playerInfo: enrichedPlayerInfo,
+                            });
+                        }
+                    }
+                } catch {
+                    // Individual enrichment failed, continue with existing data
+                }
+            }
+        }
+    }
+    
+    // Step 3: For games without metadata, try secondary providers
     const missingIds = externalIds.filter(id => !metadataCache.has(id));
     
     if (missingIds.length > 0) {

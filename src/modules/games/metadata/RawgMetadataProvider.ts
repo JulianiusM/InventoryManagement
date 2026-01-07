@@ -299,6 +299,15 @@ export class RawgMetadataProvider extends BaseMetadataProvider {
     
     /**
      * Extract player info from RAWG tags
+     * 
+     * NOTE: RAWG does NOT provide exact player counts in its API.
+     * This method only extracts what RAWG actually provides:
+     * - Whether the game supports multiplayer/online/local based on tags
+     * - Whether it's single-player only
+     * 
+     * Actual player counts should be fetched from IGDB or other providers
+     * that have this data. This provider only indicates capabilities,
+     * not specific player numbers.
      */
     private extractPlayerInfo(tags: Array<{id: number; name: string; slug: string}>): GameMetadata['playerInfo'] {
         const tagSlugs = new Set(tags.map(t => t.slug.toLowerCase()));
@@ -321,41 +330,25 @@ export class RawgMetadataProvider extends BaseMetadataProvider {
                         tagSlugs.has('local-multiplayer') ||
                         tagSlugs.has('split-screen');
         
-        const isMMO = tagSlugs.has('mmo') || tagSlugs.has('massively-multiplayer');
-        const isCoop = tagSlugs.has('co-op') || tagSlugs.has('online-co-op') || tagSlugs.has('local-co-op');
-        
-        // Determine sensible defaults for max players based on game type
-        // RAWG doesn't provide exact player counts, so we use reasonable estimates
+        // Only set overallMaxPlayers=1 for single-player-only games
+        // For multiplayer games, we leave counts undefined so IGDB or other
+        // providers can fill in the actual numbers
         let overallMaxPlayers: number | undefined;
-        let onlineMaxPlayers: number | undefined;
-        let localMaxPlayers: number | undefined;
         
         if (!hasMultiplayer) {
             overallMaxPlayers = 1;
-        } else if (isMMO) {
-            overallMaxPlayers = 64;
-            onlineMaxPlayers = 64;
-        } else if (isCoop) {
-            overallMaxPlayers = 4;
-            if (hasOnline) onlineMaxPlayers = 4;
-            if (hasLocal) localMaxPlayers = 4;
-        } else {
-            if (hasOnline) {
-                overallMaxPlayers = 8;
-                onlineMaxPlayers = 8;
-            } else {
-                overallMaxPlayers = 4;
-            }
-            if (hasLocal) localMaxPlayers = 4;
         }
+        // For multiplayer games, don't set fake defaults - let enrichment handle it
         
         return {
             overallMinPlayers: 1,
             overallMaxPlayers,
             supportsOnline: hasOnline,
             supportsLocal: hasLocal,
-            onlineMaxPlayers: hasOnline ? onlineMaxPlayers : undefined,
-            localMaxPlayers: hasLocal ? localMaxPlayers : undefined,
+            // Don't set specific player counts - RAWG doesn't provide this data
+            // IGDB should be used for accurate counts
+            onlineMaxPlayers: undefined,
+            localMaxPlayers: undefined,
         };
     }
 }

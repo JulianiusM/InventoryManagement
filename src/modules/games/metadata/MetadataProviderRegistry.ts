@@ -7,6 +7,7 @@ import {MetadataProvider, MetadataProviderManifest} from './MetadataProviderInte
 import {SteamMetadataProvider} from './SteamMetadataProvider';
 import {RawgMetadataProvider} from './RawgMetadataProvider';
 import {BoardGameGeekMetadataProvider} from './BoardGameGeekMetadataProvider';
+import {IgdbMetadataProvider} from './IgdbMetadataProvider';
 
 class MetadataProviderRegistry {
     private providers: Map<string, MetadataProvider> = new Map();
@@ -58,13 +59,25 @@ class MetadataProviderRegistry {
             const bgg = this.getById('boardgamegeek');
             return bgg ? [bgg] : [];
         }
-        // Video games use Steam and RAWG
+        // Video games use Steam, IGDB (for player counts), and RAWG
+        // IGDB is prioritized for accurate player count data
         const steam = this.getById('steam');
+        const igdb = this.getById('igdb');
         const rawg = this.getById('rawg');
         const providers: MetadataProvider[] = [];
         if (steam) providers.push(steam);
+        if (igdb) providers.push(igdb);
         if (rawg) providers.push(rawg);
         return providers;
+    }
+    
+    /**
+     * Get providers that have accurate player count data
+     * IGDB is the primary source for this information
+     */
+    getPlayerCountProviders(): MetadataProvider[] {
+        const igdb = this.getById('igdb');
+        return igdb ? [igdb] : [];
     }
 }
 
@@ -75,6 +88,9 @@ export const metadataProviderRegistry = new MetadataProviderRegistry();
 export function initializeMetadataProviders(): void {
     // Register Steam metadata provider (primary for video games, no API key required)
     metadataProviderRegistry.register(new SteamMetadataProvider());
+    
+    // Register IGDB metadata provider (accurate player counts, requires Twitch OAuth)
+    metadataProviderRegistry.register(new IgdbMetadataProvider());
     
     // Register RAWG metadata provider (secondary for video games, requires API key)
     metadataProviderRegistry.register(new RawgMetadataProvider());

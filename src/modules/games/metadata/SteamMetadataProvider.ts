@@ -319,6 +319,15 @@ export class SteamMetadataProvider extends BaseMetadataProvider {
 
     /**
      * Extract player info from Steam categories
+     * 
+     * NOTE: Steam does NOT provide exact player counts in its API.
+     * This method only extracts what Steam actually provides:
+     * - Whether the game supports multiplayer/online/local
+     * - Whether it's single-player only
+     * 
+     * Actual player counts should be fetched from IGDB or other providers
+     * that have this data. This provider only indicates capabilities,
+     * not specific player numbers.
      */
     private extractPlayerInfo(categories: Array<{id: number; description: string}>): GameMetadata['playerInfo'] {
         const categoryIds = new Set(categories.map(c => c.id));
@@ -340,50 +349,29 @@ export class SteamMetadataProvider extends BaseMetadataProvider {
         
         const isSinglePlayer = categoryIds.has(2);
         const isMultiplayer = categoryIds.has(1) || categoryIds.has(9) || categoryIds.has(20) || categoryIds.has(49);
-        const hasOnline = categoryIds.has(36) || categoryIds.has(38) || categoryIds.has(27);
+        const hasOnline = categoryIds.has(36) || categoryIds.has(38) || categoryIds.has(27) || categoryIds.has(20);
         const hasLocal = categoryIds.has(24) || categoryIds.has(37) || categoryIds.has(39);
-        const isMMO = categoryIds.has(20);
-        const isCoop = categoryIds.has(9) || categoryIds.has(38) || categoryIds.has(39);
         
-        // Determine sensible defaults for max players based on game type
-        // Steam doesn't provide exact player counts, so we use reasonable estimates:
-        // - MMO: Very high player count (64+)
-        // - Standard multiplayer PvP: Usually 8-16 players
-        // - Co-op: Usually 2-4 players
-        // - Split screen/local: Usually 2-4 players
+        // Steam doesn't provide exact player counts - only capabilities
+        // We only set overallMaxPlayers=1 for single-player-only games
+        // For multiplayer games, we leave counts undefined so IGDB or other
+        // providers can fill in the actual numbers
         let overallMaxPlayers: number | undefined;
-        let onlineMaxPlayers: number | undefined;
-        let localMaxPlayers: number | undefined;
         
-        if (!isMultiplayer) {
+        if (!isMultiplayer && isSinglePlayer) {
             overallMaxPlayers = 1;
-        } else if (isMMO) {
-            overallMaxPlayers = 64; // Common MMO server size
-            onlineMaxPlayers = 64;
-        } else if (isCoop) {
-            // Co-op games typically support 2-4 players
-            overallMaxPlayers = 4;
-            if (hasOnline) onlineMaxPlayers = 4;
-            if (hasLocal) localMaxPlayers = 4;
-        } else {
-            // Competitive multiplayer - estimate based on mode
-            if (hasOnline) {
-                // Online-only typically supports more players
-                overallMaxPlayers = 8;
-                onlineMaxPlayers = 8;
-            } else {
-                overallMaxPlayers = 4;
-            }
-            if (hasLocal) localMaxPlayers = 4;
         }
+        // For multiplayer games, don't set fake defaults - let enrichment handle it
         
         return {
             overallMinPlayers: 1,
             overallMaxPlayers,
             supportsOnline: hasOnline,
             supportsLocal: hasLocal,
-            onlineMaxPlayers: hasOnline ? onlineMaxPlayers : undefined,
-            localMaxPlayers: hasLocal ? localMaxPlayers : undefined,
+            // Don't set specific player counts - Steam doesn't provide this data
+            // IGDB or other providers should be used for accurate counts
+            onlineMaxPlayers: undefined,
+            localMaxPlayers: undefined,
         };
     }
 
