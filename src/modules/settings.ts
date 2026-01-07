@@ -43,6 +43,12 @@ export type Settings = {
     imprintUrl: string;
     privacyPolicyUrl: string;
 
+    // Metadata provider API keys
+    steamWebApiKey: string;
+    rawgApiKey: string;
+    twitchClientId: string;
+    twitchClientSecret: string;
+
     initialized: boolean;
 };
 
@@ -82,6 +88,12 @@ const defaults: Settings = {
 
     imprintUrl: "http://example.com/imprint",
     privacyPolicyUrl: "http://example.com/privacy",
+
+    // Metadata provider API keys (optional)
+    steamWebApiKey: "",
+    rawgApiKey: "",
+    twitchClientId: "",
+    twitchClientSecret: "",
 };
 
 // CSV_KEY -> settings key
@@ -111,6 +123,10 @@ const keyMap: Record<string, keyof Settings> = {
     APP_PORT: "appPort",
     IMPRINT_URL: "imprintUrl",
     PRIVACY_POLICY_URL: "privacyPolicyUrl",
+    STEAM_WEB_API_KEY: "steamWebApiKey",
+    RAWG_API_KEY: "rawgApiKey",
+    TWITCH_CLIENT_ID: "twitchClientId",
+    TWITCH_CLIENT_SECRET: "twitchClientSecret",
 };
 
 // per-field coercion

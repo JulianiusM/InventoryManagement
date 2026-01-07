@@ -23,13 +23,10 @@ import {
     MetadataSearchResult,
 } from './MetadataProviderInterface';
 import {stripHtml, truncateText} from '../../lib/htmlUtils';
+import settings from '../../settings';
 
 const IGDB_API_BASE = 'https://api.igdb.com/v4';
 const TWITCH_AUTH_URL = 'https://id.twitch.tv/oauth2/token';
-
-// Environment variables for Twitch OAuth2
-const TWITCH_CLIENT_ID_ENV = 'TWITCH_CLIENT_ID';
-const TWITCH_CLIENT_SECRET_ENV = 'TWITCH_CLIENT_SECRET';
 
 // Rate limiting: IGDB allows 4 requests/second
 const RATE_LIMIT_MS = 300;
@@ -131,13 +128,14 @@ export class IgdbMetadataProvider extends BaseMetadataProvider {
     
     /**
      * Get Twitch OAuth2 token for IGDB API
+     * Uses settings module for credentials (falls back to env vars)
      */
     private async getAccessToken(): Promise<string | null> {
-        const clientId = process.env[TWITCH_CLIENT_ID_ENV];
-        const clientSecret = process.env[TWITCH_CLIENT_SECRET_ENV];
+        const clientId = settings.value.twitchClientId || process.env.TWITCH_CLIENT_ID;
+        const clientSecret = settings.value.twitchClientSecret || process.env.TWITCH_CLIENT_SECRET;
         
         if (!clientId || !clientSecret) {
-            console.warn('IGDB: Twitch credentials not configured (TWITCH_CLIENT_ID, TWITCH_CLIENT_SECRET)');
+            console.warn('IGDB: Twitch credentials not configured (twitchClientId, twitchClientSecret in settings)');
             return null;
         }
         
@@ -198,12 +196,15 @@ export class IgdbMetadataProvider extends BaseMetadataProvider {
         const token = await this.getAccessToken();
         if (!token) return null;
         
-        const clientId = process.env[TWITCH_CLIENT_ID_ENV];
+        const clientId = settings.value.twitchClientId || process.env.TWITCH_CLIENT_ID;
         if (!clientId) return null;
         
         await this.rateLimit();
         
         try {
+            // IGDB requires the body to be trimmed - no leading/trailing whitespace
+            const trimmedBody = body.trim();
+            
             const response = await fetch(`${IGDB_API_BASE}/${endpoint}`, {
                 method: 'POST',
                 headers: {
@@ -211,11 +212,12 @@ export class IgdbMetadataProvider extends BaseMetadataProvider {
                     'Authorization': `Bearer ${token}`,
                     'Content-Type': 'text/plain',
                 },
-                body,
+                body: trimmedBody,
             });
             
             if (!response.ok) {
-                console.error(`IGDB API error: ${response.status}`);
+                const errorText = await response.text().catch(() => 'Unknown error');
+                console.error(`IGDB API error: ${response.status} - ${errorText}`);
                 return null;
             }
             

@@ -16,12 +16,10 @@
 
 import {BaseConnector, ConnectorCredentials, ConnectorManifest, ExternalGame, SyncResult} from './ConnectorInterface';
 import {ConnectorCapability} from '../../../types/InventoryEnums';
+import settings from '../../settings';
 
 // Steam Web API base URL
 const STEAM_API_BASE = 'https://api.steampowered.com';
-
-// Environment variable for Steam Web API key
-const STEAM_API_KEY_ENV = 'STEAM_WEB_API_KEY';
 
 /**
  * Steam connector configuration options
@@ -155,7 +153,7 @@ export class SteamConnector extends BaseConnector {
 
     /**
      * Get the Steam Web API key
-     * Priority: user-provided key > environment variable
+     * Priority: user-provided key > settings > environment variable
      * @param userApiKey Optional user-provided API key
      */
     private getApiKey(userApiKey?: string): string {
@@ -164,11 +162,11 @@ export class SteamConnector extends BaseConnector {
             return userApiKey;
         }
         
-        // Fall back to environment variable
-        const apiKey = process.env[STEAM_API_KEY_ENV];
+        // Try settings module first, then environment variable
+        const apiKey = settings.value.steamWebApiKey || process.env.STEAM_WEB_API_KEY;
         if (!apiKey) {
             throw new SteamConnectorError(
-                'Steam Web API key not configured. Either provide your own API key or set STEAM_WEB_API_KEY environment variable.',
+                'Steam Web API key not configured. Either provide your own API key or configure steamWebApiKey in settings.',
                 'API_KEY_INVALID'
             );
         }

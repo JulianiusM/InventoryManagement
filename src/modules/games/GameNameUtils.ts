@@ -101,7 +101,11 @@ export function fuzzyMatch(search: string, target: string): boolean {
 
 /**
  * Calculate similarity score between two strings (0-1)
- * Uses Levenshtein distance normalized by length
+ * Uses multiple factors for better relevance:
+ * - Exact match = 1.0
+ * - Prefix match bonus
+ * - Contains match bonus
+ * - Levenshtein distance for general similarity
  */
 export function similarityScore(a: string, b: string): number {
     const normA = normalizeForSearch(a);
@@ -110,10 +114,38 @@ export function similarityScore(a: string, b: string): number {
     if (normA === normB) return 1;
     if (normA.length === 0 || normB.length === 0) return 0;
     
+    let score = 0;
+    
+    // Prefix match: search term at start of target (high priority)
+    if (normB.startsWith(normA)) {
+        // Bonus based on how much of the target is covered
+        score = Math.max(score, 0.9 + (normA.length / normB.length) * 0.1);
+    }
+    
+    // Target starts with search term as a word boundary
+    // Check if character after search term is a space (more efficient than concatenation)
+    if (normB.length > normA.length && 
+        normB.startsWith(normA) && 
+        normB.charAt(normA.length) === ' ') {
+        score = Math.max(score, 0.85);
+    }
+    
+    // Contains match: search term appears anywhere in target
+    if (normB.includes(normA)) {
+        // Bonus based on how much of the target is the search term
+        score = Math.max(score, 0.6 + (normA.length / normB.length) * 0.2);
+    }
+    
+    // Levenshtein-based similarity (lower priority)
     const distance = levenshteinDistance(normA, normB);
     const maxLen = Math.max(normA.length, normB.length);
+    const levenshteinScore = 1 - (distance / maxLen);
     
-    return 1 - (distance / maxLen);
+    // Only use Levenshtein if score is better than what we have
+    // but cap it at 0.5 to prioritize prefix/contains matches
+    score = Math.max(score, Math.min(levenshteinScore, 0.5));
+    
+    return score;
 }
 
 /**

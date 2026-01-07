@@ -17,11 +17,9 @@ import {
     MetadataSearchResult,
 } from './MetadataProviderInterface';
 import {stripHtml, truncateText} from '../../lib/htmlUtils';
+import settings from '../../settings';
 
 const RAWG_API_BASE = 'https://api.rawg.io/api';
-
-// Environment variable for RAWG API key
-const RAWG_API_KEY_ENV = 'RAWG_API_KEY';
 
 // Maximum length for short description (2-4 lines)
 const MAX_SHORT_DESCRIPTION_LENGTH = 250;
@@ -130,10 +128,11 @@ export class RawgMetadataProvider extends BaseMetadataProvider {
     }
     
     /**
-     * Get API key from environment or user-provided
+     * Get API key from settings module or user-provided
+     * Falls back to env var for backwards compatibility
      */
     private getApiKey(userApiKey?: string): string | null {
-        return userApiKey || process.env[RAWG_API_KEY_ENV] || null;
+        return userApiKey || settings.value.rawgApiKey || process.env.RAWG_API_KEY || null;
     }
     
     /**

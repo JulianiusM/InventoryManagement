@@ -373,41 +373,64 @@ async function fetchMetadataForGames(
         }
     }
     
-    // Step 2: Enrich multiplayer games with player counts from IGDB
-    // IGDB has accurate player count data that Steam/RAWG don't provide
+    // Step 2: Always query IGDB for accurate multiplayer info and player counts
+    // IGDB has the most accurate multiplayer data - Steam/RAWG only know if a game
+    // supports multiplayer but not player counts. We query IGDB for ALL games to:
+    // 1. Get accurate player counts (onlineMax, localMax, etc.)
+    // 2. Verify/correct multiplayer capabilities
+    // 3. Discover multiplayer support Steam might have missed
     if (igdbProvider) {
-        const gamesNeedingPlayerCounts: ExternalGame[] = [];
+        // Get games that don't have complete player info from primary provider
+        const gamesNeedingIgdbData: ExternalGame[] = [];
         
         for (const game of games) {
             const cachedMeta = metadataCache.get(game.externalGameId);
-            if (cachedMeta?.playerInfo) {
-                // If game has multiplayer but no specific player counts, enrich from IGDB
-                const hasMultiplayer = cachedMeta.playerInfo.supportsOnline || cachedMeta.playerInfo.supportsLocal;
-                const hasPlayerCounts = cachedMeta.playerInfo.onlineMaxPlayers !== undefined || 
-                                       cachedMeta.playerInfo.localMaxPlayers !== undefined;
-                
-                if (hasMultiplayer && !hasPlayerCounts) {
-                    gamesNeedingPlayerCounts.push(game);
-                }
+            
+            // Query IGDB for games that:
+            // 1. Have no metadata at all
+            // 2. Have metadata but missing any player count (onlineMaxPlayers OR localMaxPlayers)
+            const needsIgdbData = !cachedMeta || (
+                cachedMeta.playerInfo?.onlineMaxPlayers === undefined ||
+                cachedMeta.playerInfo?.localMaxPlayers === undefined
+            );
+            
+            if (needsIgdbData) {
+                gamesNeedingIgdbData.push(game);
             }
         }
         
-        if (gamesNeedingPlayerCounts.length > 0) {
-            console.log(`Enriching ${gamesNeedingPlayerCounts.length} multiplayer games with player counts from IGDB`);
+        if (gamesNeedingIgdbData.length > 0) {
+            console.log(`Querying IGDB for multiplayer info on ${gamesNeedingIgdbData.length} games`);
             
-            for (const game of gamesNeedingPlayerCounts) {
+            // Limit IGDB queries to avoid rate limiting (IGDB allows 4 req/sec)
+            const MAX_IGDB_QUERIES = 50;
+            const gamesToQuery = gamesNeedingIgdbData.slice(0, MAX_IGDB_QUERIES);
+            
+            if (gamesNeedingIgdbData.length > MAX_IGDB_QUERIES) {
+                console.log(`Limiting IGDB queries to ${MAX_IGDB_QUERIES} games to avoid rate limits`);
+            }
+            
+            for (const game of gamesToQuery) {
                 try {
                     // Search IGDB by game name
                     const searchResults = await igdbProvider.searchGames(game.name, 1);
                     if (searchResults.length > 0) {
                         const igdbMeta = await igdbProvider.getGameMetadata(searchResults[0].externalId);
                         if (igdbMeta?.playerInfo) {
-                            // Merge IGDB player counts into existing metadata using utility
-                            const existingMeta = metadataCache.get(game.externalGameId)!;
-                            metadataCache.set(game.externalGameId, {
-                                ...existingMeta,
-                                playerInfo: mergePlayerCounts(existingMeta.playerInfo, igdbMeta.playerInfo),
-                            });
+                            const existingMeta = metadataCache.get(game.externalGameId);
+                            if (existingMeta) {
+                                // Merge IGDB player counts into existing metadata
+                                metadataCache.set(game.externalGameId, {
+                                    ...existingMeta,
+                                    playerInfo: mergePlayerCounts(existingMeta.playerInfo, igdbMeta.playerInfo),
+                                });
+                            } else {
+                                // No existing metadata, use IGDB as primary
+                                metadataCache.set(game.externalGameId, {
+                                    ...igdbMeta,
+                                    externalId: game.externalGameId, // Keep original ID
+                                });
+                            }
                         }
                     }
                 } catch {

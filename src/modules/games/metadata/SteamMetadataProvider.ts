@@ -16,12 +16,10 @@ import {
     MetadataSearchResult,
 } from './MetadataProviderInterface';
 import {stripHtml, truncateText} from '../../lib/htmlUtils';
+import settings from '../../settings';
 
 const STEAM_STORE_API_BASE = 'https://store.steampowered.com/api';
 const STEAM_SEARCH_URL = 'https://store.steampowered.com/search/suggest';
-
-// Environment variable for Steam Web API key (optional)
-const STEAM_API_KEY_ENV = 'STEAM_WEB_API_KEY';
 
 // Rate limiting configuration - Steam API is strict about rate limits
 // Using conservative values to avoid being banned for large datasets
@@ -106,9 +104,10 @@ export class SteamMetadataProvider extends BaseMetadataProvider {
 
     /**
      * Get the Steam Web API key if available
+     * Uses settings module (falls back to env var)
      */
     private getApiKey(userApiKey?: string): string | undefined {
-        return userApiKey || process.env[STEAM_API_KEY_ENV];
+        return userApiKey || settings.value.steamWebApiKey || process.env.STEAM_WEB_API_KEY;
     }
 
     /**
