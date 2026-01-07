@@ -48,6 +48,9 @@ export type Settings = {
     rawgApiKey: string;
     twitchClientId: string;
     twitchClientSecret: string;
+    
+    // Metadata sync configuration
+    igdbQueryTimeoutMs: number;
 
     initialized: boolean;
 };
@@ -94,6 +97,9 @@ const defaults: Settings = {
     rawgApiKey: "",
     twitchClientId: "",
     twitchClientSecret: "",
+    
+    // Metadata sync configuration
+    igdbQueryTimeoutMs: 60000, // 1 minute default
 };
 
 // CSV_KEY -> settings key
@@ -127,6 +133,7 @@ const keyMap: Record<string, keyof Settings> = {
     RAWG_API_KEY: "rawgApiKey",
     TWITCH_CLIENT_ID: "twitchClientId",
     TWITCH_CLIENT_SECRET: "twitchClientSecret",
+    IGDB_QUERY_TIMEOUT_MS: "igdbQueryTimeoutMs",
 };
 
 // per-field coercion
@@ -134,6 +141,7 @@ const coerce: Partial<Record<keyof Settings, (v: string) => any>> = {
     dbPort: (v) => Number(v),
     smtpPort: (v) => Number(v),
     appPort: (v) => Number(v),
+    igdbQueryTimeoutMs: (v) => Number(v),
     smtpPool: (v) => /^(1|true|yes|on)$/i.test(v),
     smtpSecure: (v) => /^(1|true|yes|on)$/i.test(v),
     localLoginEnabled: (v) => /^(1|true|yes|on)$/i.test(v),

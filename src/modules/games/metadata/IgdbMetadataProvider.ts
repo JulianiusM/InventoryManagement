@@ -34,6 +34,9 @@ const RATE_LIMIT_MS = 300;
 // Short description max length
 const MAX_SHORT_DESCRIPTION_LENGTH = 250;
 
+// Default max players for splitscreen (IGDB only has boolean flag, no count)
+const DEFAULT_SPLITSCREEN_MAX_PLAYERS = 4;
+
 // Cache for OAuth token
 let cachedToken: {token: string; expiresAt: number} | null = null;
 
@@ -107,7 +110,7 @@ interface IgdbGame {
         onlinecoopmax?: number;
         onlinemax?: number;
         splitscreen?: boolean;
-        splitscreenmax?: number;
+        // Note: splitscreenmax is not a valid IGDB field - splitscreen is boolean only
     }>;
     age_ratings?: Array<{
         id: number;
@@ -262,6 +265,8 @@ export class IgdbMetadataProvider extends BaseMetadataProvider {
     
     /**
      * Get detailed metadata for a game
+     * Note: IGDB multiplayer_modes only has: campaigncoop, dropin, lancoop, offlinecoop, offlinecoopmax,
+     * offlinemax, onlinecoop, onlinecoopmax, onlinemax, splitscreen (boolean, no max count)
      */
     async getGameMetadata(externalId: string, _apiKey?: string): Promise<GameMetadata | null> {
         const body = `
@@ -274,7 +279,7 @@ export class IgdbMetadataProvider extends BaseMetadataProvider {
                    multiplayer_modes.campaigncoop, multiplayer_modes.dropin, multiplayer_modes.lancoop,
                    multiplayer_modes.offlinecoop, multiplayer_modes.offlinecoopmax, multiplayer_modes.offlinemax,
                    multiplayer_modes.onlinecoop, multiplayer_modes.onlinecoopmax, multiplayer_modes.onlinemax,
-                   multiplayer_modes.splitscreen, multiplayer_modes.splitscreenmax,
+                   multiplayer_modes.splitscreen,
                    age_ratings.category, age_ratings.rating,
                    aggregated_rating, total_rating;
             limit 1;
@@ -288,6 +293,8 @@ export class IgdbMetadataProvider extends BaseMetadataProvider {
     
     /**
      * Get metadata for multiple games
+     * Note: IGDB multiplayer_modes only has: campaigncoop, dropin, lancoop, offlinecoop, offlinecoopmax,
+     * offlinemax, onlinecoop, onlinecoopmax, onlinemax, splitscreen (boolean, no max count)
      */
     async getGamesMetadata(externalIds: string[], _apiKey?: string): Promise<GameMetadata[]> {
         if (externalIds.length === 0) return [];
@@ -304,7 +311,7 @@ export class IgdbMetadataProvider extends BaseMetadataProvider {
                    multiplayer_modes.campaigncoop, multiplayer_modes.dropin, multiplayer_modes.lancoop,
                    multiplayer_modes.offlinecoop, multiplayer_modes.offlinecoopmax, multiplayer_modes.offlinemax,
                    multiplayer_modes.onlinecoop, multiplayer_modes.onlinecoopmax, multiplayer_modes.onlinemax,
-                   multiplayer_modes.splitscreen, multiplayer_modes.splitscreenmax,
+                   multiplayer_modes.splitscreen,
                    age_ratings.category, age_ratings.rating,
                    aggregated_rating, total_rating;
             limit ${Math.min(externalIds.length, 500)};
@@ -455,9 +462,13 @@ export class IgdbMetadataProvider extends BaseMetadataProvider {
                 supportsLocal = true;
                 localMaxPlayers = Math.max(localMaxPlayers || 0, mode.offlinecoopmax);
             }
-            if (mode.splitscreenmax !== undefined && mode.splitscreenmax > 0) {
+            // Splitscreen is boolean in IGDB (no max count) - use default constant
+            if (mode.splitscreen) {
                 supportsLocal = true;
-                localMaxPlayers = Math.max(localMaxPlayers || 0, mode.splitscreenmax);
+                // Use offlinemax if available, otherwise use default splitscreen max
+                if (localMaxPlayers === undefined || localMaxPlayers < DEFAULT_SPLITSCREEN_MAX_PLAYERS) {
+                    localMaxPlayers = DEFAULT_SPLITSCREEN_MAX_PLAYERS;
+                }
             }
             
             // LAN modes count as both

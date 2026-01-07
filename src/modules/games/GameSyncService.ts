@@ -18,6 +18,7 @@ import {ConnectorCredentials, ExternalGame} from './connectors/ConnectorInterfac
 import {metadataProviderRegistry, initializeMetadataProviders} from './metadata/MetadataProviderRegistry';
 import {GameMetadata, mergePlayerCounts} from './metadata/MetadataProviderInterface';
 import {extractEdition} from './GameNameUtils';
+import settings from '../settings';
 import * as externalAccountService from '../database/services/ExternalAccountService';
 import * as externalLibraryEntryService from '../database/services/ExternalLibraryEntryService';
 import * as gameMappingService from '../database/services/GameExternalMappingService';
@@ -402,15 +403,21 @@ async function fetchMetadataForGames(
         if (gamesNeedingIgdbData.length > 0) {
             console.log(`Querying IGDB for multiplayer info on ${gamesNeedingIgdbData.length} games`);
             
-            // Limit IGDB queries to avoid rate limiting (IGDB allows 4 req/sec)
-            const MAX_IGDB_QUERIES = 50;
-            const gamesToQuery = gamesNeedingIgdbData.slice(0, MAX_IGDB_QUERIES);
+            // Time-based limiting: use configurable timeout from settings
+            // IGDB allows 4 req/sec, so we can do roughly 240 queries per minute
+            // Default is 60000ms (1 minute), configurable via IGDB_QUERY_TIMEOUT_MS setting
+            const igdbTimeoutMs = settings.value.igdbQueryTimeoutMs || 60000;
+            const startTime = Date.now();
+            let queriesCompleted = 0;
             
-            if (gamesNeedingIgdbData.length > MAX_IGDB_QUERIES) {
-                console.log(`Limiting IGDB queries to ${MAX_IGDB_QUERIES} games to avoid rate limits`);
-            }
-            
-            for (const game of gamesToQuery) {
+            for (const game of gamesNeedingIgdbData) {
+                // Check time limit
+                const elapsed = Date.now() - startTime;
+                if (elapsed >= igdbTimeoutMs) {
+                    console.log(`IGDB query time limit reached (${igdbTimeoutMs}ms), completed ${queriesCompleted}/${gamesNeedingIgdbData.length} queries`);
+                    break;
+                }
+                
                 try {
                     // Search IGDB by game name
                     const searchResults = await igdbProvider.searchGames(game.name, 1);
@@ -433,10 +440,13 @@ async function fetchMetadataForGames(
                             }
                         }
                     }
+                    queriesCompleted++;
                 } catch {
                     // Individual enrichment failed, continue with existing data
                 }
             }
+            
+            console.log(`IGDB enrichment completed: ${queriesCompleted} queries in ${Date.now() - startTime}ms`);
         }
     }
     
