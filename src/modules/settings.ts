@@ -48,6 +48,7 @@ export type Settings = {
     rawgApiKey: string;
     twitchClientId: string;
     twitchClientSecret: string;
+    boardGameAtlasClientId: string;
     
     // Metadata sync configuration
     igdbQueryTimeoutMs: number;
@@ -97,6 +98,7 @@ const defaults: Settings = {
     rawgApiKey: "",
     twitchClientId: "",
     twitchClientSecret: "",
+    boardGameAtlasClientId: "",
     
     // Metadata sync configuration
     igdbQueryTimeoutMs: 60000, // 1 minute default
@@ -133,6 +135,7 @@ const keyMap: Record<string, keyof Settings> = {
     RAWG_API_KEY: "rawgApiKey",
     TWITCH_CLIENT_ID: "twitchClientId",
     TWITCH_CLIENT_SECRET: "twitchClientSecret",
+    BOARD_GAME_ATLAS_CLIENT_ID: "boardGameAtlasClientId",
     IGDB_QUERY_TIMEOUT_MS: "igdbQueryTimeoutMs",
 };
 

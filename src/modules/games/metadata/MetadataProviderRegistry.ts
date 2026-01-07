@@ -7,6 +7,8 @@ import {MetadataProvider, MetadataProviderManifest} from './MetadataProviderInte
 import {SteamMetadataProvider} from './SteamMetadataProvider';
 import {RawgMetadataProvider} from './RawgMetadataProvider';
 import {BoardGameGeekMetadataProvider} from './BoardGameGeekMetadataProvider';
+import {BoardGameAtlasMetadataProvider} from './BoardGameAtlasMetadataProvider';
+import {TabletopiaMetadataProvider} from './TabletopiaMetadataProvider';
 import {IgdbMetadataProvider} from './IgdbMetadataProvider';
 
 class MetadataProviderRegistry {
@@ -55,9 +57,15 @@ class MetadataProviderRegistry {
     getByGameType(gameType: string): MetadataProvider[] {
         const type = gameType.toLowerCase();
         if (type === 'board_game' || type === 'card_game' || type === 'tabletop_rpg') {
-            // Board games, card games, and tabletop RPGs use BoardGameGeek
+            // Board games use Board Game Atlas (primary, has reliable player counts) and Tabletopia (enhanced BGG with retries)
+            const bga = this.getById('boardgameatlas');
+            const tabletopia = this.getById('tabletopia');
             const bgg = this.getById('boardgamegeek');
-            return bgg ? [bgg] : [];
+            const providers: MetadataProvider[] = [];
+            if (bga) providers.push(bga);
+            if (tabletopia) providers.push(tabletopia);
+            if (bgg) providers.push(bgg); // Fallback
+            return providers;
         }
         // Video games use Steam, IGDB (for player counts), and RAWG
         // IGDB is prioritized for accurate player count data
@@ -73,9 +81,20 @@ class MetadataProviderRegistry {
     
     /**
      * Get providers that have accurate player count data
-     * IGDB is the primary source for this information
+     * IGDB for video games, Board Game Atlas/Tabletopia for board games
      */
-    getPlayerCountProviders(): MetadataProvider[] {
+    getPlayerCountProviders(gameType?: string): MetadataProvider[] {
+        const type = (gameType || '').toLowerCase();
+        if (type === 'board_game' || type === 'card_game' || type === 'tabletop_rpg') {
+            // For board games, Board Game Atlas and Tabletopia both provide reliable player counts
+            const bga = this.getById('boardgameatlas');
+            const tabletopia = this.getById('tabletopia');
+            const providers: MetadataProvider[] = [];
+            if (bga) providers.push(bga);
+            if (tabletopia) providers.push(tabletopia);
+            return providers;
+        }
+        // For video games, use IGDB
         const igdb = this.getById('igdb');
         return igdb ? [igdb] : [];
     }
@@ -89,12 +108,20 @@ export function initializeMetadataProviders(): void {
     // Register Steam metadata provider (primary for video games, no API key required)
     metadataProviderRegistry.register(new SteamMetadataProvider());
     
-    // Register IGDB metadata provider (accurate player counts, requires Twitch OAuth)
+    // Register IGDB metadata provider (accurate player counts for video games, requires Twitch OAuth)
     metadataProviderRegistry.register(new IgdbMetadataProvider());
     
     // Register RAWG metadata provider (secondary for video games, requires API key)
     metadataProviderRegistry.register(new RawgMetadataProvider());
     
-    // Register BoardGameGeek metadata provider (for board/card games, no API key required)
+    // Register Board Game Atlas metadata provider (primary for board games, requires API key)
+    // Provides reliable player count data
+    metadataProviderRegistry.register(new BoardGameAtlasMetadataProvider());
+    
+    // Register Tabletopia metadata provider (enhanced BGG with better error handling)
+    // Provides reliable player count data for board games without requiring API key
+    metadataProviderRegistry.register(new TabletopiaMetadataProvider());
+    
+    // Register BoardGameGeek metadata provider (legacy fallback for board/card games)
     metadataProviderRegistry.register(new BoardGameGeekMetadataProvider());
 }
