@@ -116,6 +116,20 @@ function normalizeProviderName(pluginId: string): string {
 }
 
 /**
+ * Convert playtime from seconds to minutes
+ */
+function convertPlaytimeToMinutes(seconds: number | undefined): number | null {
+    return seconds ? Math.round(seconds / 60) : null;
+}
+
+/**
+ * Parse lastActivity date string
+ */
+function parseLastActivity(lastActivity: string | undefined): Date | null {
+    return lastActivity ? new Date(lastActivity) : null;
+}
+
+/**
  * Derive entitlement key if not provided
  */
 function deriveEntitlementKey(game: PlayniteGame): {key: string; needsReview: boolean} {
@@ -236,7 +250,7 @@ export async function processPlayniteImport(
 async function getOrCreatePlayniteAccount(deviceId: string, userId: number): Promise<ExternalAccount> {
     const device = await playniteDeviceService.getDeviceById(deviceId);
     if (!device) {
-        throw new Error('Device not found');
+        throw new Error(`Playnite device not found: ${deviceId}`);
     }
     
     // Check if account already exists for this device
@@ -269,8 +283,8 @@ async function upsertLibraryEntry(
         entitlementKey
     );
     
-    const playtimeMinutes = game.playtimeSeconds ? Math.round(game.playtimeSeconds / 60) : null;
-    const lastPlayedAt = game.lastActivity ? new Date(game.lastActivity) : null;
+    const playtimeMinutes = convertPlaytimeToMinutes(game.playtimeSeconds);
+    const lastPlayedAt = parseLastActivity(game.lastActivity);
     
     if (existing) {
         // Check if anything changed
@@ -329,8 +343,8 @@ async function upsertGameCopy(
         },
     });
     
-    const playtimeMinutes = game.playtimeSeconds ? Math.round(game.playtimeSeconds / 60) : null;
-    const lastPlayedAt = game.lastActivity ? new Date(game.lastActivity) : null;
+    const playtimeMinutes = convertPlaytimeToMinutes(game.playtimeSeconds);
+    const lastPlayedAt = parseLastActivity(game.lastActivity);
     const normalizedProvider = normalizeProviderName(game.originalProviderPluginId);
     
     if (existingItem) {
