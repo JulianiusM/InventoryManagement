@@ -40,6 +40,16 @@ router.get('/devices', requireAuth, asyncHandler(async (req: Request, res: Respo
     renderer.respondWithJson(res, {devices});
 }));
 
+// Get single device details
+router.get('/devices/:deviceId', requireAuth, asyncHandler(async (req: Request, res: Response) => {
+    const userId = req.session.user!.id;
+    const {deviceId} = req.params;
+    
+    const device = await playniteController.getDevice(deviceId, userId);
+    
+    renderer.respondWithJson(res, device);
+}));
+
 // Revoke a device (soft delete - keeps history)
 router.post('/devices/:deviceId/revoke', requireAuth, asyncHandler(async (req: Request, res: Response) => {
     const userId = req.session.user!.id;

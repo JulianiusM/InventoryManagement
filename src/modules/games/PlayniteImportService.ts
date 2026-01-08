@@ -321,15 +321,13 @@ async function upsertGameCopy(
     const itemRepo = AppDataSource.getRepository(Item);
     
     // Find existing item by aggregator entitlement key
-    const existingItems = await itemRepo.find({
+    const existingItem = await itemRepo.findOne({
         where: {
             aggregatorProviderId: 'playnite',
             aggregatorAccountId: accountId,
             aggregatorExternalGameId: entitlementKey,
         },
     });
-    
-    const existingItem = existingItems.length > 0 ? existingItems[0] : null;
     
     const playtimeMinutes = game.playtimeSeconds ? Math.round(game.playtimeSeconds / 60) : null;
     const lastPlayedAt = game.lastActivity ? new Date(game.lastActivity) : null;
@@ -478,35 +476,37 @@ async function softRemoveUnseenEntries(
     // Get all entries for this account
     const allEntries = await externalLibraryEntryService.getLibraryEntriesByAccountId(accountId);
     
-    let softRemoved = 0;
+    // Find entries not in the current import batch
+    const unseenEntries = allEntries.filter(entry => !seenEntitlementKeys.has(entry.externalGameId));
     
-    for (const entry of allEntries) {
-        if (!seenEntitlementKeys.has(entry.externalGameId)) {
-            // Mark library entry as not installed
-            await libraryEntryRepo.update({id: entry.id}, {
-                isInstalled: false,
-                updatedAt: new Date(),
-            });
-            
-            // Also update the corresponding item
-            const items = await itemRepo.find({
-                where: {
-                    aggregatorProviderId: 'playnite',
-                    aggregatorAccountId: accountId,
-                    aggregatorExternalGameId: entry.externalGameId,
-                },
-            });
-            
-            for (const item of items) {
-                await itemRepo.update({id: item.id}, {
-                    isInstalled: false,
-                    updatedAt: new Date(),
-                });
-            }
-            
-            softRemoved++;
-        }
+    if (unseenEntries.length === 0) {
+        return 0;
     }
     
-    return softRemoved;
+    const unseenGameIds = unseenEntries.map(e => e.externalGameId);
+    const entryIds = unseenEntries.map(e => e.id);
+    
+    // Batch update library entries
+    if (entryIds.length > 0) {
+        await libraryEntryRepo
+            .createQueryBuilder()
+            .update()
+            .set({isInstalled: false, updatedAt: new Date()})
+            .where('id IN (:...ids)', {ids: entryIds})
+            .execute();
+    }
+    
+    // Batch update items by aggregator external game IDs
+    if (unseenGameIds.length > 0) {
+        await itemRepo
+            .createQueryBuilder()
+            .update()
+            .set({isInstalled: false, updatedAt: new Date()})
+            .where('aggregator_provider_id = :providerId', {providerId: 'playnite'})
+            .andWhere('aggregator_account_id = :accountId', {accountId})
+            .andWhere('aggregator_external_game_id IN (:...gameIds)', {gameIds: unseenGameIds})
+            .execute();
+    }
+    
+    return unseenEntries.length;
 }

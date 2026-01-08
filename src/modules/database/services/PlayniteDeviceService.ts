@@ -75,17 +75,15 @@ export async function verifyTokenByToken(token: string): Promise<PlayniteDevice 
     
     // Get all non-revoked devices and check token against each
     // This is less efficient but necessary since we only store hashed tokens
-    const devices = await repo.find({
-        where: {revokedAt: undefined},
-        relations: ['user'],
-    });
+    // Note: For production systems with many devices, consider implementing a token
+    // prefix/lookup table for better scalability
+    const devices = await repo
+        .createQueryBuilder('device')
+        .leftJoinAndSelect('device.user', 'user')
+        .where('device.revoked_at IS NULL')
+        .getMany();
     
     for (const device of devices) {
-        // Also check for devices where revokedAt is null (not undefined)
-        if (device.revokedAt !== null && device.revokedAt !== undefined) {
-            continue;
-        }
-        
         const isValid = await bcrypt.compare(token, device.tokenHash);
         if (isValid) {
             // Update last seen
@@ -119,10 +117,9 @@ export async function deleteDevice(deviceId: string): Promise<void> {
 
 export async function getActiveDevicesCount(userId: number): Promise<number> {
     const repo = AppDataSource.getRepository(PlayniteDevice);
-    return await repo.count({
-        where: {
-            user: {id: userId},
-            revokedAt: undefined,
-        },
-    });
+    return await repo
+        .createQueryBuilder('device')
+        .where('device.user_id = :userId', {userId})
+        .andWhere('device.revoked_at IS NULL')
+        .getCount();
 }

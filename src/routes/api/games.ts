@@ -66,4 +66,61 @@ router.get('/titles/search', asyncHandler(async (req: Request, res: Response) =>
     renderer.respondWithJson(res, {titles: data.titles});
 }));
 
+// ============ Game Copies ============
+
+// Get game copy detail with origin info
+router.get('/copies/:id', asyncHandler(async (req: Request, res: Response) => {
+    const id = req.params.id;
+    const userId = req.session.user!.id;
+    const data = await gamesController.getGameCopyDetail(id, userId);
+    
+    // Build response with origin info for Playnite-imported copies
+    const copy = data.copy;
+    const response: Record<string, unknown> = {
+        id: copy.id,
+        name: copy.name,
+        type: copy.type,
+        gameCopyType: copy.gameCopyType,
+        gameRelease: copy.gameRelease ? {
+            id: copy.gameRelease.id,
+            platform: copy.gameRelease.platform,
+            edition: copy.gameRelease.edition,
+            gameTitle: copy.gameRelease.gameTitle ? {
+                id: copy.gameRelease.gameTitle.id,
+                name: copy.gameRelease.gameTitle.name,
+            } : null,
+        } : null,
+        externalAccount: copy.externalAccount ? {
+            id: copy.externalAccount.id,
+            provider: copy.externalAccount.provider,
+            accountName: copy.externalAccount.accountName,
+        } : null,
+        externalGameId: copy.externalGameId,
+        playtimeMinutes: copy.playtimeMinutes,
+        lastPlayedAt: copy.lastPlayedAt,
+        isInstalled: copy.isInstalled,
+        lendable: copy.lendable,
+        condition: copy.condition,
+        location: copy.location,
+        createdAt: copy.createdAt,
+        updatedAt: copy.updatedAt,
+    };
+    
+    // Add origin info for aggregator-imported copies (e.g., Playnite)
+    if (copy.aggregatorProviderId) {
+        response.origin = {
+            aggregator: copy.aggregatorProviderId,
+            accountId: copy.aggregatorAccountId,
+            externalGameId: copy.aggregatorExternalGameId,
+            originalProviderPluginId: copy.originalProviderPluginId,
+            originalProviderName: copy.originalProviderName,
+            originalProviderGameId: copy.originalProviderGameId,
+            originalProviderNormalizedId: copy.originalProviderNormalizedId,
+            needsReview: copy.needsReview,
+        };
+    }
+    
+    renderer.respondWithJson(res, response);
+}));
+
 export default router;

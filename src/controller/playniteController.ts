@@ -102,6 +102,31 @@ export async function deleteDevice(deviceId: string, userId: number): Promise<vo
     await playniteDeviceService.deleteDevice(deviceId);
 }
 
+/**
+ * Get device details
+ */
+export async function getDevice(deviceId: string, userId: number): Promise<DeviceInfo> {
+    requireAuthenticatedUser(userId);
+    
+    const device = await playniteDeviceService.getDeviceById(deviceId);
+    if (!device) {
+        throw new ExpectedError('Device not found', 'error', 404);
+    }
+    
+    if (device.userId !== userId) {
+        throw new ExpectedError('You do not have permission to access this device', 'error', 403);
+    }
+    
+    return {
+        id: device.id,
+        name: device.name,
+        createdAt: device.createdAt,
+        lastSeenAt: device.lastSeenAt || null,
+        lastImportAt: device.lastImportAt || null,
+        status: device.revokedAt ? 'revoked' as const : 'active' as const,
+    };
+}
+
 // ============ Import ============
 
 // JSON Schema for Playnite import payload
