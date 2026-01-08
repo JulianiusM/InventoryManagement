@@ -6,8 +6,6 @@
 import {MetadataProvider, MetadataProviderManifest} from './MetadataProviderInterface';
 import {SteamMetadataProvider} from './SteamMetadataProvider';
 import {RawgMetadataProvider} from './RawgMetadataProvider';
-import {BoardGameGeekMetadataProvider} from './BoardGameGeekMetadataProvider';
-import {BggPlusMetadataProvider} from './BggPlusMetadataProvider';
 import {WikidataMetadataProvider} from './WikidataMetadataProvider';
 import {IgdbMetadataProvider} from './IgdbMetadataProvider';
 
@@ -114,14 +112,7 @@ export function initializeMetadataProviders(): void {
     // Register RAWG metadata provider (secondary for video games, requires API key)
     metadataProviderRegistry.register(new RawgMetadataProvider());
     
-    // Register BGG Plus metadata provider (primary for board games, enhanced retry logic)
-    // Provides reliable player count data without requiring API key
-    metadataProviderRegistry.register(new BggPlusMetadataProvider());
-    
     // Register Wikidata metadata provider (secondary for board games, structured data)
     // Provides player counts, designers, and publishers without requiring API key
     metadataProviderRegistry.register(new WikidataMetadataProvider());
-    
-    // Register BoardGameGeek metadata provider (legacy fallback for board/card games)
-    metadataProviderRegistry.register(new BoardGameGeekMetadataProvider());
 }

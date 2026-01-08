@@ -212,15 +212,15 @@ export async function updateGameTitle(
     // Player profile updates
     if (body.overallMinPlayers !== undefined) updates.overallMinPlayers = Number(body.overallMinPlayers);
     if (body.overallMaxPlayers !== undefined) updates.overallMaxPlayers = Number(body.overallMaxPlayers);
-    if (body.supportsOnline !== undefined) updates.supportsOnline = body.supportsOnline;
-    if (body.supportsLocal !== undefined) updates.supportsLocal = body.supportsLocal;
-    if (body.supportsPhysical !== undefined) updates.supportsPhysical = body.supportsPhysical;
-    if (body.onlineMinPlayers !== undefined) updates.onlineMinPlayers = body.onlineMinPlayers;
-    if (body.onlineMaxPlayers !== undefined) updates.onlineMaxPlayers = body.onlineMaxPlayers;
-    if (body.localMinPlayers !== undefined) updates.localMinPlayers = body.localMinPlayers;
-    if (body.localMaxPlayers !== undefined) updates.localMaxPlayers = body.localMaxPlayers;
-    if (body.physicalMinPlayers !== undefined) updates.physicalMinPlayers = body.physicalMinPlayers;
-    if (body.physicalMaxPlayers !== undefined) updates.physicalMaxPlayers = body.physicalMaxPlayers;
+    if (body.supportsOnline !== undefined) updates.supportsOnline = Boolean(body.supportsOnline);
+    if (body.supportsLocal !== undefined) updates.supportsLocal = Boolean(body.supportsLocal);
+    if (body.supportsPhysical !== undefined) updates.supportsPhysical = Boolean(body.supportsPhysical);
+    if (body.onlineMinPlayers !== undefined) updates.onlineMinPlayers = Number(body.onlineMinPlayers) || null;
+    if (body.onlineMaxPlayers !== undefined) updates.onlineMaxPlayers = Number(body.onlineMaxPlayers) || null;
+    if (body.localMinPlayers !== undefined) updates.localMinPlayers = Number(body.localMinPlayers) || null;
+    if (body.localMaxPlayers !== undefined) updates.localMaxPlayers = Number(body.localMaxPlayers) || null;
+    if (body.physicalMinPlayers !== undefined) updates.physicalMinPlayers = Number(body.physicalMinPlayers) || null;
+    if (body.physicalMaxPlayers !== undefined) updates.physicalMaxPlayers = Number(body.physicalMaxPlayers) || null;
     
     await gameTitleService.updateGameTitle(id, updates);
 }

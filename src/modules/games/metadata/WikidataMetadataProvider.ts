@@ -21,7 +21,7 @@ import {
 import {truncateText} from '../../lib/htmlUtils';
 
 // Use REST API for search (new API, better than actions API)
-const WIKIDATA_REST_API = 'https://www.wikidata.org/w/rest.php/wikibase/v0';
+const WIKIDATA_REST_API = 'https://www.wikidata.org/w/rest.php/wikibase';
 const WIKIDATA_SPARQL_ENDPOINT = 'https://query.wikidata.org/sparql';
 
 // Rate limiting - be respectful to Wikidata
@@ -72,7 +72,8 @@ const NON_GAME_INDICATORS = [
     'novel by', 'book by', 'written by', 'magazine', 'newspaper',
     'software company', 'operating system', 'programming language',
     'actor', 'actress', 'singer', 'musician', 'politician',
-    'footballer', 'athlete', 'writer', 'author', 'film director', 'artist'
+    'footballer', 'athlete', 'writer', 'author', 'film director', 'artist', 'Wikimedia disambiguation page',
+    'family name', 'first name', 'last name', 'middle name', 'painting by',
 ];
 
 interface WikidataSearchResult {
@@ -83,10 +84,17 @@ interface WikidataSearchResult {
 
 interface WikidataRestSearchResult {
     id: string;
-    label?: string;
-    description?: string;
+    "display-label"?: {
+        language: string;
+        value: string;
+    };
+    description?: {
+        language: string;
+        value: string;
+    };
     match?: {
         type: string;
+        language: string;
         text: string;
     };
 }
@@ -146,7 +154,7 @@ export class WikidataMetadataProvider extends BaseMetadataProvider {
 
         // Use REST API for search - broader than type-filtered SPARQL
         // This gets ALL matching items, then we filter locally
-        const searchUrl = `${WIKIDATA_REST_API}/search/${encodeURIComponent(query.trim())}?limit=50&language=en`;
+        const searchUrl = `${WIKIDATA_REST_API}/v0/search/items?q=${encodeURIComponent(query.trim())}&language=en`;
 
         try {
             const response = await fetch(searchUrl, {
@@ -171,7 +179,7 @@ export class WikidataMetadataProvider extends BaseMetadataProvider {
             // Return top results
             return scoredResults.slice(0, limit).map(sr => ({
                 externalId: sr.id,
-                name: sr.label || sr.id,
+                name: sr["display-label"]?.value || sr.id,
                 releaseDate: undefined,
                 coverImageUrl: undefined,
                 provider: 'wikidata',
@@ -192,8 +200,8 @@ export class WikidataMetadataProvider extends BaseMetadataProvider {
         
         // Score each result
         const scored = results.map(item => {
-            const name = (item.label || '').toLowerCase().trim();
-            const desc = (item.description || '').toLowerCase();
+            const name = (item["display-label"]?.value || '').toLowerCase().trim();
+            const desc = (item.description?.value || '').toLowerCase();
             
             let score = 0;
             
@@ -310,15 +318,15 @@ export class WikidataMetadataProvider extends BaseMetadataProvider {
             // Convert to REST API format and use shared scoring logic
             const restFormat: WikidataRestSearchResult[] = searchResults.map(item => ({
                 id: item.id,
-                label: item.label,
-                description: item.description,
+                "display-label": {value: item.label, language: "en"},
+                description: item.description ? {value: item.description, language: "en"}: undefined,
             }));
 
             const scoredResults = this.scoreAndFilterResults(restFormat, query.trim());
 
             return scoredResults.slice(0, limit).map(sr => ({
                 externalId: sr.id,
-                name: sr.label || sr.id,
+                name: sr["display-label"]?.value || sr.id,
                 releaseDate: undefined,
                 coverImageUrl: undefined,
                 provider: 'wikidata',
@@ -387,51 +395,6 @@ LIMIT 50`;
             console.warn('Wikidata get metadata error:', error);
             return null;
         }
-    }
-
-    /**
-     * Search for a game by name and return best match with full metadata
-     */
-    async findByGameName(name: string): Promise<GameMetadata | null> {
-        const searchResults = await this.searchGames(name, 10);
-        if (searchResults.length === 0) {
-            return null;
-        }
-
-        // Find best match with improved matching
-        const normalizedQuery = name.toLowerCase().trim();
-        
-        // Priority 1: Exact match (case-insensitive)
-        let bestMatch = searchResults.find(
-            r => r.name.toLowerCase().trim() === normalizedQuery
-        );
-        
-        // Priority 2: Query starts with the normalized query followed by non-alphanumeric
-        // This prevents "Carcassonne: The City" from matching when searching for "Carcassonne"
-        if (!bestMatch) {
-            bestMatch = searchResults.find(r => {
-                const rNorm = r.name.toLowerCase().trim();
-                // Check if the result starts with query and next char (if any) is not alphanumeric
-                if (!rNorm.startsWith(normalizedQuery)) return false;
-                if (rNorm.length === normalizedQuery.length) return true;
-                const nextChar = rNorm.charAt(normalizedQuery.length);
-                return !/[a-z0-9]/i.test(nextChar);
-            });
-        }
-        
-        // Priority 3: Name ends with the query (e.g. "The Game: Carcassonne" matches "Carcassonne")
-        if (!bestMatch) {
-            bestMatch = searchResults.find(
-                r => r.name.toLowerCase().trim().endsWith(normalizedQuery)
-            );
-        }
-        
-        // Priority 4: First result if nothing better
-        if (!bestMatch) {
-            bestMatch = searchResults[0];
-        }
-
-        return this.getGameMetadata(bestMatch.externalId);
     }
 
     /**
