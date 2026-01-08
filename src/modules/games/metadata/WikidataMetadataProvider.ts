@@ -1,14 +1,14 @@
 /**
  * Wikidata Metadata Provider for Board Games
- * Uses Wikidata Query Service (SPARQL) to fetch board game metadata
+ * Uses Wikidata REST API for search and SPARQL for detailed metadata
  * 
- * Wikidata has structured data for board games including:
- * - Player counts (minimum and maximum)
- * - Designers
- * - Publishers
- * - Categories
+ * This provider uses a broad search approach:
+ * 1. Fetch all matching items from Wikidata using the REST API (more complete than type-filtered SPARQL)
+ * 2. Local ranking/filtering with heuristics to prioritize games
+ * 3. Filter out explicit non-games (cities, countries, people, etc.)
+ * 4. Prioritize exact matches (Carcassonne matches Carcassonne first, then expansions)
  * 
- * No API key required - uses public Wikidata Query Service
+ * No API key required - uses public Wikidata APIs
  * Rate limiting: Wikidata asks for reasonable usage
  */
 
@@ -20,8 +20,9 @@ import {
 } from './MetadataProviderInterface';
 import {truncateText} from '../../lib/htmlUtils';
 
+// Use REST API for search (new API, better than actions API)
+const WIKIDATA_REST_API = 'https://www.wikidata.org/w/rest.php/wikibase/v0';
 const WIKIDATA_SPARQL_ENDPOINT = 'https://query.wikidata.org/sparql';
-const WIKIDATA_SEARCH_API = 'https://www.wikidata.org/w/api.php';
 
 // Rate limiting - be respectful to Wikidata
 const RATE_LIMIT_MS = 1000;
@@ -29,6 +30,17 @@ let lastRequestTime = 0;
 
 // Short description max length (2-4 lines)
 const MAX_SHORT_DESCRIPTION_LENGTH = 250;
+
+// Scoring constants for search result ranking
+const EXACT_MATCH_SCORE = 500;
+const PREFIX_MATCH_SCORE = 150;
+const EXPANSION_MATCH_SCORE = 80;
+const CONTAINS_MATCH_SCORE = 50;
+const GAME_INDICATOR_BOOST = 100;
+const NO_GAME_INDICATOR_PENALTY = 50;
+const NAME_LENGTH_PENALTY_FACTOR = 0.5;
+const NON_GAME_PENALTY_SCORE = -1000;
+const MIN_ACCEPTABLE_SCORE = -500;
 
 const WIKIDATA_METADATA_MANIFEST: MetadataProviderManifest = {
     id: 'wikidata',
@@ -39,10 +51,44 @@ const WIKIDATA_METADATA_MANIFEST: MetadataProviderManifest = {
     gameUrlPattern: 'https://www.wikidata.org/wiki/{id}',
 };
 
+// Terms in description that indicate a game-related item
+const GAME_INDICATORS = [
+    'game', 'board game', 'card game', 'tabletop game', 'dice game',
+    'tile game', 'strategy game', 'party game', 'puzzle', 'role-playing game',
+    'trading card game', 'collectible card game', 'miniature game',
+    'war game', 'euro game', 'eurogame', 'amerithrash', 'cooperative game',
+    'deck-building', 'deck building', 'worker placement', 'area control'
+];
+
+// Terms in description that indicate NOT a game (for filtering)
+// Note: We only use terms that very strongly indicate non-games
+// We avoid nationality terms as they could appear in game names/descriptions
+const NON_GAME_INDICATORS = [
+    'city in', 'commune in', 'town in', 'village in', 'municipality in', 'county in',
+    'department in', 'region in', 'province in', 'district in', 'country in',
+    'river in', 'lake in', 'mountain in', 'island in', 'peninsula in',
+    'born in', 'died in', 'castle in', 'fortress in', 'cathedral in', 'church in',
+    'album by', 'song by', 'film by', 'film directed', 'movie by', 'television series',
+    'novel by', 'book by', 'written by', 'magazine', 'newspaper',
+    'software company', 'operating system', 'programming language',
+    'actor', 'actress', 'singer', 'musician', 'politician',
+    'footballer', 'athlete', 'writer', 'author', 'film director', 'artist'
+];
+
 interface WikidataSearchResult {
     id: string;
     label: string;
     description?: string;
+}
+
+interface WikidataRestSearchResult {
+    id: string;
+    label?: string;
+    description?: string;
+    match?: {
+        type: string;
+        text: string;
+    };
 }
 
 interface WikidataSparqlBinding {
@@ -83,9 +129,13 @@ export class WikidataMetadataProvider extends BaseMetadataProvider {
     }
 
     /**
-     * Search for board games on Wikidata using SPARQL
-     * This provides much better results than the entity search API
-     * because it actually checks the game type (instance of board game, etc.)
+     * Search for board games on Wikidata using the REST API
+     * Uses broad search then local filtering/ranking for better results
+     * 
+     * Approach:
+     * 1. Fetch all matching items from Wikidata (not type-filtered)
+     * 2. Apply local heuristics to score and filter results
+     * 3. Prioritize exact matches and filter out non-games
      */
     async searchGames(query: string, limit = 10, _apiKey?: string): Promise<MetadataSearchResult[]> {
         if (!query || query.trim().length < 2) {
@@ -94,132 +144,162 @@ export class WikidataMetadataProvider extends BaseMetadataProvider {
 
         await this.rateLimit();
 
-        // Use SPARQL to search for board games directly - much more reliable than entity search
-        // This queries for items that are instance of board game, card game, etc.
-        // Escape backslashes first, then quotes, to avoid double-escaping
-        const escapedQuery = query.trim().replace(/\\/g, '\\\\').replace(/"/g, '\\"');
-        const sparqlQuery = `
-SELECT DISTINCT ?item ?itemLabel ?itemDescription ?image ?publication
-WHERE {
-  # Search by label - use SERVICE for full-text search
-  SERVICE wikibase:mwapi {
-    bd:serviceParam wikibase:endpoint "www.wikidata.org";
-                    wikibase:api "EntitySearch";
-                    mwapi:search "${escapedQuery}";
-                    mwapi:language "en".
-    ?item wikibase:apiOutputItem mwapi:item.
-  }
-  
-  # Filter to board games, card games, and related types
-  ?item wdt:P31 ?type.
-  VALUES ?type { 
-    wd:Q131436    # board game
-    wd:Q142714    # card game
-    wd:Q1368379   # tabletop game
-    wd:Q627851    # trading card game
-    wd:Q11410     # game (general, as fallback)
-  }
-  
-  # Get label and description
-  SERVICE wikibase:label { bd:serviceParam wikibase:language "en". }
-  
-  # Optional: image and publication date
-  OPTIONAL { ?item wdt:P18 ?image. }
-  OPTIONAL { ?item wdt:P577 ?publication. }
-}
-LIMIT ${limit * 2}`;
+        // Use REST API for search - broader than type-filtered SPARQL
+        // This gets ALL matching items, then we filter locally
+        const searchUrl = `${WIKIDATA_REST_API}/search/${encodeURIComponent(query.trim())}?limit=50&language=en`;
 
         try {
-            const response = await fetch(WIKIDATA_SPARQL_ENDPOINT, {
-                method: 'POST',
+            const response = await fetch(searchUrl, {
                 headers: {
-                    'Content-Type': 'application/x-www-form-urlencoded',
-                    'Accept': 'application/sparql-results+json',
+                    'Accept': 'application/json',
                     'User-Agent': 'InventoryManagement/1.0',
                 },
-                body: `query=${encodeURIComponent(sparqlQuery)}`,
             });
 
             if (!response.ok) {
-                console.warn(`Wikidata SPARQL search error: ${response.status}`);
-                // Fall back to simpler entity search if SPARQL fails
-                return this.searchGamesSimple(query, limit);
+                console.warn(`Wikidata REST search error: ${response.status}`);
+                // Fall back to entity search if REST API fails
+                return this.searchGamesEntityApi(query, limit);
             }
 
-            const data = await response.json() as {results?: {bindings?: Array<Record<string, WikidataSparqlBinding>>}};
-            const bindings = data.results?.bindings || [];
+            const data = await response.json() as {results?: WikidataRestSearchResult[]};
+            const searchResults = data.results || [];
 
-            // Deduplicate by item ID (SPARQL can return duplicates due to multiple types)
-            const seenIds = new Set<string>();
-            const results: MetadataSearchResult[] = [];
+            // Score and filter all results locally
+            const scoredResults = this.scoreAndFilterResults(searchResults, query.trim());
 
-            for (const binding of bindings) {
-                if (results.length >= limit) break;
-
-                const itemUri = binding.item?.value;
-                if (!itemUri) continue;
-
-                const id = itemUri.split('/').pop();
-                if (!id || seenIds.has(id)) continue;
-                seenIds.add(id);
-
-                const name = binding.itemLabel?.value || id;
-                const year = binding.publication?.value ? binding.publication.value.substring(0, 4) : undefined;
-                const image = binding.image?.value;
-
-                results.push({
-                    externalId: id,
-                    name,
-                    releaseDate: year,
-                    coverImageUrl: image,
-                    provider: 'wikidata',
-                });
-            }
-
-            // Sort by relevance: exact match first, then prefix match, then others
-            const normalizedQuery = query.toLowerCase().trim();
-            results.sort((a, b) => {
-                const aName = a.name.toLowerCase().trim();
-                const bName = b.name.toLowerCase().trim();
-
-                // Exact match priority
-                const aExact = aName === normalizedQuery ? 0 : 1;
-                const bExact = bName === normalizedQuery ? 0 : 1;
-                if (aExact !== bExact) return aExact - bExact;
-
-                // Prefix match priority
-                const aPrefix = aName.startsWith(normalizedQuery) ? 0 : 1;
-                const bPrefix = bName.startsWith(normalizedQuery) ? 0 : 1;
-                if (aPrefix !== bPrefix) return aPrefix - bPrefix;
-
-                // Shorter names preferred
-                return aName.length - bName.length;
-            });
-
-            return results;
+            // Return top results
+            return scoredResults.slice(0, limit).map(sr => ({
+                externalId: sr.id,
+                name: sr.label || sr.id,
+                releaseDate: undefined,
+                coverImageUrl: undefined,
+                provider: 'wikidata',
+            }));
         } catch (error) {
-            console.warn('Wikidata SPARQL search error:', error);
-            // Fall back to simple search on error
-            return this.searchGamesSimple(query, limit);
+            console.warn('Wikidata REST search error:', error);
+            // Fall back to entity search on error
+            return this.searchGamesEntityApi(query, limit);
         }
     }
 
     /**
-     * Simple fallback search using entity API (less accurate but more reliable)
+     * Score and filter search results using local heuristics
+     * Returns sorted results with best matches first
      */
-    private async searchGamesSimple(query: string, limit: number): Promise<MetadataSearchResult[]> {
+    private scoreAndFilterResults(results: WikidataRestSearchResult[], query: string): WikidataRestSearchResult[] {
+        const normalizedQuery = query.toLowerCase().trim();
+        
+        // Score each result
+        const scored = results.map(item => {
+            const name = (item.label || '').toLowerCase().trim();
+            const desc = (item.description || '').toLowerCase();
+            
+            let score = 0;
+            
+            // Check if this is explicitly NOT a game
+            if (this.isExplicitNonGame(desc)) {
+                return { item, score: NON_GAME_PENALTY_SCORE };
+            }
+            
+            // Boost if description contains game-related terms
+            const isLikelyGame = this.isLikelyGame(desc);
+            if (isLikelyGame) {
+                score += GAME_INDICATOR_BOOST;
+            }
+            
+            // Exact match is best
+            if (name === normalizedQuery) {
+                score += EXACT_MATCH_SCORE;
+            }
+            // Name starts with query (expansion/edition)
+            else if (name.startsWith(normalizedQuery + ' ') || 
+                     name.startsWith(normalizedQuery + ':') ||
+                     name.startsWith(normalizedQuery + '-')) {
+                // Check if it's an expansion (penalize slightly)
+                if (desc.includes('expansion') || desc.includes('add-on') || desc.includes('supplement')) {
+                    score += EXPANSION_MATCH_SCORE;
+                } else {
+                    score += PREFIX_MATCH_SCORE;
+                }
+            }
+            // Query appears in name
+            else if (name.includes(normalizedQuery)) {
+                score += CONTAINS_MATCH_SCORE;
+            }
+            
+            // Prefer shorter names (more likely to be the base game)
+            score -= name.length * NAME_LENGTH_PENALTY_FACTOR;
+            
+            // If no game indicators and no exact match, penalize
+            if (!isLikelyGame && name !== normalizedQuery) {
+                score -= NO_GAME_INDICATOR_PENALTY;
+            }
+            
+            return { item, score };
+        });
+        
+        // Filter out explicit non-games and sort by score descending
+        return scored
+            .filter(s => s.score > MIN_ACCEPTABLE_SCORE)
+            .sort((a, b) => b.score - a.score)
+            .map(s => s.item);
+    }
+    
+    /**
+     * Check if description indicates this is likely a game
+     */
+    private isLikelyGame(description: string): boolean {
+        return GAME_INDICATORS.some(term => description.includes(term));
+    }
+    
+    /**
+     * Check if description explicitly indicates this is NOT a game
+     */
+    private isExplicitNonGame(description: string): boolean {
+        // Only filter if description strongly indicates non-game
+        // Be conservative to avoid filtering out games with unusual descriptions
+        const desc = description.toLowerCase();
+        
+        // Check for location indicators
+        if (NON_GAME_INDICATORS.some(term => {
+            // Check for term as a word (not part of another word)
+            const regex = new RegExp(`\\b${term}\\b`, 'i');
+            return regex.test(desc);
+        })) {
+            // If description also contains game terms, it might still be a game
+            if (this.isLikelyGame(desc)) {
+                return false;
+            }
+            return true;
+        }
+        
+        return false;
+    }
+
+    /**
+     * Fallback search using entity search API (older actions API)
+     * Used when REST API fails
+     */
+    private async searchGamesEntityApi(query: string, limit: number): Promise<MetadataSearchResult[]> {
         const searchParams = new URLSearchParams({
             action: 'wbsearchentities',
             search: query.trim(),
             language: 'en',
             format: 'json',
             type: 'item',
-            limit: String(limit * 3),
+            limit: String(50), // Get many results to filter locally
             origin: '*',
         });
 
+        const searchUrl = `https://www.wikidata.org/w/api.php?${searchParams.toString()}`;
+
         try {
-            const response = await fetch(`${WIKIDATA_SEARCH_API}?${searchParams.toString()}`);
+            const response = await fetch(searchUrl, {
+                headers: {
+                    'User-Agent': 'InventoryManagement/1.0',
+                },
+            });
             if (!response.ok) {
                 return [];
             }
@@ -227,33 +307,24 @@ LIMIT ${limit * 2}`;
             const data = await response.json() as {search?: WikidataSearchResult[]};
             const searchResults = (data.search || []) as WikidataSearchResult[];
 
-            const results: MetadataSearchResult[] = [];
-            for (const item of searchResults) {
-                if (results.length >= limit) break;
+            // Convert to REST API format and use shared scoring logic
+            const restFormat: WikidataRestSearchResult[] = searchResults.map(item => ({
+                id: item.id,
+                label: item.label,
+                description: item.description,
+            }));
 
-                const description = (item.description || '').toLowerCase();
-                // Include board/card/tabletop game related terms (this is a fallback search)
-                if (description.includes('board game') || 
-                    description.includes('card game') ||
-                    description.includes('tabletop game') ||
-                    description.includes('dice game') ||
-                    description.includes('tile game') ||
-                    description.includes('strategy game') ||
-                    description.includes('party game') ||
-                    description.includes('game by')) {
-                    results.push({
-                        externalId: item.id,
-                        name: item.label,
-                        releaseDate: undefined,
-                        coverImageUrl: undefined,
-                        provider: 'wikidata',
-                    });
-                }
-            }
+            const scoredResults = this.scoreAndFilterResults(restFormat, query.trim());
 
-            return results;
+            return scoredResults.slice(0, limit).map(sr => ({
+                externalId: sr.id,
+                name: sr.label || sr.id,
+                releaseDate: undefined,
+                coverImageUrl: undefined,
+                provider: 'wikidata',
+            }));
         } catch (error) {
-            console.warn('Wikidata simple search error:', error);
+            console.warn('Wikidata entity search error:', error);
             return [];
         }
     }
@@ -380,9 +451,14 @@ LIMIT 50`;
         const description = first.itemDescription?.value || '';
         const coverImageUrl = first.image?.value;
         
-        // Parse player counts
-        const minPlayers = first.minPlayers?.value ? parseInt(first.minPlayers.value, 10) : 1;
-        const maxPlayers = first.maxPlayers?.value ? parseInt(first.maxPlayers.value, 10) : minPlayers;
+        // Parse player counts with validation
+        const parsePlayerCount = (value: string | undefined, defaultValue: number): number => {
+            if (!value) return defaultValue;
+            const parsed = Number(value);
+            return Number.isFinite(parsed) && parsed > 0 ? Math.floor(parsed) : defaultValue;
+        };
+        const minPlayers = parsePlayerCount(first.minPlayers?.value, 1);
+        const maxPlayers = parsePlayerCount(first.maxPlayers?.value, minPlayers);
         
         // Collect all designers, publishers, and genres from all bindings
         const designers = new Set<string>();
