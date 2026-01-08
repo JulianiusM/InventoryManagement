@@ -223,6 +223,12 @@ block content
                             button.btn.btn-outline-light(type="button" data-bs-toggle="modal" data-bs-target="#mergeModal")
                                 i.bi.bi-arrow-left-right.me-1
                                 | Merge Into Another Title
+                            button.btn.btn-outline-info(type="button" data-bs-toggle="modal" data-bs-target="#fetchMetadataModal")
+                                i.bi.bi-cloud-download.me-1
+                                | Quick Fetch
+                            a.btn.btn-outline-info(href=`/games/titles/${title.id}/search-metadata`)
+                                i.bi.bi-list-ul.me-1
+                                | Search Metadata
 
                 //- Danger zone
                 .card.text-bg-dark.border-danger
@@ -352,6 +358,31 @@ block content
                         button.btn.btn-warning(type="submit" form="mergeForm" onclick="return confirm('This will permanently merge the titles. Continue?')")
                             i.bi.bi-arrow-left-right.me-1
                             | Merge
+    
+    //- Fetch Metadata Modal
+    if title
+        #fetchMetadataModal.modal.fade(tabindex="-1")
+            .modal-dialog
+                .modal-content.text-bg-dark
+                    .modal-header.border-secondary
+                        h5.modal-title
+                            i.bi.bi-cloud-download.me-2
+                            | Fetch Metadata
+                        button.btn-close.btn-close-white(type="button" data-bs-dismiss="modal")
+                    .modal-body
+                        p.text-white-50.mb-3 Search for metadata from online providers to update game info.
+                        form#fetchMetadataForm(method="post" action=`/games/titles/${title.id}/fetch-metadata`)
+                            .mb-3
+                                label.form-label Search Query
+                                input.form-control.text-bg-dark(type="text" name="searchQuery" value=title.name placeholder="Leave empty to use current game name")
+                            .alert.alert-info.small
+                                i.bi.bi-info-circle.me-1
+                                | This will search for the game and update missing fields (description, cover image, player counts).
+                    .modal-footer.border-secondary
+                        button.btn.btn-secondary(type="button" data-bs-dismiss="modal") Cancel
+                        button.btn.btn-info(type="submit" form="fetchMetadataForm")
+                            i.bi.bi-cloud-download.me-1
+                            | Fetch Metadata
 
 block scripts
     script(type="module" src="/js/stub.gen.js")

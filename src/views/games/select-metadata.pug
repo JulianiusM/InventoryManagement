@@ -1,0 +1,77 @@
+extends ../layout
+
+block meta
+    title Select Metadata | #{data && data.title ? data.title.name : 'Game'}
+
+block content
+    - const title = (data && data.title) ? data.title : null
+    - const options = (data && data.options) ? data.options : []
+    - const searchQuery = data ? data.searchQuery : ''
+
+    #liveAlerts
+
+    if !title
+        .alert.alert-danger
+            i.bi.bi-exclamation-triangle.me-2
+            | Game not found.
+    else
+        //- Header with back button
+        .d-flex.align-items-center.mb-3
+            a.btn.btn-outline-secondary.me-3(href=`/games/titles/${title.id}`)
+                i.bi.bi-arrow-left.me-1
+                | Back
+            h1.h4.mb-0.text-white
+                i.bi.bi-cloud-download.me-2
+                | Select Metadata for: #{title.name}
+
+        //- Search form
+        .card.text-bg-dark.border-secondary.mb-4
+            .card-body
+                form.row.g-2(method="get" action=`/games/titles/${title.id}/search-metadata`)
+                    .col-md-9
+                        input.form-control.text-bg-dark(type="text" name="q" value=searchQuery placeholder="Search for game...")
+                    .col-md-3
+                        button.btn.btn-primary.w-100(type="submit")
+                            i.bi.bi-search.me-1
+                            | Search
+
+        //- Results
+        if options.length === 0
+            .alert.alert-warning
+                i.bi.bi-exclamation-triangle.me-2
+                | No metadata found. Try a different search query.
+        else
+            p.text-white-50.mb-3
+                | Found #{options.length} option(s). Select the correct game:
+
+            .list-group.list-group-flush
+                each option, index in options
+                    form.list-group-item.list-group-item-action.text-bg-dark.border-secondary.d-flex.justify-content-between.align-items-center(
+                        method="post"
+                        action=`/games/titles/${title.id}/apply-metadata`
+                    )
+                        input(type="hidden" name="providerId" value=option.provider)
+                        input(type="hidden" name="externalId" value=option.externalId)
+                        .d-flex.align-items-center
+                            if option.coverImageUrl
+                                img.me-3(src=option.coverImageUrl alt="" style="width: 60px; height: 60px; object-fit: cover; border-radius: 4px;")
+                            else
+                                .me-3.d-flex.align-items-center.justify-content-center.bg-secondary(style="width: 60px; height: 60px; border-radius: 4px;")
+                                    i.bi.bi-image.text-muted
+                            div
+                                h5.mb-1.text-white= option.name
+                                .small.text-white-50
+                                    if option.releaseDate
+                                        span.me-2
+                                            i.bi.bi-calendar.me-1
+                                            = option.releaseDate
+                                    span.badge.text-bg-secondary= option.provider
+                        button.btn.btn-sm.btn-success(type="submit")
+                            i.bi.bi-check.me-1
+                            | Use This
+
+        //- Quick apply first option
+        if options.length > 0
+            .mt-3.text-center
+                small.text-white-50
+                    | Tip: The first option is usually the best match. You can also use the original auto-fetch.

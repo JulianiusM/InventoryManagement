@@ -83,6 +83,71 @@ router.post('/titles/:id/delete', asyncHandler(async (req: Request, res: Respons
     res.redirect('/games');
 }));
 
+// Fetch metadata for a single game title
+router.post('/titles/:id/fetch-metadata', asyncHandler(async (req: Request, res: Response) => {
+    const id = req.params.id;
+    const userId = req.session.user!.id;
+    const searchQuery = req.body.searchQuery;
+    const result = await gamesController.fetchMetadataForTitle(id, userId, searchQuery);
+    if (result.updated) {
+        req.flash('success', result.message);
+    } else {
+        req.flash('info', result.message);
+    }
+    res.redirect(`/games/titles/${id}`);
+}));
+
+// Search metadata options for a game title - returns list for user to select
+router.get('/titles/:id/search-metadata', asyncHandler(async (req: Request, res: Response) => {
+    const id = req.params.id;
+    const userId = req.session.user!.id;
+    const searchQuery = req.query.q as string | undefined;
+    const data = await gamesController.searchMetadataOptions(id, userId, searchQuery);
+    renderer.renderWithData(res, 'games/select-metadata', {...data, searchQuery: searchQuery || data.title.name});
+}));
+
+// Apply selected metadata option to a game title
+router.post('/titles/:id/apply-metadata', asyncHandler(async (req: Request, res: Response) => {
+    const id = req.params.id;
+    const userId = req.session.user!.id;
+    const {providerId, externalId} = req.body;
+    if (!providerId || !externalId) {
+        req.flash('error', 'Please select a metadata option');
+        res.redirect(`/games/titles/${id}/search-metadata`);
+        return;
+    }
+    const result = await gamesController.applyMetadataOption(id, userId, providerId, externalId);
+    if (result.updated) {
+        req.flash('success', result.message);
+    } else {
+        req.flash('info', result.message);
+    }
+    res.redirect(`/games/titles/${id}`);
+}));
+
+// Bulk delete game titles
+router.post('/titles/bulk-delete', asyncHandler(async (req: Request, res: Response) => {
+    const userId = req.session.user!.id;
+    const ids = req.body.ids;
+    // Handle both array and single value
+    const idsArray = Array.isArray(ids) ? ids : (ids ? [ids] : []);
+    const deleted = await gamesController.bulkDeleteGameTitles(idsArray, userId);
+    req.flash('success', `Deleted ${deleted} game(s)`);
+    res.redirect('/games');
+}));
+
+// Resync metadata for all games (async - runs in background)
+router.post('/resync-metadata', asyncHandler(async (req: Request, res: Response) => {
+    const userId = req.session.user!.id;
+    
+    // Start resync in background - don't wait for completion
+    gamesController.resyncAllMetadataAsync(userId)
+        .catch(err => console.error(`Background metadata resync error for user ${userId}:`, err));
+    
+    req.flash('success', 'Metadata resync started in background. Refresh to see updates.');
+    res.redirect('/games');
+}));
+
 // ============ Game Releases ============
 
 // Create release for title
@@ -221,17 +286,25 @@ router.post('/accounts/:id/delete', asyncHandler(async (req: Request, res: Respo
     res.redirect('/games/accounts');
 }));
 
-// Trigger sync
+// Trigger sync (async - starts job in background)
 router.post('/accounts/:id/sync', asyncHandler(async (req: Request, res: Response) => {
     const id = req.params.id;
     const userId = req.session.user!.id;
-    const result = await gamesController.triggerSync(id, userId);
-    if (result.success) {
-        req.flash('success', `Sync completed: ${result.stats?.entriesProcessed || 0} games processed`);
-    } else {
-        req.flash('error', `Sync failed: ${result.error}`);
-    }
+    
+    // Start sync in background - don't wait for completion
+    gamesController.triggerSyncAsync(id, userId)
+        .catch(err => console.error(`Background sync error for account ${id}:`, err));
+    
+    req.flash('success', 'Sync started in background. Refresh to see progress.');
     res.redirect('/games/accounts');
+}));
+
+// Get sync status (AJAX endpoint for polling)
+router.get('/accounts/:id/status', asyncHandler(async (req: Request, res: Response) => {
+    const id = req.params.id;
+    const userId = req.session.user!.id;
+    const status = await gamesController.getSyncStatus(id, userId);
+    res.json(status);
 }));
 
 // ============ Mapping Queue ============

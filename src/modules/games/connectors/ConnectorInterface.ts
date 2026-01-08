@@ -64,6 +64,17 @@ export interface SyncResult {
 }
 
 /**
+ * Credentials for connector authentication
+ * Separates user identifier from authentication token
+ */
+export interface ConnectorCredentials {
+    /** External user ID (e.g., SteamID64) - identifies the user on the external platform */
+    externalUserId: string;
+    /** Token/credential reference for authentication (e.g., API key) - optional for some providers */
+    tokenRef?: string;
+}
+
+/**
  * Connector interface that all connectors must implement
  */
 export interface GameConnector {
@@ -74,10 +85,10 @@ export interface GameConnector {
     
     /**
      * Sync the game library from the external provider
-     * @param tokenRef - Token/credential reference for authentication
+     * @param credentials - User credentials containing externalUserId and optional tokenRef
      * @returns SyncResult with list of games
      */
-    syncLibrary(tokenRef: string): Promise<SyncResult>;
+    syncLibrary(credentials: ConnectorCredentials): Promise<SyncResult>;
     
     /**
      * Check if the connector supports a specific capability
@@ -86,9 +97,10 @@ export interface GameConnector {
     
     /**
      * Validate credentials/token
+     * @param credentials - User credentials to validate
      * @returns true if credentials are valid
      */
-    validateCredentials(tokenRef: string): Promise<boolean>;
+    validateCredentials(credentials: ConnectorCredentials): Promise<boolean>;
 }
 
 /**
@@ -109,7 +121,7 @@ export abstract class BaseConnector implements GameConnector {
         return this.manifest.capabilities.includes(capability);
     }
     
-    abstract syncLibrary(tokenRef: string): Promise<SyncResult>;
+    abstract syncLibrary(credentials: ConnectorCredentials): Promise<SyncResult>;
     
-    abstract validateCredentials(tokenRef: string): Promise<boolean>;
+    abstract validateCredentials(credentials: ConnectorCredentials): Promise<boolean>;
 }

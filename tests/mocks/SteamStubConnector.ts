@@ -4,8 +4,8 @@
  * Provides complete game metadata including player counts
  */
 
-import {BaseConnector, ConnectorManifest, ExternalGame, SyncResult} from './ConnectorInterface';
-import {ConnectorCapability} from '../../../types/InventoryEnums';
+import {BaseConnector, ConnectorManifest, ExternalGame, SyncResult} from '../../src/modules/games/connectors/ConnectorInterface';
+import {ConnectorCapability} from '../../src/types/InventoryEnums';
 
 const STEAM_STUB_MANIFEST: ConnectorManifest = {
     id: 'steam-stub',

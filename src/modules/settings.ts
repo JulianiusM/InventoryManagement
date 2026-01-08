@@ -43,6 +43,16 @@ export type Settings = {
     imprintUrl: string;
     privacyPolicyUrl: string;
 
+    // Metadata provider API keys
+    steamWebApiKey: string;
+    rawgApiKey: string;
+    twitchClientId: string;
+    twitchClientSecret: string;
+    boardGameAtlasClientId: string;
+    
+    // Metadata sync configuration
+    igdbQueryTimeoutMs: number;
+
     initialized: boolean;
 };
 
@@ -82,6 +92,16 @@ const defaults: Settings = {
 
     imprintUrl: "http://example.com/imprint",
     privacyPolicyUrl: "http://example.com/privacy",
+
+    // Metadata provider API keys (optional)
+    steamWebApiKey: "",
+    rawgApiKey: "",
+    twitchClientId: "",
+    twitchClientSecret: "",
+    boardGameAtlasClientId: "",
+    
+    // Metadata sync configuration
+    igdbQueryTimeoutMs: 60000, // 1 minute default
 };
 
 // CSV_KEY -> settings key
@@ -111,6 +131,12 @@ const keyMap: Record<string, keyof Settings> = {
     APP_PORT: "appPort",
     IMPRINT_URL: "imprintUrl",
     PRIVACY_POLICY_URL: "privacyPolicyUrl",
+    STEAM_WEB_API_KEY: "steamWebApiKey",
+    RAWG_API_KEY: "rawgApiKey",
+    TWITCH_CLIENT_ID: "twitchClientId",
+    TWITCH_CLIENT_SECRET: "twitchClientSecret",
+    BOARD_GAME_ATLAS_CLIENT_ID: "boardGameAtlasClientId",
+    IGDB_QUERY_TIMEOUT_MS: "igdbQueryTimeoutMs",
 };
 
 // per-field coercion
@@ -118,6 +144,7 @@ const coerce: Partial<Record<keyof Settings, (v: string) => any>> = {
     dbPort: (v) => Number(v),
     smtpPort: (v) => Number(v),
     appPort: (v) => Number(v),
+    igdbQueryTimeoutMs: (v) => Number(v),
     smtpPool: (v) => /^(1|true|yes|on)$/i.test(v),
     smtpSecure: (v) => /^(1|true|yes|on)$/i.test(v),
     localLoginEnabled: (v) => /^(1|true|yes|on)$/i.test(v),
