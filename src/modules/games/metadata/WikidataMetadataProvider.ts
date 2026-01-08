@@ -83,7 +83,9 @@ export class WikidataMetadataProvider extends BaseMetadataProvider {
     }
 
     /**
-     * Search for board games on Wikidata
+     * Search for board games on Wikidata using SPARQL
+     * This provides much better results than the entity search API
+     * because it actually checks the game type (instance of board game, etc.)
      */
     async searchGames(query: string, limit = 10, _apiKey?: string): Promise<MetadataSearchResult[]> {
         if (!query || query.trim().length < 2) {
@@ -92,41 +94,153 @@ export class WikidataMetadataProvider extends BaseMetadataProvider {
 
         await this.rateLimit();
 
-        // Use Wikidata search API first to find items
+        // Use SPARQL to search for board games directly - much more reliable than entity search
+        // This queries for items that are instance of board game, card game, etc.
+        // Escape backslashes first, then quotes, to avoid double-escaping
+        const escapedQuery = query.trim().replace(/\\/g, '\\\\').replace(/"/g, '\\"');
+        const sparqlQuery = `
+SELECT DISTINCT ?item ?itemLabel ?itemDescription ?image ?publication
+WHERE {
+  # Search by label - use SERVICE for full-text search
+  SERVICE wikibase:mwapi {
+    bd:serviceParam wikibase:endpoint "www.wikidata.org";
+                    wikibase:api "EntitySearch";
+                    mwapi:search "${escapedQuery}";
+                    mwapi:language "en".
+    ?item wikibase:apiOutputItem mwapi:item.
+  }
+  
+  # Filter to board games, card games, and related types
+  ?item wdt:P31 ?type.
+  VALUES ?type { 
+    wd:Q131436    # board game
+    wd:Q142714    # card game
+    wd:Q1368379   # tabletop game
+    wd:Q627851    # trading card game
+    wd:Q11410     # game (general, as fallback)
+  }
+  
+  # Get label and description
+  SERVICE wikibase:label { bd:serviceParam wikibase:language "en". }
+  
+  # Optional: image and publication date
+  OPTIONAL { ?item wdt:P18 ?image. }
+  OPTIONAL { ?item wdt:P577 ?publication. }
+}
+LIMIT ${limit * 2}`;
+
+        try {
+            const response = await fetch(WIKIDATA_SPARQL_ENDPOINT, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                    'Accept': 'application/sparql-results+json',
+                    'User-Agent': 'InventoryManagement/1.0',
+                },
+                body: `query=${encodeURIComponent(sparqlQuery)}`,
+            });
+
+            if (!response.ok) {
+                console.warn(`Wikidata SPARQL search error: ${response.status}`);
+                // Fall back to simpler entity search if SPARQL fails
+                return this.searchGamesSimple(query, limit);
+            }
+
+            const data = await response.json() as {results?: {bindings?: Array<Record<string, WikidataSparqlBinding>>}};
+            const bindings = data.results?.bindings || [];
+
+            // Deduplicate by item ID (SPARQL can return duplicates due to multiple types)
+            const seenIds = new Set<string>();
+            const results: MetadataSearchResult[] = [];
+
+            for (const binding of bindings) {
+                if (results.length >= limit) break;
+
+                const itemUri = binding.item?.value;
+                if (!itemUri) continue;
+
+                const id = itemUri.split('/').pop();
+                if (!id || seenIds.has(id)) continue;
+                seenIds.add(id);
+
+                const name = binding.itemLabel?.value || id;
+                const year = binding.publication?.value ? binding.publication.value.substring(0, 4) : undefined;
+                const image = binding.image?.value;
+
+                results.push({
+                    externalId: id,
+                    name,
+                    releaseDate: year,
+                    coverImageUrl: image,
+                    provider: 'wikidata',
+                });
+            }
+
+            // Sort by relevance: exact match first, then prefix match, then others
+            const normalizedQuery = query.toLowerCase().trim();
+            results.sort((a, b) => {
+                const aName = a.name.toLowerCase().trim();
+                const bName = b.name.toLowerCase().trim();
+
+                // Exact match priority
+                const aExact = aName === normalizedQuery ? 0 : 1;
+                const bExact = bName === normalizedQuery ? 0 : 1;
+                if (aExact !== bExact) return aExact - bExact;
+
+                // Prefix match priority
+                const aPrefix = aName.startsWith(normalizedQuery) ? 0 : 1;
+                const bPrefix = bName.startsWith(normalizedQuery) ? 0 : 1;
+                if (aPrefix !== bPrefix) return aPrefix - bPrefix;
+
+                // Shorter names preferred
+                return aName.length - bName.length;
+            });
+
+            return results;
+        } catch (error) {
+            console.warn('Wikidata SPARQL search error:', error);
+            // Fall back to simple search on error
+            return this.searchGamesSimple(query, limit);
+        }
+    }
+
+    /**
+     * Simple fallback search using entity API (less accurate but more reliable)
+     */
+    private async searchGamesSimple(query: string, limit: number): Promise<MetadataSearchResult[]> {
         const searchParams = new URLSearchParams({
             action: 'wbsearchentities',
             search: query.trim(),
             language: 'en',
             format: 'json',
             type: 'item',
-            limit: String(limit * 2), // Search more to filter
+            limit: String(limit * 3),
             origin: '*',
         });
 
         try {
             const response = await fetch(`${WIKIDATA_SEARCH_API}?${searchParams.toString()}`);
-
             if (!response.ok) {
-                console.warn(`Wikidata search error: ${response.status}`);
                 return [];
             }
 
-            const data = await response.json();
+            const data = await response.json() as {search?: WikidataSearchResult[]};
             const searchResults = (data.search || []) as WikidataSearchResult[];
 
-            // Filter to board games using SPARQL
             const results: MetadataSearchResult[] = [];
-            
             for (const item of searchResults) {
                 if (results.length >= limit) break;
 
-                // Quick check if this could be a board game
                 const description = (item.description || '').toLowerCase();
+                // Include board/card/tabletop game related terms (this is a fallback search)
                 if (description.includes('board game') || 
                     description.includes('card game') ||
                     description.includes('tabletop game') ||
                     description.includes('dice game') ||
-                    description.includes('tile game')) {
+                    description.includes('tile game') ||
+                    description.includes('strategy game') ||
+                    description.includes('party game') ||
+                    description.includes('game by')) {
                     results.push({
                         externalId: item.id,
                         name: item.label,
@@ -139,7 +253,7 @@ export class WikidataMetadataProvider extends BaseMetadataProvider {
 
             return results;
         } catch (error) {
-            console.warn('Wikidata search error:', error);
+            console.warn('Wikidata simple search error:', error);
             return [];
         }
     }
@@ -190,7 +304,7 @@ LIMIT 50`;
                 return null;
             }
 
-            const data = await response.json();
+            const data = await response.json() as {results?: {bindings?: WikidataSparqlResult[]}};
             const bindings = data.results?.bindings as WikidataSparqlResult[];
 
             if (!bindings || bindings.length === 0) {

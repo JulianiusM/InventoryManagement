@@ -51,6 +51,9 @@ import {
 // Ensure connectors are initialized
 initializeConnectors();
 
+// Minimum description length to be considered valid (shorter = placeholder)
+const MIN_VALID_DESCRIPTION_LENGTH = 50;
+
 /**
  * Helper to parse checkbox boolean from form submissions
  * HTML checkboxes submit 'true' string when checked, undefined when unchecked
@@ -342,12 +345,19 @@ export async function fetchMetadataForTitle(
     }
     
     // Step 3: Apply metadata updates to title
+    // Update fields even if they exist, to allow refresh with better data
     const updates: Partial<GameTitle> = {};
     
-    if (foundMetadata.description && !title.description) {
-        updates.description = foundMetadata.shortDescription || foundMetadata.description;
+    // Always update description if we found a better one
+    if (foundMetadata.shortDescription || foundMetadata.description) {
+        const newDescription = foundMetadata.shortDescription || foundMetadata.description;
+        // Update if no existing description OR if existing one is very short/placeholder
+        if (!title.description || title.description.length < MIN_VALID_DESCRIPTION_LENGTH || title.description === title.name) {
+            updates.description = newDescription;
+        }
     }
     
+    // Update cover image if we found one and don't have one
     if (foundMetadata.coverImageUrl && !title.coverImageUrl) {
         updates.coverImageUrl = foundMetadata.coverImageUrl;
     }
