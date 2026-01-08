@@ -96,6 +96,31 @@ export class Item {
     @Column("boolean", {name: "is_installed", nullable: true})
     isInstalled?: boolean | null;
 
+    // Aggregator origin fields (for transparent import tracking, e.g., Playnite)
+    @Column("varchar", {name: "aggregator_provider_id", length: 100, nullable: true})
+    aggregatorProviderId?: string | null;
+
+    @Column("varchar", {name: "aggregator_account_id", length: 255, nullable: true})
+    aggregatorAccountId?: string | null;
+
+    @Column("varchar", {name: "aggregator_external_game_id", length: 500, nullable: true})
+    aggregatorExternalGameId?: string | null;
+
+    @Column("varchar", {name: "original_provider_plugin_id", length: 255, nullable: true})
+    originalProviderPluginId?: string | null;
+
+    @Column("varchar", {name: "original_provider_name", length: 255, nullable: true})
+    originalProviderName?: string | null;
+
+    @Column("varchar", {name: "original_provider_game_id", length: 255, nullable: true})
+    originalProviderGameId?: string | null;
+
+    @Column("varchar", {name: "original_provider_normalized_id", length: 100, nullable: true})
+    originalProviderNormalizedId?: string | null;
+
+    @Column("boolean", {name: "needs_review", default: false})
+    needsReview!: boolean;
+
     // Lending fields
     @Column("boolean", {name: "lendable", default: true})
     lendable!: boolean;

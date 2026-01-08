@@ -1,12 +1,26 @@
 import express, {Request, Response} from 'express';
 import {asyncHandler} from '../../modules/lib/asyncHandler';
 import * as gamesController from '../../controller/gamesController';
+import * as playniteController from '../../controller/playniteController';
 import renderer from '../../modules/renderer';
 import {requireAuth} from '../../middleware/authMiddleware';
+import {requirePlayniteAuth, playniteImportRateLimiter} from '../../middleware/playniteAuthMiddleware';
 
 const router = express.Router();
 
-// Apply auth middleware to all games API routes
+// ============ Playnite Import (device token auth) ============
+
+// Import Playnite library - this endpoint uses device token auth, not session auth
+router.post('/import/playnite', requirePlayniteAuth, playniteImportRateLimiter, asyncHandler(async (req: Request, res: Response) => {
+    const {deviceId, userId} = req.playniteDevice!;
+    const payload = req.body;
+    
+    const result = await playniteController.importPlayniteLibrary(deviceId, userId, payload);
+    
+    renderer.respondWithJson(res, result);
+}));
+
+// Apply session auth middleware to remaining games API routes
 router.use(requireAuth);
 
 // ============ Connectors ============

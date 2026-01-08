@@ -192,6 +192,37 @@ export async function findGameItemByExternalId(accountId: string, externalGameId
     });
 }
 
+export async function findItemByAggregatorEntitlementKey(
+    aggregatorProviderId: string,
+    aggregatorAccountId: string,
+    aggregatorExternalGameId: string
+): Promise<Item | null> {
+    const repo = AppDataSource.getRepository(Item);
+    return await repo.findOne({
+        where: {
+            aggregatorProviderId,
+            aggregatorAccountId,
+            aggregatorExternalGameId,
+        },
+        relations: ['gameRelease', 'gameRelease.gameTitle', 'externalAccount'],
+    });
+}
+
+export async function findItemsByAggregatorAccount(
+    aggregatorProviderId: string,
+    aggregatorAccountId: string
+): Promise<Item[]> {
+    const repo = AppDataSource.getRepository(Item);
+    return await repo.find({
+        where: {
+            aggregatorProviderId,
+            aggregatorAccountId,
+        },
+        relations: ['gameRelease', 'gameRelease.gameTitle', 'externalAccount'],
+        order: {createdAt: 'DESC'},
+    });
+}
+
 export async function createGameItem(data: {
     name: string;
     gameReleaseId: string;

@@ -11,11 +11,12 @@ import { Loan } from "./entities/loan/Loan";
 import { Location } from "./entities/location/Location";
 import { Party } from "./entities/party/Party";
 import { Platform } from "./entities/platform/Platform";
+import { PlayniteDevice } from "./entities/playniteDevice/PlayniteDevice";
 import { Session } from "./entities/session/Session";
 import { SyncJob } from "./entities/syncJob/SyncJob";
 import { User } from "./entities/user/User";
 
-export const entities = [Barcode, ExternalAccount, ExternalLibraryEntry, GameExternalMapping, GameRelease, GameTitle, Item, ItemMovement, Loan, Location, Party, Platform, Session, SyncJob, User];
+export const entities = [Barcode, ExternalAccount, ExternalLibraryEntry, GameExternalMapping, GameRelease, GameTitle, Item, ItemMovement, Loan, Location, Party, Platform, PlayniteDevice, Session, SyncJob, User];
 
 export const migrations = [];
 
