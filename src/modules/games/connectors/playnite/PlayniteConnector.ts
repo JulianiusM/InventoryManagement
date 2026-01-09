@@ -147,9 +147,6 @@ function convertToExternalGames(payload: PlayniteImportPayload): ExternalGame[] 
 }
 
 export class PlayniteConnector extends BaseConnector implements PushConnector {
-    // Store the imported games temporarily for syncLibrary
-    private pendingImport: PlayniteImportPayload | null = null;
-
     constructor() {
         super(PLAYNITE_MANIFEST);
     }
@@ -269,83 +266,17 @@ export class PlayniteConnector extends BaseConnector implements PushConnector {
     // ============ Standard Connector Methods ============
 
     /**
-     * Set the import payload for processing (used by import endpoint)
-     */
-    public setImportPayload(payload: PlayniteImportPayload): void {
-        this.pendingImport = payload;
-    }
-
-    /**
      * Sync game library from Playnite
-     * Uses the pending import payload set via setImportPayload
+     * Push-style connectors don't support manual sync - they receive pushed data
      */
-    async syncLibrary(credentials: ConnectorCredentials): Promise<SyncResult> {
-        try {
-            const {deviceId} = credentials;
-            
-            if (!deviceId) {
-                return {
-                    success: false,
-                    games: [],
-                    error: 'Device ID is required for Playnite sync.',
-                    timestamp: new Date(),
-                };
-            }
-            
-            // Verify device exists
-            const device = await connectorDeviceService.getDeviceById(deviceId);
-            if (!device) {
-                return {
-                    success: false,
-                    games: [],
-                    error: 'Device not found. Please re-register your Playnite device.',
-                    timestamp: new Date(),
-                };
-            }
-            
-            // Check if device is revoked
-            if (device.revokedAt) {
-                return {
-                    success: false,
-                    games: [],
-                    error: 'Device has been revoked. Please register a new device.',
-                    timestamp: new Date(),
-                };
-            }
-            
-            // Check for pending import
-            if (!this.pendingImport) {
-                return {
-                    success: false,
-                    games: [],
-                    error: 'No import payload provided. Use the Playnite extension to sync your library.',
-                    timestamp: new Date(),
-                };
-            }
-            
-            // Convert payload to external games
-            const games = convertToExternalGames(this.pendingImport);
-            
-            // Update last import timestamp
-            await connectorDeviceService.updateLastImportAt(deviceId);
-            
-            // Clear pending import
-            this.pendingImport = null;
-            
-            return {
-                success: true,
-                games,
-                timestamp: new Date(),
-            };
-        } catch (error) {
-            const message = error instanceof Error ? error.message : 'Unknown error during Playnite sync';
-            return {
-                success: false,
-                games: [],
-                error: message,
-                timestamp: new Date(),
-            };
-        }
+    async syncLibrary(_credentials: ConnectorCredentials): Promise<SyncResult> {
+        // Push-style connectors don't sync actively - they receive pushed data
+        return {
+            success: false,
+            games: [],
+            error: 'Playnite is a push-style connector. Use the Playnite extension to sync your library.',
+            timestamp: new Date(),
+        };
     }
 
     /**

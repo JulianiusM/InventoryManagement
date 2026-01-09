@@ -19,12 +19,15 @@ import * as platformService from '../../../database/services/PlatformService';
 import {
     GameCopyType,
     MappingStatus,
-    GameType
+    GameType,
+    ItemType
 } from '../../../../types/InventoryEnums';
 import {AppDataSource} from '../../../database/dataSource';
 import {ExternalLibraryEntry} from '../../../database/entities/externalLibraryEntry/ExternalLibraryEntry';
 import {Item} from '../../../database/entities/item/Item';
 import {ExternalAccount} from '../../../database/entities/externalAccount/ExternalAccount';
+import {GameRelease} from '../../../database/entities/gameRelease/GameRelease';
+import {User} from '../../../database/entities/user/User';
 import {normalizeProviderName} from './PlayniteProviders';
 import {ExpectedError} from '../../../lib/errors';
 
@@ -469,11 +472,11 @@ async function upsertGameCopy(
     // Create item with full aggregator origin info
     const newItem = new Item();
     newItem.name = game.name;
-    newItem.type = 'game_digital' as any;
-    newItem.owner = {id: userId} as any;
-    newItem.gameRelease = releaseId ? {id: releaseId} as any : null;
+    newItem.type = ItemType.GAME_DIGITAL;
+    newItem.owner = {id: userId} as User;
+    newItem.gameRelease = releaseId ? {id: releaseId} as GameRelease : null;
     newItem.gameCopyType = GameCopyType.DIGITAL_LICENSE;
-    newItem.externalAccount = {id: accountId} as any;
+    newItem.externalAccount = {id: accountId} as ExternalAccount;
     newItem.externalGameId = entitlementKey;
     newItem.playtimeMinutes = playtimeMinutes;
     newItem.lastPlayedAt = lastPlayedAt;
