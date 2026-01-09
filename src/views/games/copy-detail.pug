@@ -323,12 +323,12 @@ block content
                                             | Allow lending
                             if copy.gameCopyType === 'digital_license'
                                 .col-12
-                                    label.form-label Store Link
-                                    input.form-control.text-bg-dark(type="url" name="storeUrl" placeholder="https://store.example.com/game" value=(copy.storeUrl || ''))
-                                    .form-text.text-white-50 URL to the game's store page
+                                    label.form-label(for="editStoreUrl") Store Link
+                                    input#editStoreUrl.form-control.text-bg-dark(type="url" name="storeUrl" placeholder="https://store.example.com/game" value=(copy.storeUrl || ''))
+                                    .form-text.text-white-50 URL to the game's store page (HTTPS only)
                             .col-12
-                                label.form-label Notes
-                                textarea.form-control.text-bg-dark(name="notes" rows="3" placeholder="Optional notes") #{copy.notes || ''}
+                                label.form-label(for="editNotes") Notes
+                                textarea#editNotes.form-control.text-bg-dark(name="notes" rows="3" placeholder="Optional notes") #{copy.notes || ''}
                     .modal-footer.border-secondary
                         button.btn.btn-secondary(type="button" data-bs-dismiss="modal") Cancel
                         button.btn.btn-primary(type="submit" form="editCopyForm")

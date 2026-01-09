@@ -943,16 +943,16 @@ export async function updateGameCopy(
     if (copy.gameCopyType === GameCopyType.DIGITAL_LICENSE) {
         if (body.storeUrl !== undefined) {
             const trimmed = typeof body.storeUrl === 'string' ? body.storeUrl.trim() : null;
-            // Validate URL if provided
+            // Validate URL if provided - only allow HTTPS for security
             if (trimmed) {
                 try {
                     const url = new URL(trimmed);
-                    if (url.protocol !== 'https:' && url.protocol !== 'http:') {
-                        throw new Error('Invalid protocol');
+                    if (url.protocol !== 'https:') {
+                        throw new Error('Only HTTPS URLs are allowed');
                     }
                     updateData.storeUrl = trimmed;
                 } catch {
-                    // Invalid URL, skip
+                    // Invalid URL or not HTTPS, skip
                 }
             } else {
                 updateData.storeUrl = null;
