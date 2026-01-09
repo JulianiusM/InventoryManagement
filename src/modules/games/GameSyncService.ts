@@ -160,12 +160,16 @@ export async function syncExternalAccount(
             return {success: false, error: result.error, jobId: job.id};
         }
         
+        // Check if connector is an aggregator
+        const isAggregator = connector.getManifest().isAggregator || false;
+        
         // Process games with automatic creation
         const stats = await processGamesWithAutoCreate(
             account.id,
             account.provider,
             result.games,
-            ownerId
+            ownerId,
+            isAggregator
         );
         
         // Update account last synced
@@ -196,12 +200,15 @@ export async function syncExternalAccount(
  * 3. Check if we have an existing mapping
  * 4. If no mapping exists, automatically create game title + release from metadata
  * 5. Create/update the digital copy item
+ * 
+ * For aggregator connectors (like Playnite), also stores the original provider info
  */
 async function processGamesWithAutoCreate(
     accountId: string,
     provider: string,
     games: ExternalGame[],
-    ownerId: number
+    ownerId: number,
+    isAggregator: boolean = false
 ): Promise<SyncStats> {
     let entriesAdded = 0;
     let entriesUpdated = 0;
@@ -307,6 +314,15 @@ async function processGamesWithAutoCreate(
                     isInstalled: enrichedGame.isInstalled,
                     lendable: false,
                     ownerId,
+                    // Aggregator origin fields (only for aggregator connectors)
+                    aggregatorProviderId: isAggregator ? provider : undefined,
+                    aggregatorAccountId: isAggregator ? accountId : undefined,
+                    aggregatorExternalGameId: isAggregator ? enrichedGame.externalGameId : undefined,
+                    originalProviderPluginId: enrichedGame.originalProviderPluginId,
+                    originalProviderName: enrichedGame.originalProviderName,
+                    originalProviderGameId: enrichedGame.originalProviderGameId,
+                    originalProviderNormalizedId: enrichedGame.originalProviderNormalizedId,
+                    needsReview: !enrichedGame.originalProviderGameId && isAggregator,
                 });
                 copiesCreated++;
             } else {

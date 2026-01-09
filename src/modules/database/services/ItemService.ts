@@ -26,6 +26,15 @@ export async function createItem(data: {
     isInstalled?: boolean | null;
     lendable?: boolean;
     acquiredAt?: string | null;
+    // Aggregator origin fields (for transparent aggregator pattern)
+    aggregatorProviderId?: string | null;
+    aggregatorAccountId?: string | null;
+    aggregatorExternalGameId?: string | null;
+    originalProviderPluginId?: string | null;
+    originalProviderName?: string | null;
+    originalProviderGameId?: string | null;
+    originalProviderNormalizedId?: string | null;
+    needsReview?: boolean;
 }): Promise<Item> {
     const repo = AppDataSource.getRepository(Item);
     const item = new Item();
@@ -55,6 +64,16 @@ export async function createItem(data: {
     item.isInstalled = data.isInstalled ?? null;
     item.lendable = data.lendable !== undefined ? data.lendable : true;
     item.acquiredAt = data.acquiredAt ?? null;
+    
+    // Aggregator origin fields
+    item.aggregatorProviderId = data.aggregatorProviderId ?? null;
+    item.aggregatorAccountId = data.aggregatorAccountId ?? null;
+    item.aggregatorExternalGameId = data.aggregatorExternalGameId ?? null;
+    item.originalProviderPluginId = data.originalProviderPluginId ?? null;
+    item.originalProviderName = data.originalProviderName ?? null;
+    item.originalProviderGameId = data.originalProviderGameId ?? null;
+    item.originalProviderNormalizedId = data.originalProviderNormalizedId ?? null;
+    item.needsReview = data.needsReview ?? false;
     
     return await repo.save(item);
 }
@@ -239,6 +258,15 @@ export async function createGameItem(data: {
     lendable?: boolean;
     acquiredAt?: string | null;
     ownerId: number;
+    // Aggregator origin fields (for transparent aggregator pattern)
+    aggregatorProviderId?: string | null;
+    aggregatorAccountId?: string | null;
+    aggregatorExternalGameId?: string | null;
+    originalProviderPluginId?: string | null;
+    originalProviderName?: string | null;
+    originalProviderGameId?: string | null;
+    originalProviderNormalizedId?: string | null;
+    needsReview?: boolean;
 }): Promise<Item> {
     // Determine item type based on copy type
     const type = data.gameCopyType === GameCopyType.DIGITAL_LICENSE 
@@ -267,5 +295,14 @@ export async function createGameItem(data: {
         isInstalled: data.isInstalled,
         lendable,
         acquiredAt: data.acquiredAt,
+        // Aggregator origin fields
+        aggregatorProviderId: data.aggregatorProviderId,
+        aggregatorAccountId: data.aggregatorAccountId,
+        aggregatorExternalGameId: data.aggregatorExternalGameId,
+        originalProviderPluginId: data.originalProviderPluginId,
+        originalProviderName: data.originalProviderName,
+        originalProviderGameId: data.originalProviderGameId,
+        originalProviderNormalizedId: data.originalProviderNormalizedId,
+        needsReview: data.needsReview,
     });
 }

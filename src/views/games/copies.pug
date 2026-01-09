@@ -87,6 +87,12 @@ block content
                                         i.bi.bi-cloud.me-1.text-white-50
                                         | #{copy.externalAccount.accountName}
                                         span.text-white-50.small.ms-1 (#{copy.externalAccount.provider})
+                                        //- Show original provider for aggregator imports
+                                        if copy.aggregatorProviderId && copy.originalProviderName
+                                            br
+                                            span.badge.text-bg-secondary.small
+                                                i.bi.bi-arrow-right.me-1
+                                                | #{copy.originalProviderName}
                                     else
                                         span.text-white-50 —
                                 else

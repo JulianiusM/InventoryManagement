@@ -84,6 +84,18 @@ block content
                                     else
                                         | —
                                 
+                                //- Show original provider for aggregator-imported copies (e.g., Playnite)
+                                if copy.aggregatorProviderId
+                                    dt.col-sm-4
+                                        i.bi.bi-arrow-right-circle.me-1
+                                        | Original Source
+                                    dd.col-sm-8
+                                        span.badge.text-bg-secondary.me-1 #{copy.originalProviderName || 'Unknown'}
+                                        if copy.originalProviderGameId
+                                            span.text-white-50.small (#{copy.originalProviderGameId})
+                                        if copy.needsReview
+                                            span.badge.text-bg-warning.ms-1 Needs Review
+                                
                                 if copy.playtimeMinutes
                                     dt.col-sm-4
                                         i.bi.bi-clock.me-1

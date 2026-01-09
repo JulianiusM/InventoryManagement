@@ -17,6 +17,7 @@ import * as locationService from '../modules/database/services/LocationService';
 import * as partyService from '../modules/database/services/PartyService';
 import * as gameSyncService from '../modules/games/GameSyncService';
 import * as platformService from '../modules/database/services/PlatformService';
+import * as playniteDeviceService from '../modules/database/services/PlayniteDeviceService';
 import {connectorRegistry, initializeConnectors} from '../modules/games/connectors/ConnectorRegistry';
 import {metadataProviderRegistry} from '../modules/games/metadata/MetadataProviderRegistry';
 import {mergePlayerCounts, type GameMetadata, type MetadataSearchResult} from '../modules/games/metadata/MetadataProviderInterface';
@@ -1007,7 +1008,19 @@ export async function listExternalAccounts(ownerId: number) {
     requireAuthenticatedUser(ownerId);
     const accounts = await externalAccountService.getAllExternalAccounts(ownerId);
     const connectors = connectorRegistry.getAllManifests();
-    return {accounts, connectors};
+    
+    // Get Playnite devices for the user
+    const devices = await playniteDeviceService.getDevicesByUserId(ownerId);
+    const playniteDevices = devices.map(device => ({
+        id: device.id,
+        name: device.name,
+        createdAt: device.createdAt,
+        lastSeenAt: device.lastSeenAt,
+        lastImportAt: device.lastImportAt,
+        status: device.revokedAt ? 'revoked' as const : 'active' as const,
+    }));
+    
+    return {accounts, connectors, playniteDevices};
 }
 
 export async function createExternalAccount(body: CreateExternalAccountBody, ownerId: number) {

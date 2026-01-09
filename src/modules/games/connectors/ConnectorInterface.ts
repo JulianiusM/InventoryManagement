@@ -38,6 +38,13 @@ export interface ExternalGame {
     releaseDate?: string;
     developer?: string;
     publisher?: string;
+    
+    // Aggregator origin fields (for transparent aggregator pattern)
+    // When a connector acts as an aggregator (e.g., Playnite), it can expose the original provider
+    originalProviderPluginId?: string;  // Original provider's plugin ID (e.g., Playnite plugin GUID)
+    originalProviderName?: string;      // Human-readable provider name (e.g., "Steam", "Epic")
+    originalProviderGameId?: string;    // Game ID on the original provider
+    originalProviderNormalizedId?: string; // Normalized provider ID (e.g., "steam", "epic", "gog")
 }
 
 /**
@@ -51,6 +58,8 @@ export interface ConnectorManifest {
     capabilities: ConnectorCapability[];
     version: string;
     configSchema?: object; // JSON Schema for connector configuration
+    /** Whether this connector acts as an aggregator (imports from multiple sources) */
+    isAggregator?: boolean;
 }
 
 /**

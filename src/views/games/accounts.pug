@@ -166,11 +166,99 @@ block content
                         .col-md-6.col-lg-4
                             .card.text-bg-dark.border-secondary
                                 .card-body.py-2
-                                    h6.mb-1 #{conn.name}
+                                    .d-flex.justify-content-between.align-items-start
+                                        div
+                                            h6.mb-1 #{conn.name}
+                                            if conn.isAggregator
+                                                span.badge.text-bg-info.small.me-1 Aggregator
+                                        if conn.id === 'playnite'
+                                            button.btn.btn-sm.btn-outline-primary(type="button" data-bs-toggle="modal" data-bs-target="#playniteDevicesModal")
+                                                i.bi.bi-gear.me-1
+                                                | Manage
                                     p.small.text-white-50.mb-1 #{conn.description}
                                     .d-flex.flex-wrap.gap-1
                                         each cap in conn.capabilities
                                             span.badge.text-bg-secondary.small #{cap.replace('_', ' ')}
+
+    //- Playnite Devices Modal
+    - const playniteDevices = (data && data.playniteDevices) ? data.playniteDevices : []
+    #playniteDevicesModal.modal.fade(tabindex="-1")
+        .modal-dialog.modal-lg
+            .modal-content.text-bg-dark
+                .modal-header.border-secondary
+                    h5.modal-title
+                        i.bi.bi-controller.me-2
+                        | Playnite Devices
+                    button.btn-close.btn-close-white(type="button" data-bs-dismiss="modal")
+                .modal-body
+                    .alert.alert-info.mb-3
+                        i.bi.bi-info-circle.me-2
+                        | Playnite is an aggregator that imports games from multiple sources (Steam, Epic, GOG, etc.) while preserving the original provider information.
+                    
+                    //- Device registration form
+                    form#registerDeviceForm.mb-4(method="post" action="/api/integrations/playnite/devices")
+                        .row.g-2.align-items-end
+                            .col-md-8
+                                label.form-label Device Name
+                                input#deviceNameInput.form-control.text-bg-dark(type="text" name="deviceName" placeholder="e.g., Gaming PC" required)
+                            .col-md-4
+                                button.btn.btn-primary.w-100(type="submit")
+                                    i.bi.bi-plus-lg.me-1
+                                    | Register Device
+                    
+                    //- Device list
+                    if playniteDevices.length === 0
+                        .text-center.py-4
+                            i.bi.bi-controller.display-4.text-white-50.d-block.mb-3
+                            p.text-white-50 No Playnite devices registered yet.
+                            p.small.text-white-50 Register a device to get a token for the Playnite extension.
+                    else
+                        .table-responsive
+                            table.table.table-dark.table-hover.mb-0
+                                thead
+                                    tr
+                                        th Device Name
+                                        th Status
+                                        th Last Seen
+                                        th Last Import
+                                        th Actions
+                                tbody
+                                    each device in playniteDevices
+                                        tr
+                                            td #{device.name}
+                                            td
+                                                if device.status === 'active'
+                                                    span.badge.text-bg-success Active
+                                                else
+                                                    span.badge.text-bg-danger Revoked
+                                            td
+                                                if device.lastSeenAt
+                                                    | #{new Date(device.lastSeenAt).toLocaleDateString()}
+                                                else
+                                                    span.text-white-50 Never
+                                            td
+                                                if device.lastImportAt
+                                                    | #{new Date(device.lastImportAt).toLocaleDateString()}
+                                                else
+                                                    span.text-white-50 Never
+                                            td
+                                                if device.status === 'active'
+                                                    form.d-inline(method="post" action=`/api/integrations/playnite/devices/${device.id}/revoke`)
+                                                        button.btn.btn-sm.btn-outline-warning(type="submit" onclick="return confirm('Revoke this device? You will need to register a new device.')")
+                                                            i.bi.bi-x-circle.me-1
+                                                            | Revoke
+                                
+                    .mt-4
+                        h6.text-white-50
+                            i.bi.bi-question-circle.me-1
+                            | How to use
+                        ol.small.text-white-50
+                            li Register a device above and copy the token
+                            li Install the Playnite extension (available separately)
+                            li Configure the extension with your token
+                            li Sync your library from Playnite
+                .modal-footer.border-secondary
+                    button.btn.btn-secondary(type="button" data-bs-dismiss="modal") Close
 
     //- Add Account Modal
     #addAccountModal.modal.fade(tabindex="-1")
@@ -389,6 +477,75 @@ block scripts
                 clearInterval(pollingIntervals[accountId]);
                 delete pollingIntervals[accountId];
             }
+        }
+        
+        // Handle Playnite device registration
+        const registerDeviceForm = document.getElementById('registerDeviceForm');
+        if (registerDeviceForm) {
+            registerDeviceForm.addEventListener('submit', async function(e) {
+                e.preventDefault();
+                const deviceNameInput = document.getElementById('deviceNameInput');
+                const deviceName = deviceNameInput.value.trim();
+                
+                if (!deviceName) return;
+                
+                try {
+                    const response = await fetch('/api/integrations/playnite/devices', {
+                        method: 'POST',
+                        headers: {'Content-Type': 'application/json'},
+                        body: JSON.stringify({deviceName})
+                    });
+                    
+                    const data = await response.json();
+                    
+                    if (response.ok && data.token) {
+                        // Show the token to the user
+                        const tokenModal = document.createElement('div');
+                        tokenModal.innerHTML = `
+                            <div class="modal fade" id="tokenResultModal" tabindex="-1">
+                                <div class="modal-dialog">
+                                    <div class="modal-content text-bg-dark">
+                                        <div class="modal-header border-secondary">
+                                            <h5 class="modal-title"><i class="bi bi-key me-2"></i>Device Token</h5>
+                                            <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                                        </div>
+                                        <div class="modal-body">
+                                            <div class="alert alert-warning">
+                                                <i class="bi bi-exclamation-triangle me-2"></i>
+                                                <strong>Save this token now!</strong> It will not be shown again.
+                                            </div>
+                                            <label class="form-label">Device ID</label>
+                                            <input type="text" class="form-control text-bg-dark mb-3" value="${data.deviceId}" readonly>
+                                            <label class="form-label">Token</label>
+                                            <div class="input-group">
+                                                <input type="text" class="form-control text-bg-dark" id="deviceToken" value="${data.token}" readonly>
+                                                <button class="btn btn-outline-secondary" type="button" onclick="navigator.clipboard.writeText(document.getElementById('deviceToken').value).then(() => this.innerHTML = '<i class=\\'bi bi-check\\'></i>')">
+                                                    <i class="bi bi-clipboard"></i>
+                                                </button>
+                                            </div>
+                                            <p class="small text-white-50 mt-2">Use this token in the Playnite extension to sync your library.</p>
+                                        </div>
+                                        <div class="modal-footer border-secondary">
+                                            <button type="button" class="btn btn-primary" data-bs-dismiss="modal" onclick="location.reload()">Done</button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        `;
+                        document.body.appendChild(tokenModal);
+                        const modal = new bootstrap.Modal(document.getElementById('tokenResultModal'));
+                        modal.show();
+                        
+                        // Clear input
+                        deviceNameInput.value = '';
+                    } else {
+                        alert(data.message || 'Failed to register device');
+                    }
+                } catch (err) {
+                    console.error('Failed to register device:', err);
+                    alert('Failed to register device');
+                }
+            });
         }
     
     style.
