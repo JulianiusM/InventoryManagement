@@ -36,9 +36,21 @@ import {
     GameType,
     SyncStatus
 } from '../../types/InventoryEnums';
+import {GameTitle} from '../database/entities/gameTitle/GameTitle';
+import {GameRelease} from '../database/entities/gameRelease/GameRelease';
 
 // Initialize metadata providers
 initializeMetadataProviders();
+
+/**
+ * Result from auto-creating game title and release from metadata
+ */
+export interface AutoCreateGameResult {
+    title: GameTitle;
+    release: GameRelease;
+    titleCreated: boolean;
+    releaseCreated: boolean;
+}
 
 export interface SyncStats {
     entriesProcessed: number;
@@ -692,7 +704,7 @@ async function autoCreateGameFromMetadata(
     game: ExternalGame,
     platform: string,
     ownerId: number
-): Promise<{title: Awaited<ReturnType<typeof gameTitleService.createGameTitle>>; release: Awaited<ReturnType<typeof gameReleaseService.createGameRelease>>; titleCreated: boolean; releaseCreated: boolean}> {
+): Promise<AutoCreateGameResult> {
     // Ensure the platform exists in the database (auto-create if missing)
     await platformService.getOrCreatePlatform(platform, ownerId);
     
