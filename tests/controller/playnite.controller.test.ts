@@ -117,12 +117,14 @@ describe('Playnite Providers', () => {
             expect(generateStoreUrl('steam', '123456')).toBe('https://store.steampowered.com/app/123456');
         });
 
-        test('generates Epic store URL', () => {
-            expect(generateStoreUrl('epic', 'my-game')).toBe('https://store.epicgames.com/p/my-game');
+        test('returns undefined for Epic (unreliable URL format)', () => {
+            // Epic URLs require slug names, not IDs - use storeUrl from Playnite or metadata providers
+            expect(generateStoreUrl('epic', 'my-game')).toBeUndefined();
         });
 
-        test('generates GOG store URL', () => {
-            expect(generateStoreUrl('gog', 'hades')).toBe('https://www.gog.com/game/hades');
+        test('returns undefined for GOG (unreliable URL format)', () => {
+            // GOG URLs require slug names, not IDs - use storeUrl from Playnite or metadata providers
+            expect(generateStoreUrl('gog', 'hades')).toBeUndefined();
         });
 
         test('returns undefined for EA (no public store URL)', () => {

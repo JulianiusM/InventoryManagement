@@ -66,3 +66,26 @@ export async function failSyncJob(id: string, errorMessage: string): Promise<voi
         errorMessage: errorMessage,
     });
 }
+
+/**
+ * Get all in-progress sync jobs (for recovery on app restart)
+ */
+export async function getInProgressJobs(): Promise<SyncJob[]> {
+    const repo = AppDataSource.getRepository(SyncJob);
+    return await repo.find({
+        where: {status: SyncStatus.IN_PROGRESS},
+        relations: ['externalAccount'],
+    });
+}
+
+/**
+ * Get pending sync jobs (for resume functionality)
+ */
+export async function getPendingJobs(): Promise<SyncJob[]> {
+    const repo = AppDataSource.getRepository(SyncJob);
+    return await repo.find({
+        where: {status: SyncStatus.PENDING},
+        relations: ['externalAccount'],
+        order: {createdAt: 'ASC'},
+    });
+}

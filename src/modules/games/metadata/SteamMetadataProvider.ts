@@ -23,10 +23,11 @@ const STEAM_SEARCH_URL = 'https://store.steampowered.com/search/suggest';
 
 // Rate limiting configuration - Steam API is strict about rate limits
 // Using conservative values to avoid being banned for large datasets
-const BATCH_SIZE = 3; // Smaller batch size to reduce concurrent requests
-const DELAY_BETWEEN_BATCHES_MS = 1000; // 1 second between batches (was 200ms)
-const DELAY_BETWEEN_INDIVIDUAL_MS = 350; // 350ms between individual requests
-const MAX_GAMES_TO_FETCH = 100; // Limit metadata fetches to avoid long sync times
+const BATCH_SIZE = 5; // Moderate batch size
+const DELAY_BETWEEN_BATCHES_MS = 1500; // 1.5 seconds between batches
+const DELAY_BETWEEN_INDIVIDUAL_MS = 400; // 400ms between individual requests
+const MAX_GAMES_TO_FETCH = 500; // Increased limit for metadata fetches
+const RATE_LIMIT_RETRY_DELAY_MS = 5000; // Wait 5 seconds on rate limit before retry
 
 // Short description max length (2-4 lines)
 const MAX_SHORT_DESCRIPTION_LENGTH = 250;
@@ -188,62 +189,79 @@ export class SteamMetadataProvider extends BaseMetadataProvider {
 
     /**
      * Get detailed metadata for a Steam game
+     * Returns GameMetadata on success, null on permanent failure (game not found, invalid ID),
+     * or throws Error on transient failure (network error, rate limit) that should be retried
      */
     async getGameMetadata(externalId: string, _apiKey?: string): Promise<GameMetadata | null> {
-        // Validate AppID format
+        // Validate AppID format - this is a permanent failure, don't retry
         if (!/^\d+$/.test(externalId)) {
             return null;
         }
         
         const url = `${STEAM_STORE_API_BASE}/appdetails?appids=${externalId}`;
         
-        try {
-            const response = await fetch(url);
-            
-            if (!response.ok) {
-                return null;
-            }
-            
-            const data = await response.json() as SteamAppDetailsResponse;
-            const appData = data[externalId];
-            
-            if (!appData?.success || !appData.data) {
-                return null;
-            }
-            
-            return this.mapToGameMetadata(appData.data);
-        } catch {
-            // Metadata fetch failures return null to allow graceful degradation
-            // The caller can retry or use cached data
+        const response = await fetch(url);
+        
+        // Rate limit or server error - throw to trigger retry
+        if (response.status === 429 || response.status >= 500) {
+            throw new Error(`Steam API error ${response.status} - transient, will retry`);
+        }
+        
+        // Other error (4xx) - permanent failure, don't retry
+        if (!response.ok) {
             return null;
         }
+        
+        const data = await response.json() as SteamAppDetailsResponse;
+        const appData = data[externalId];
+        
+        // Game not found or not available - permanent failure
+        if (!appData?.success || !appData.data) {
+            return null;
+        }
+        
+        return this.mapToGameMetadata(appData.data);
     }
 
     /**
      * Get metadata for multiple games
      * Steam API only allows single appid per request, so we batch with rate limiting
      * 
-     * Note: For large datasets, we limit the number of games fetched to avoid
-     * being rate-limited/banned by Steam (they block IPs after ~150 requests)
+     * Improvements:
+     * - Wait and retry on rate limit (429) instead of skipping
+     * - Higher limits for large libraries
+     * - Better error handling
      */
     async getGamesMetadata(externalIds: string[], apiKey?: string): Promise<GameMetadata[]> {
         const results: GameMetadata[] = [];
         
-        // Limit to avoid being banned by Steam for large libraries
+        // Higher limit for large libraries
         const idsToFetch = externalIds.slice(0, MAX_GAMES_TO_FETCH);
         if (externalIds.length > MAX_GAMES_TO_FETCH) {
             console.log(`Steam metadata: limiting fetch to ${MAX_GAMES_TO_FETCH} of ${externalIds.length} games to avoid rate limits`);
         }
         
+        let consecutiveErrors = 0;
+        const MAX_CONSECUTIVE_ERRORS = 5;
+        
         // Steam rate limits: fetch in small batches with longer delays
         for (let i = 0; i < idsToFetch.length; i += BATCH_SIZE) {
             const batch = idsToFetch.slice(i, i + BATCH_SIZE);
             
+            // Stop if too many consecutive errors (likely banned)
+            if (consecutiveErrors >= MAX_CONSECUTIVE_ERRORS) {
+                console.log(`Steam metadata: ${MAX_CONSECUTIVE_ERRORS} consecutive errors, stopping`);
+                break;
+            }
+            
             // Fetch batch one by one with small delays to be extra safe
             for (const id of batch) {
-                const result = await this.getGameMetadata(id, apiKey);
+                const result = await this.getGameMetadataWithRetry(id, apiKey);
                 if (result) {
                     results.push(result);
+                    consecutiveErrors = 0;
+                } else {
+                    consecutiveErrors++;
                 }
                 // Small delay between individual requests
                 await new Promise(resolve => setTimeout(resolve, DELAY_BETWEEN_INDIVIDUAL_MS));
@@ -256,6 +274,29 @@ export class SteamMetadataProvider extends BaseMetadataProvider {
         }
         
         return results;
+    }
+    
+    /**
+     * Get metadata with retry on transient errors only
+     * Only retries on 429 (rate limit) or 5xx (server errors)
+     * Returns null immediately for permanent failures (invalid ID, game not found)
+     */
+    private async getGameMetadataWithRetry(externalId: string, apiKey?: string, retries = 2): Promise<GameMetadata | null> {
+        for (let attempt = 0; attempt <= retries; attempt++) {
+            try {
+                const result = await this.getGameMetadata(externalId, apiKey);
+                // null means permanent failure (game not found), no retry needed
+                return result;
+            } catch (error) {
+                // Transient error (rate limit, server error) - retry
+                if (attempt < retries) {
+                    console.log(`Steam metadata: retrying ${externalId} after ${RATE_LIMIT_RETRY_DELAY_MS}ms (attempt ${attempt + 1}/${retries})`);
+                    await new Promise(resolve => setTimeout(resolve, RATE_LIMIT_RETRY_DELAY_MS));
+                }
+                // Last attempt failed, return null
+            }
+        }
+        return null;
     }
 
     /**
