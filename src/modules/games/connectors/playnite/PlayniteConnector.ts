@@ -249,7 +249,7 @@ export class PlayniteConnector extends BaseConnector implements PushConnector {
             
             const normalizedProvider = normalizeProviderName(game.originalProviderPluginId);
             // Prefer storeUrl from Playnite payload (more reliable), fallback to generated URL
-            const storeUrl = game.storeUrl || generateStoreUrl(normalizedProvider, game.originalProviderGameId);
+            const storeUrl = game.storeUrl?.trim() || generateStoreUrl(normalizedProvider, game.originalProviderGameId);
             
             return {
                 externalGameId: entitlementKey,
