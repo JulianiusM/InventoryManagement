@@ -5,7 +5,7 @@
 
 import {GameConnector, ConnectorManifest} from './ConnectorInterface';
 import {SteamConnector} from './SteamConnector';
-import {PlayniteConnector} from './PlayniteConnector';
+import {PlayniteConnector} from './playnite/PlayniteConnector';
 
 class ConnectorRegistry {
     private connectors: Map<string, GameConnector> = new Map();

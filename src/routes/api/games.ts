@@ -1,27 +1,66 @@
 import express, {Request, Response} from 'express';
 import {asyncHandler} from '../../modules/lib/asyncHandler';
 import * as gamesController from '../../controller/gamesController';
-import * as playniteController from '../../controller/playniteController';
 import renderer from '../../modules/renderer';
 import {requireAuth} from '../../middleware/authMiddleware';
 import {requirePushConnectorAuth, pushConnectorImportRateLimiter} from '../../middleware/pushConnectorAuthMiddleware';
+import {connectorRegistry} from '../../modules/games/connectors/ConnectorRegistry';
+import {isPushConnector} from '../../modules/games/connectors/ConnectorInterface';
+import * as playniteImportService from '../../modules/games/connectors/playnite/PlayniteImportService';
 
 const router = express.Router();
 
-// ============ Push Connector Import (device token auth) ============
+// ============ Generic Push Connector Import (device token auth) ============
 
-// Import Playnite library - this endpoint uses device token auth, not session auth
-router.post('/import/playnite', requirePushConnectorAuth, pushConnectorImportRateLimiter, asyncHandler(async (req: Request, res: Response) => {
-    // connectorDevice is always set by requirePushConnectorAuth middleware
+// Import library via push connector - generic endpoint for all push-style connectors
+// Uses device token auth (Authorization: Bearer <token>)
+router.post('/connectors/:provider/import', requirePushConnectorAuth, pushConnectorImportRateLimiter, asyncHandler(async (req: Request, res: Response) => {
+    const {provider} = req.params;
     const device = req.connectorDevice;
+    
     if (!device) {
         res.status(401).json({status: 'error', message: 'Device authentication required'});
         return;
     }
     
-    const result = await playniteController.importPlayniteLibrary(device.deviceId, device.userId, req.body);
+    // Verify the device belongs to an account for the requested provider
+    if (device.provider.toLowerCase() !== provider.toLowerCase()) {
+        res.status(403).json({status: 'error', message: `Device is not authorized for ${provider} imports`});
+        return;
+    }
     
-    renderer.respondWithJson(res, result);
+    // Get the connector and verify it supports push imports
+    const connector = connectorRegistry.getByProvider(provider);
+    if (!connector) {
+        res.status(404).json({status: 'error', message: `Unknown connector: ${provider}`});
+        return;
+    }
+    
+    if (!isPushConnector(connector)) {
+        res.status(400).json({status: 'error', message: `${provider} does not support push imports`});
+        return;
+    }
+    
+    // Delegate import processing to the connector-specific service
+    // For now, we handle Playnite specifically - other push connectors can be added later
+    if (provider.toLowerCase() === 'playnite') {
+        const result = await playniteImportService.processPlayniteImport(
+            device.deviceId,
+            device.userId,
+            req.body
+        );
+        renderer.respondWithJson(res, result);
+    } else {
+        // Generic push connector processing via connector interface
+        const syncResult = await connector.processImport(device.deviceId, req.body);
+        renderer.respondWithJson(res, {
+            deviceId: device.deviceId,
+            importedAt: syncResult.timestamp.toISOString(),
+            success: syncResult.success,
+            gamesCount: syncResult.games.length,
+            error: syncResult.error,
+        });
+    }
 }));
 
 // Apply session auth middleware to remaining games API routes

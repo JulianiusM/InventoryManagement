@@ -9,24 +9,74 @@
  * - Creates mapping queue entries for unresolved games
  */
 
-import * as externalAccountService from '../database/services/ExternalAccountService';
-import * as externalLibraryEntryService from '../database/services/ExternalLibraryEntryService';
-import * as gameMappingService from '../database/services/GameExternalMappingService';
-import * as gameTitleService from '../database/services/GameTitleService';
-import * as gameReleaseService from '../database/services/GameReleaseService';
-import * as itemService from '../database/services/ItemService';
-import * as connectorDeviceService from '../database/services/ConnectorDeviceService';
-import * as platformService from '../database/services/PlatformService';
+import Joi from 'joi';
+import * as externalLibraryEntryService from '../../../database/services/ExternalLibraryEntryService';
+import * as gameMappingService from '../../../database/services/GameExternalMappingService';
+import * as gameTitleService from '../../../database/services/GameTitleService';
+import * as gameReleaseService from '../../../database/services/GameReleaseService';
+import * as connectorDeviceService from '../../../database/services/ConnectorDeviceService';
+import * as platformService from '../../../database/services/PlatformService';
 import {
     GameCopyType,
     MappingStatus,
     GameType
-} from '../../types/InventoryEnums';
-import {AppDataSource} from '../database/dataSource';
-import {ExternalLibraryEntry} from '../database/entities/externalLibraryEntry/ExternalLibraryEntry';
-import {Item} from '../database/entities/item/Item';
-import {ExternalAccount} from '../database/entities/externalAccount/ExternalAccount';
+} from '../../../../types/InventoryEnums';
+import {AppDataSource} from '../../../database/dataSource';
+import {ExternalLibraryEntry} from '../../../database/entities/externalLibraryEntry/ExternalLibraryEntry';
+import {Item} from '../../../database/entities/item/Item';
+import {ExternalAccount} from '../../../database/entities/externalAccount/ExternalAccount';
 import {normalizeProviderName} from './PlayniteProviders';
+import {ExpectedError} from '../../../lib/errors';
+
+// ============ Validation Schema ============
+
+const playniteGameSchema = Joi.object({
+    entitlementKey: Joi.string().max(500).optional(),
+    playniteDatabaseId: Joi.string().required(),
+    name: Joi.string().required(),
+    isCustomGame: Joi.boolean().optional(),
+    hidden: Joi.boolean().optional(),
+    installed: Joi.boolean().optional(),
+    installDirectory: Joi.string().optional().allow(null, ''),
+    playtimeSeconds: Joi.number().integer().min(0).optional(),
+    lastActivity: Joi.string().isoDate().optional().allow(null, ''),
+    platforms: Joi.array().items(Joi.string()).optional(),
+    sourceId: Joi.string().optional().allow(null, ''),
+    sourceName: Joi.string().optional().allow(null, ''),
+    originalProviderPluginId: Joi.string().required(),
+    originalProviderName: Joi.string().required(),
+    originalProviderGameId: Joi.string().optional().allow(null, ''),
+    raw: Joi.object().optional(),
+}).unknown(true);
+
+const playnitePluginSchema = Joi.object({
+    pluginId: Joi.string().required(),
+    name: Joi.string().required(),
+});
+
+const playniteImportSchema = Joi.object({
+    aggregator: Joi.string().valid('playnite').required(),
+    exportedAt: Joi.string().isoDate().required(),
+    plugins: Joi.array().items(playnitePluginSchema).optional(),
+    games: Joi.array().items(playniteGameSchema).required(),
+});
+
+/**
+ * Validate and parse Playnite import payload
+ */
+export function validateImportPayload(body: unknown): PlayniteImportPayload {
+    const {error, value} = playniteImportSchema.validate(body, {
+        abortEarly: false,
+        stripUnknown: false,
+    });
+    
+    if (error) {
+        const messages = error.details.map(d => d.message).join('; ');
+        throw new ExpectedError(`Invalid import payload: ${messages}`, 'error', 400);
+    }
+    
+    return value as PlayniteImportPayload;
+}
 
 export interface PlaynitePlugin {
     pluginId: string;
@@ -123,8 +173,11 @@ function deriveEntitlementKey(game: PlayniteGame): {key: string; needsReview: bo
 export async function processPlayniteImport(
     deviceId: string,
     userId: number,
-    payload: PlayniteImportPayload
+    rawPayload: unknown
 ): Promise<PlayniteImportResult> {
+    // Validate the payload first
+    const payload = validateImportPayload(rawPayload);
+    
     const importedAt = new Date().toISOString();
     const counts: ImportCounts = {
         received: payload.games.length,

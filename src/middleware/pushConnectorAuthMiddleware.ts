@@ -5,7 +5,7 @@
  */
 
 import {NextFunction, Request, Response} from 'express';
-import rateLimit from 'express-rate-limit';
+import rateLimit, {ipKeyGenerator} from 'express-rate-limit';
 import * as connectorDeviceService from '../modules/database/services/ConnectorDeviceService';
 import {ExpectedError} from '../modules/lib/errors';
 
@@ -19,12 +19,6 @@ declare global {
                 userId: number;
                 deviceName: string;
                 provider: string;
-            };
-            // Legacy alias for backwards compatibility
-            playniteDevice?: {
-                deviceId: string;
-                userId: number;
-                deviceName: string;
             };
         }
     }
@@ -66,18 +60,8 @@ export async function requirePushConnectorAuth(
         provider: device.externalAccount.provider,
     };
     
-    // Legacy alias for backwards compatibility
-    req.playniteDevice = {
-        deviceId: device.id,
-        userId: device.externalAccount.owner.id,
-        deviceName: device.name,
-    };
-    
     next();
 }
-
-// Legacy export alias
-export const requirePlayniteAuth = requirePushConnectorAuth;
 
 /**
  * Rate limiter for push connector import endpoint
@@ -93,13 +77,10 @@ export const pushConnectorImportRateLimiter = rateLimit({
     standardHeaders: true,
     legacyHeaders: false,
     keyGenerator: (req: Request) => {
-        // Use device ID if available, otherwise use IP
-        return req.connectorDevice?.deviceId || req.playniteDevice?.deviceId || req.ip || 'unknown';
+        // Use device ID if available, otherwise use IP with proper IPv6 handling
+        return req.connectorDevice?.deviceId || ipKeyGenerator(req.ip || '');
     },
 });
-
-// Legacy export alias
-export const playniteImportRateLimiter = pushConnectorImportRateLimiter;
 
 /**
  * Rate limiter for device registration
@@ -115,7 +96,7 @@ export const deviceRegistrationRateLimiter = rateLimit({
     standardHeaders: true,
     legacyHeaders: false,
     keyGenerator: (req: Request) => {
-        // Use session user ID if available, otherwise use IP
-        return req.session?.user?.id?.toString() || req.ip || 'unknown';
+        // Use session user ID if available, otherwise use IP with proper IPv6 handling
+        return req.session?.user?.id?.toString() || ipKeyGenerator(req.ip || '');
     },
 });

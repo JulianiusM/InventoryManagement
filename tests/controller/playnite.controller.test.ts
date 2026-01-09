@@ -1,5 +1,5 @@
 /**
- * Tests for playniteController
+ * Tests for Playnite Import Service
  * 
  * Tests Playnite-specific import validation and processing.
  * Device management is now handled via generic push connector APIs.
@@ -13,20 +13,41 @@ import {
 } from '../data/controller/playniteData';
 import {setupMock} from '../keywords/common/controllerKeywords';
 
-// Mock the import service
-jest.mock('../../src/modules/games/PlayniteImportService');
+// Mock the connector device service - must be before imports
+jest.mock('../../src/modules/database/services/ConnectorDeviceService');
+jest.mock('../../src/modules/database/services/ExternalLibraryEntryService');
+jest.mock('../../src/modules/database/services/GameExternalMappingService');
+jest.mock('../../src/modules/database/services/GameTitleService');
+jest.mock('../../src/modules/database/services/GameReleaseService');
+jest.mock('../../src/modules/database/services/PlatformService');
+jest.mock('../../src/modules/database/dataSource', () => ({
+    AppDataSource: {
+        getRepository: jest.fn().mockReturnValue({
+            findOne: jest.fn(),
+            find: jest.fn(),
+            update: jest.fn(),
+            save: jest.fn(),
+            createQueryBuilder: jest.fn().mockReturnValue({
+                update: jest.fn().mockReturnThis(),
+                set: jest.fn().mockReturnThis(),
+                where: jest.fn().mockReturnThis(),
+                andWhere: jest.fn().mockReturnThis(),
+                execute: jest.fn(),
+            }),
+        }),
+    },
+}));
 
-import * as playniteImportService from '../../src/modules/games/PlayniteImportService';
-import * as playniteController from '../../src/controller/playniteController';
+import {validateImportPayload} from '../../src/modules/games/connectors/playnite/PlayniteImportService';
 
-describe('playniteController', () => {
+describe('Playnite Import Service', () => {
     beforeEach(() => {
         jest.clearAllMocks();
     });
 
     describe('validateImportPayload', () => {
         test.each(validImportPayloads)('validates $description', ({payload}) => {
-            const result = playniteController.validateImportPayload(payload);
+            const result = validateImportPayload(payload);
 
             expect(result).toBeDefined();
             expect(result.aggregator).toBe('playnite');
@@ -34,82 +55,39 @@ describe('playniteController', () => {
         });
 
         test.each(invalidImportPayloads)('rejects $description', ({payload, errorPattern}) => {
-            expect(() => playniteController.validateImportPayload(payload)).toThrow(errorPattern);
+            expect(() => validateImportPayload(payload)).toThrow(errorPattern);
         });
     });
 
-    describe('importPlayniteLibrary', () => {
-        test('processes valid import payload', async () => {
-            const mockImportResult = {
-                deviceId: TEST_DEVICE_ID,
-                importedAt: '2026-01-08T20:15:00Z',
-                counts: {
-                    received: 2,
-                    created: 2,
-                    updated: 0,
-                    unchanged: 0,
-                    softRemoved: 0,
-                    needsReview: 0,
-                },
-                warnings: [],
-            };
-            setupMock(playniteImportService.processPlayniteImport as jest.Mock, mockImportResult);
-
-            const payload = validImportPayloads[1].payload; // Full payload with multiple games
-            const result = await playniteController.importPlayniteLibrary(
-                TEST_DEVICE_ID,
-                TEST_USER_ID,
-                payload as any
-            );
-
-            expect(result).toBeDefined();
-            expect(result.deviceId).toBe(TEST_DEVICE_ID);
-            expect(result.counts.received).toBe(2);
-            expect(playniteImportService.processPlayniteImport).toHaveBeenCalledWith(
-                TEST_DEVICE_ID,
-                TEST_USER_ID,
-                expect.objectContaining({aggregator: 'playnite'})
-            );
+    describe('import payload structure', () => {
+        test('accepts minimal payload', () => {
+            const payload = validImportPayloads[0].payload;
+            const result = validateImportPayload(payload);
+            expect(result.games).toHaveLength(1);
         });
 
-        test('includes warnings for missing game IDs', async () => {
-            const mockImportResult = {
-                deviceId: TEST_DEVICE_ID,
-                importedAt: '2026-01-08T20:15:00Z',
-                counts: {
-                    received: 1,
-                    created: 1,
-                    updated: 0,
-                    unchanged: 0,
-                    softRemoved: 0,
-                    needsReview: 1,
-                },
-                warnings: [
-                    {code: 'MISSING_ORIGINAL_GAME_ID', count: 1},
-                ],
-            };
-            setupMock(playniteImportService.processPlayniteImport as jest.Mock, mockImportResult);
-
-            const payload = validImportPayloads[2].payload; // Custom game without provider game ID
-            const result = await playniteController.importPlayniteLibrary(
-                TEST_DEVICE_ID,
-                TEST_USER_ID,
-                payload as any
-            );
-
-            expect(result.warnings).toContainEqual(
-                expect.objectContaining({code: 'MISSING_ORIGINAL_GAME_ID'})
-            );
+        test('accepts payload with multiple games', () => {
+            const payload = validImportPayloads[1].payload;
+            const result = validateImportPayload(payload);
+            expect(result.games.length).toBeGreaterThan(1);
         });
 
-        test('rejects invalid payload', async () => {
-            const invalidPayload = {aggregator: 'steam'}; // Wrong aggregator
+        test('rejects wrong aggregator', () => {
+            const invalidPayload = {
+                aggregator: 'steam',
+                exportedAt: '2026-01-08T20:15:00Z',
+                plugins: [],
+                games: [],
+            };
+            expect(() => validateImportPayload(invalidPayload)).toThrow(/aggregator/i);
+        });
 
-            await expect(
-                playniteController.importPlayniteLibrary(TEST_DEVICE_ID, TEST_USER_ID, invalidPayload as any)
-            ).rejects.toThrow(/aggregator/i);
-
-            expect(playniteImportService.processPlayniteImport).not.toHaveBeenCalled();
+        test('rejects missing games array', () => {
+            const invalidPayload = {
+                aggregator: 'playnite',
+                exportedAt: '2026-01-08T20:15:00Z',
+            };
+            expect(() => validateImportPayload(invalidPayload)).toThrow(/games/i);
         });
     });
 });

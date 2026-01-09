@@ -327,20 +327,11 @@ block content
                         | Link Account
 
 block scripts
+    //- Prepare serialized connector data for JavaScript (computed in Pug to avoid multiline interpolation issues)
+    - const safeConnectorData = JSON.stringify(connectors.map(c => ({id: c.id, name: c.name, description: c.description, provider: c.provider, syncStyle: c.syncStyle, isAggregator: c.isAggregator, supportsDevices: c.supportsDevices, credentialFields: c.credentialFields})))
     script.
         // Store connector data for JavaScript access (sanitized via JSON.stringify)
-        // JSON.stringify escapes special characters like < > & ' " which prevents XSS
-        // Additional protection: only serialize known safe properties
-        const connectorsData = !{JSON.stringify(connectors.map(c => ({
-            id: c.id,
-            name: c.name,
-            description: c.description,
-            provider: c.provider,
-            syncStyle: c.syncStyle,
-            isAggregator: c.isAggregator,
-            supportsDevices: c.supportsDevices,
-            credentialFields: c.credentialFields
-        })))};
+        const connectorsData = !{safeConnectorData};
         const connectorMap = {};
         connectorsData.forEach(c => {
             connectorMap[c.provider] = c;

@@ -12,7 +12,7 @@ import {connectorRegistry} from '../../modules/games/connectors/ConnectorRegistr
 import {isPushConnector} from '../../modules/games/connectors/ConnectorInterface';
 import * as connectorDeviceService from '../../modules/database/services/ConnectorDeviceService';
 import * as externalAccountService from '../../modules/database/services/ExternalAccountService';
-import {rateLimit} from 'express-rate-limit';
+import {rateLimit, ipKeyGenerator} from 'express-rate-limit';
 
 const router = express.Router();
 
@@ -24,8 +24,8 @@ const deviceRegistrationLimiter = rateLimit({
     standardHeaders: true,
     legacyHeaders: false,
     keyGenerator: (req: Request) => {
-        // Rate limit by user ID instead of IP
-        return req.session.user?.id?.toString() || req.ip || 'unknown';
+        // Rate limit by user ID instead of IP - use ipKeyGenerator for IPv6 support when falling back to IP
+        return req.session.user?.id?.toString() || ipKeyGenerator(req.ip || '');
     },
 });
 

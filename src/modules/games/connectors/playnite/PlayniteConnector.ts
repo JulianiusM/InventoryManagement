@@ -21,10 +21,10 @@ import {
     ExternalGame,
     PushConnector,
     SyncResult
-} from './ConnectorInterface';
-import {ConnectorCapability} from '../../../types/InventoryEnums';
-import * as connectorDeviceService from '../../database/services/ConnectorDeviceService';
-import {normalizeProviderName} from '../PlayniteProviders';
+} from '../ConnectorInterface';
+import {ConnectorCapability} from '../../../../types/InventoryEnums';
+import * as connectorDeviceService from '../../../database/services/ConnectorDeviceService';
+import {normalizeProviderName} from './PlayniteProviders';
 
 /**
  * Playnite game data from import payload
