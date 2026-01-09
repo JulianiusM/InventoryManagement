@@ -70,13 +70,14 @@ block content
                                     h5.mb-1.text-white
                                         i.bi.bi-cloud.me-2
                                         | #{account.accountName}
-                                    span.badge.text-bg-info #{account.provider}
-                                    if !hasConnector
-                                        span.badge.text-bg-warning.ms-1 Manual
-                                    if isPushStyle
-                                        span.badge.text-bg-secondary.ms-1 Push
-                                    if connector && connector.isAggregator
-                                        span.badge.text-bg-primary.ms-1 Aggregator
+                                    .d-flex.flex-wrap.gap-1.align-items-center
+                                        span.badge.text-bg-info #{account.provider}
+                                        if !hasConnector
+                                            span.badge.text-bg-warning Manual
+                                        if isPushStyle
+                                            span.badge.text-bg-secondary Push
+                                        if connector && connector.isAggregator
+                                            span.badge.text-bg-primary Aggregator
                                 .dropdown
                                     button.btn.btn-sm.btn-outline-secondary.dropdown-toggle(type="button" data-bs-toggle="dropdown")
                                         i.bi.bi-three-dots-vertical
@@ -504,48 +505,63 @@ block scripts
             
             if (!status.latestJob) {
                 statusDiv.innerHTML = '';
-                return;
-            }
-            
-            const job = status.latestJob;
-            let html = '';
-            let spinIcon = false;
-            
-            switch (job.status) {
-                case 'pending':
-                    html = '<i class="bi bi-hourglass-start me-1"></i>Sync pending...';
-                    spinIcon = true;
-                    break;
-                case 'in_progress':
-                    html = '<i class="bi bi-arrow-repeat me-1 sync-spin"></i>Sync in progress...';
-                    if (job.entriesProcessed !== null) {
-                        html += ` (${job.entriesProcessed} games processed)`;
+            } else {
+                const job = status.latestJob;
+                let html = '';
+                let spinIcon = false;
+                
+                switch (job.status) {
+                    case 'pending':
+                        html = '<i class="bi bi-hourglass-start me-1"></i>Sync pending...';
+                        spinIcon = true;
+                        break;
+                    case 'in_progress':
+                        html = '<i class="bi bi-arrow-repeat me-1 sync-spin"></i>Sync in progress...';
+                        if (job.entriesProcessed !== null) {
+                            html += ` (${job.entriesProcessed} games processed)`;
+                        }
+                        spinIcon = true;
+                        break;
+                    case 'completed':
+                        html = `<i class="bi bi-check-circle me-1 text-success"></i>`;
+                        html += `Completed: ${job.entriesProcessed || 0} games`;
+                        break;
+                    case 'failed':
+                        html = `<i class="bi bi-x-circle me-1 text-danger"></i>`;
+                        html += `Failed: ${job.errorMessage || 'Unknown error'}`;
+                        break;
+                }
+                
+                statusDiv.innerHTML = html;
+                
+                // Add/remove spinning animation on sync button
+                if (syncIcon) {
+                    if (spinIcon) {
+                        syncIcon.classList.add('sync-spin');
+                        if (syncBtn) syncBtn.disabled = true;
+                    } else {
+                        syncIcon.classList.remove('sync-spin');
+                        if (syncBtn) syncBtn.disabled = false;
                     }
-                    spinIcon = true;
-                    break;
-                case 'completed':
-                    html = `<i class="bi bi-check-circle me-1 text-success"></i>`;
-                    html += `Completed: ${job.entriesProcessed || 0} games`;
-                    break;
-                case 'failed':
-                    html = `<i class="bi bi-x-circle me-1 text-danger"></i>`;
-                    html += `Failed: ${job.errorMessage || 'Unknown error'}`;
-                    break;
-            }
-            
-            statusDiv.innerHTML = html;
-            
-            // Add/remove spinning animation on sync button
-            if (syncIcon) {
-                if (spinIcon) {
-                    syncIcon.classList.add('sync-spin');
-                    if (syncBtn) syncBtn.disabled = true;
-                } else {
-                    syncIcon.classList.remove('sync-spin');
-                    if (syncBtn) syncBtn.disabled = false;
                 }
             }
-        }
+            
+            // Show scheduled sync indicator
+            const cardElement = container.closest('.card');
+            let scheduleBadge = cardElement?.querySelector('.schedule-badge');
+            if (status.isScheduled) {
+                if (!scheduleBadge && cardElement) {
+                    const badgeContainer = cardElement.querySelector('.d-flex.flex-wrap.gap-1.align-items-center');
+                    if (badgeContainer) {
+                        const badge = document.createElement('span');
+                        badge.className = 'badge text-bg-success schedule-badge';
+                        badge.innerHTML = '<i class="bi bi-clock me-1"></i>Scheduled';
+                        badgeContainer.appendChild(badge);
+                    }
+                }
+            } else if (scheduleBadge) {
+                scheduleBadge.remove();
+            }
         
         // Start polling for sync status
         function startPolling(accountId) {

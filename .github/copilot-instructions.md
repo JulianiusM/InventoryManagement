@@ -121,4 +121,58 @@ for (const data of surveyCreationData) {
 
 For detailed E2E testing patterns and examples, see [TESTING.md](../TESTING.md) and [tests/e2e/README.md](../tests/e2e/README.md).
 
+## Games Module Architecture
+
+The Games module supports managing game titles, releases, and copies with external provider integration.
+
+### Connectors
+
+Connectors sync game libraries from external providers like Steam or Playnite.
+
+**Architecture:**
+```
+src/modules/games/connectors/
+├── ConnectorInterface.ts      # Generic interfaces
+├── ConnectorRegistry.ts       # Connector registration
+├── SteamConnector.ts          # Steam (fetch-style)
+└── playnite/                  # Playnite (push-style aggregator)
+    ├── PlayniteConnector.ts
+    ├── PlayniteImportService.ts
+    └── PlayniteProviders.ts
+```
+
+**Connector Types:**
+- **Fetch-style** (`syncStyle: 'fetch'`): Connector pulls data from external API (e.g., Steam)
+- **Push-style** (`syncStyle: 'push'`): External agent pushes data via unified API (e.g., Playnite)
+
+**Aggregator Pattern:**
+Aggregators like Playnite import games from multiple sources while preserving original provider info:
+- `aggregatorProviderId`: The aggregator (e.g., "playnite")
+- `originalProviderName`: The actual source (e.g., "Steam", "Epic")
+- `originalProviderGameId`: The game ID on the original provider
+
+**Push Import Flow:**
+```
+Device Token → requirePushConnectorAuth → processPushImport()
+                                              │
+                    ├── connector.preprocessImport()   ← Connector-specific validation
+                    ├── processGamesWithAutoCreate()   ← Shared sync pipeline
+                    └── softRemoveUnseenEntries()      ← Shared soft-removal
+```
+
+### Platform Normalization
+
+Platforms are normalized to prevent duplicates (e.g., "PS5" → "PlayStation 5"):
+- `normalizePlatformName()` in `PlatformService.ts`
+- Maps common aliases (PS5, Switch, etc.) to canonical names
+- Unknown platforms are auto-created
+
+### Key Entities
+- **GameTitle**: A game's core info (name, description, player counts)
+- **GameRelease**: Platform-specific release (PC, PS5, etc. with edition/region)
+- **Item** (with `type=GAME_DIGITAL` or `GAME_PHYSICAL`): Game copies
+- **ExternalAccount**: Linked external accounts (Steam, Playnite, etc.)
+- **ConnectorDevice**: Devices for push-style connectors
+- **SyncJob**: Tracks sync history (pending, in_progress, completed, failed)
+
 ## Additional Resources

@@ -51,10 +51,13 @@ block content
             .col-lg-7
                 //- Copy details
                 .card.text-bg-dark.border-secondary.mb-3
-                    .card-header
+                    .card-header.d-flex.justify-content-between.align-items-center
                         h2.h5.mb-0
                             i.bi.bi-info-circle.me-2
                             | Copy Details
+                        button.btn.btn-sm.btn-outline-light(type="button" data-bs-toggle="modal" data-bs-target="#editCopyModal")
+                            i.bi.bi-pencil.me-1
+                            | Edit
                     .card-body
                         dl.row.mb-0
                             dt.col-sm-4
@@ -292,6 +295,40 @@ block content
                             button.btn.btn-outline-danger.w-100(type="submit" onclick="return confirm('Delete this copy?')")
                                 i.bi.bi-trash.me-1
                                 | Delete Copy
+
+    //- Edit Copy Modal
+    if copy
+        #editCopyModal.modal.fade(tabindex="-1")
+            .modal-dialog
+                .modal-content.text-bg-dark
+                    .modal-header.border-secondary
+                        h5.modal-title
+                            i.bi.bi-pencil.me-2
+                            | Edit Copy
+                        button.btn-close.btn-close-white(type="button" data-bs-dismiss="modal")
+                    .modal-body
+                        form#editCopyForm.row.g-3(method="post" action=`/games/copies/${copy.id}/update`)
+                            if copy.gameCopyType === 'physical_copy'
+                                .col-12
+                                    label.form-label Condition
+                                    select.form-select.text-bg-dark(name="condition")
+                                        option(value="" selected=(!copy.condition)) Not specified
+                                        each c in conditions
+                                            option(value=c selected=(copy.condition === c)) #{c.charAt(0).toUpperCase() + c.slice(1).replace('_', ' ')}
+                                .col-12
+                                    .form-check
+                                        input.form-check-input(type="checkbox" name="lendable" value="true" id="editLendable" checked=copy.lendable)
+                                        label.form-check-label(for="editLendable")
+                                            i.bi.bi-hand-index.me-1
+                                            | Allow lending
+                            .col-12
+                                label.form-label Notes
+                                textarea.form-control.text-bg-dark(name="notes" rows="3" placeholder="Optional notes") #{copy.notes || ''}
+                    .modal-footer.border-secondary
+                        button.btn.btn-secondary(type="button" data-bs-dismiss="modal") Cancel
+                        button.btn.btn-primary(type="submit" form="editCopyForm")
+                            i.bi.bi-check-lg.me-1
+                            | Save Changes
 
 block scripts
     script.

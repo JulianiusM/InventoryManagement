@@ -901,6 +901,45 @@ export async function moveGameCopy(
     await itemService.updateItemLocation(id, body.locationId || null);
 }
 
+/**
+ * Update a game copy's editable fields
+ */
+export async function updateGameCopy(
+    id: string,
+    body: {
+        condition?: string | null;
+        lendable?: boolean;
+        notes?: string | null;
+    },
+    userId: number
+): Promise<void> {
+    requireAuthenticatedUser(userId);
+    const copy = await itemService.getItemById(id);
+    if (!copy) {
+        throw new ExpectedError('Game copy not found', 'error', 404);
+    }
+    checkOwnership(copy, userId);
+    
+    // Only physical copies have condition and lendable settings
+    const updateData: Record<string, unknown> = {};
+    
+    if (body.notes !== undefined) {
+        const trimmed = typeof body.notes === 'string' ? body.notes.trim() : null;
+        updateData.notes = trimmed || null;
+    }
+    
+    if (copy.gameCopyType === GameCopyType.PHYSICAL_COPY) {
+        if (body.condition !== undefined) {
+            updateData.condition = body.condition || null;
+        }
+        if (body.lendable !== undefined) {
+            updateData.lendable = body.lendable;
+        }
+    }
+    
+    await itemService.updateItem(id, updateData);
+}
+
 export async function deleteGameCopy(id: string, userId: number): Promise<void> {
     requireAuthenticatedUser(userId);
     const copy = await itemService.getItemById(id);

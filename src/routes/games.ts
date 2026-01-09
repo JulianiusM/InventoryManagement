@@ -231,6 +231,20 @@ router.post('/copies/:id/move', asyncHandler(async (req: Request, res: Response)
     res.redirect(`/games/copies/${id}`);
 }));
 
+// Update copy
+router.post('/copies/:id/update', asyncHandler(async (req: Request, res: Response) => {
+    const id = req.params.id;
+    const userId = req.session.user!.id;
+    const body = {
+        condition: req.body.condition || null,
+        lendable: req.body.lendable === 'true',
+        notes: req.body.notes || null,
+    };
+    await gamesController.updateGameCopy(id, body, userId);
+    req.flash('success', 'Copy updated successfully');
+    res.redirect(`/games/copies/${id}`);
+}));
+
 // Delete copy
 router.post('/copies/:id/delete', asyncHandler(async (req: Request, res: Response) => {
     const id = req.params.id;
