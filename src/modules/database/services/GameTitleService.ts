@@ -7,6 +7,7 @@ import {Barcode} from '../entities/barcode/Barcode';
 import {User} from '../entities/user/User';
 import {GameType} from '../../../types/InventoryEnums';
 import {validatePlayerProfile} from './GameValidationService';
+import {normalizeGameTitle, extractEdition} from '../../games/GameNameUtils';
 
 export interface CreateGameTitleData {
     name: string;
@@ -183,4 +184,59 @@ export async function mergeGameTitles(sourceId: string, targetId: string): Promi
     await repo.delete({id: sourceId});
     
     return releasesToMove.length;
+}
+
+/**
+ * Find an existing game title by normalized name
+ * Uses normalizeGameTitle to match titles like "The Sims 4" and "The Sims™ 4"
+ * 
+ * @param name The game name (can include trademark symbols, punctuation variants, etc.)
+ * @param ownerId The owner ID
+ * @returns The matching game title if found, null otherwise
+ */
+export async function findGameTitleByNormalizedName(name: string, ownerId: number): Promise<GameTitle | null> {
+    const repo = AppDataSource.getRepository(GameTitle);
+    
+    // Extract edition from name first
+    const {baseName} = extractEdition(name);
+    const normalizedName = normalizeGameTitle(baseName);
+    
+    // Get all titles for owner
+    const allTitles = await repo.find({
+        where: {owner: {id: ownerId}},
+        relations: ['releases'],
+    });
+    
+    // Find by normalized match
+    for (const title of allTitles) {
+        const {baseName: titleBaseName} = extractEdition(title.name);
+        const titleNormalized = normalizeGameTitle(titleBaseName);
+        
+        if (titleNormalized === normalizedName) {
+            return title;
+        }
+    }
+    
+    return null;
+}
+
+/**
+ * Get or create game title by normalized name
+ * If a title with matching normalized name exists, return it.
+ * Otherwise create a new title.
+ * 
+ * @param data Title creation data
+ * @returns Existing or new game title
+ */
+export async function getOrCreateGameTitle(data: CreateGameTitleData): Promise<{title: GameTitle; isNew: boolean}> {
+    // Try to find existing title by normalized name
+    const existing = await findGameTitleByNormalizedName(data.name, data.ownerId);
+    
+    if (existing) {
+        return {title: existing, isNew: false};
+    }
+    
+    // Create new title
+    const title = await createGameTitle(data);
+    return {title, isNew: true};
 }

@@ -90,8 +90,16 @@ describe('normalizePlatformName', () => {
             ['Windows', 'PC'],
             ['Mac', 'PC'],
             ['macOS', 'PC'],
+            ['Mac OS', 'PC'],
+            ['Mac OS X', 'PC'],
+            ['Macintosh', 'PC'],
             ['Linux', 'PC'],
             ['Computer', 'PC'],
+            ['PC Windows', 'PC'],
+            ['PC (Windows)', 'PC'],
+            ['Microsoft Windows', 'PC'],
+            ['Steam', 'PC'],
+            ['Desktop', 'PC'],
         ])('normalizes "%s" to "%s"', (input, expected) => {
             expect(normalizePlatformName(input)).toBe(expected);
         });

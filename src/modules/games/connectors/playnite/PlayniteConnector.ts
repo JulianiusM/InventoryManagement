@@ -23,6 +23,7 @@ import {
 } from '../ConnectorInterface';
 import {ConnectorCapability} from '../../../../types/InventoryEnums';
 import * as connectorDeviceService from '../../../database/services/ConnectorDeviceService';
+import {normalizePlatformName} from '../../../database/services/PlatformService';
 import {normalizeProviderName, generateStoreUrl} from './PlayniteProviders';
 import {validateImportPayload} from './PlayniteImportService';
 
@@ -150,13 +151,17 @@ export class PlayniteConnector extends BaseConnector implements PushConnector {
             // Prefer storeUrl from Playnite payload (more reliable), fallback to generated URL
             const storeUrl = game.storeUrl?.trim() || generateStoreUrl(normalizedProvider, game.originalProviderGameId);
             
+            // Normalize platform (e.g., "Macintosh" -> "PC", "PC Windows" -> "PC")
+            const rawPlatform = game.platforms?.[0] || 'PC';
+            const normalizedPlatform = normalizePlatformName(rawPlatform);
+            
             return {
                 externalGameId: entitlementKey,
                 name: game.name,
                 playtimeMinutes: game.playtimeSeconds ? Math.round(game.playtimeSeconds / 60) : undefined,
                 lastPlayedAt: game.lastActivity ? new Date(game.lastActivity) : undefined,
                 isInstalled: game.installed,
-                platform: game.platforms?.[0] || 'PC',
+                platform: normalizedPlatform,
                 rawPayload: game.raw,
                 storeUrl,
                 

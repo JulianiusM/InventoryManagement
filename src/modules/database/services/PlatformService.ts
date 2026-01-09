@@ -111,8 +111,16 @@ const PLATFORM_ALIASES: Record<string, string> = {
     'windows': 'PC',
     'mac': 'PC',
     'macos': 'PC',
+    'mac os': 'PC',
+    'mac os x': 'PC',
+    'macintosh': 'PC',
     'linux': 'PC',
     'computer': 'PC',
+    'pc windows': 'PC',
+    'pc (windows)': 'PC',
+    'microsoft windows': 'PC',
+    'steam': 'PC',
+    'desktop': 'PC',
     
     // Mobile variations
     'ios': 'Mobile',

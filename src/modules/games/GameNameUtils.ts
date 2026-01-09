@@ -62,12 +62,18 @@ export function extractEdition(gameName: string): {baseName: string; edition: st
 }
 
 /**
- * Normalize a string for fuzzy comparison
- * Removes punctuation, extra spaces, and converts to lowercase
+ * Normalize a game title for matching/merging
+ * Removes trademark symbols, punctuation, extra spaces, and converts to lowercase
+ * 
+ * Use cases:
+ * - "The Sims 4" and "The Sims™ 4" should match
+ * - "Game: Title" and "Game - Title" should match
  */
-export function normalizeForSearch(text: string): string {
-    return text
+export function normalizeGameTitle(title: string): string {
+    return title
         .toLowerCase()
+        // Remove trademark/copyright symbols first (before other processing)
+        .replace(/[™®©]/g, '')
         // Replace common punctuation variations with nothing
         .replace(/[''`´]/g, '') // apostrophes
         .replace(/[.,:;!?]/g, '') // punctuation
@@ -75,6 +81,14 @@ export function normalizeForSearch(text: string): string {
         .replace(/[&]/g, 'and') // ampersand to "and"
         .replace(/\s+/g, ' ') // multiple spaces to single
         .trim();
+}
+
+/**
+ * Normalize a string for fuzzy comparison
+ * Removes punctuation, extra spaces, and converts to lowercase
+ */
+export function normalizeForSearch(text: string): string {
+    return normalizeGameTitle(text);
 }
 
 /**
