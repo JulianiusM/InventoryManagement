@@ -290,9 +290,9 @@ block content
                             label.form-label Provider *
                             select#providerSelect.form-select.text-bg-dark(name="provider" required)
                                 //- Options from registered connectors
-                                each p in connectorProviders
-                                    option(value=p selected=(p === connectorProviders[0])) #{p}
-                                option(value="Other") Other (Manual only)
+                                each conn in connectors
+                                    option(value=conn.provider data-sync-style=conn.syncStyle data-credential-fields=JSON.stringify(conn.credentialFields || []) selected=(conn === connectors[0])) #{conn.name}
+                                option(value="Other" data-sync-style="none" data-credential-fields="[]") Other (Manual only)
                         
                         //- Custom provider name (only visible when "Other" selected)
                         #customProviderField.col-12.d-none
@@ -302,17 +302,17 @@ block content
                         
                         .col-12
                             label.form-label Account Name *
-                            input.form-control.text-bg-dark(type="text" name="accountName" required placeholder="e.g., My Steam Account")
+                            input#addAccountName.form-control.text-bg-dark(type="text" name="accountName" required placeholder="e.g., My Steam Account")
                         
-                        //- Credential fields (hidden for "Other")
-                        #credentialFields
-                            .col-12
-                                label.form-label User ID / Steam ID
-                                input.form-control.text-bg-dark(type="text" name="externalUserId" placeholder="Your external user ID")
-                            .col-12.mt-2
-                                label.form-label API Key / Token (optional)
-                                input.form-control.text-bg-dark(type="password" name="tokenRef" placeholder="API key or token if required")
-                                .form-text.text-white-50 This will be stored securely and used for syncing.
+                        //- Dynamic credential fields container (populated by JavaScript)
+                        #credentialFieldsContainer
+                        
+                        //- Push-style connector notice
+                        #pushConnectorNotice.col-12.d-none
+                            .alert.alert-info.mb-0
+                                i.bi.bi-device-hdd.me-2
+                                strong Push-style Connector:
+                                |  After creating this account, register a device to enable data sync. The device token will be used to authenticate imports.
                         
                         //- Manual account notice (only visible when "Other" selected)
                         #manualAccountNotice.col-12.d-none
@@ -328,29 +328,93 @@ block content
 
 block scripts
     script.
+        // Store connector data for JavaScript access
+        const connectorsData = !{JSON.stringify(connectors)};
+        const connectorMap = {};
+        connectorsData.forEach(c => {
+            connectorMap[c.provider] = c;
+        });
+        
         document.addEventListener('DOMContentLoaded', function() {
             const providerSelect = document.getElementById('providerSelect');
             const customProviderField = document.getElementById('customProviderField');
             const customProviderInput = document.getElementById('customProviderInput');
-            const credentialFields = document.getElementById('credentialFields');
+            const credentialFieldsContainer = document.getElementById('credentialFieldsContainer');
+            const pushConnectorNotice = document.getElementById('pushConnectorNotice');
             const manualAccountNotice = document.getElementById('manualAccountNotice');
             const addAccountForm = document.getElementById('addAccountForm');
             
-            if (providerSelect) {
-                providerSelect.addEventListener('change', function() {
-                    const isOther = this.value === 'Other';
+            // Function to generate credential fields dynamically
+            function renderCredentialFields(provider) {
+                // Clear previous fields
+                credentialFieldsContainer.innerHTML = '';
+                pushConnectorNotice.classList.add('d-none');
+                manualAccountNotice.classList.add('d-none');
+                customProviderField.classList.add('d-none');
+                
+                if (provider === 'Other') {
+                    customProviderField.classList.remove('d-none');
+                    manualAccountNotice.classList.remove('d-none');
+                    customProviderInput.required = true;
+                    return;
+                }
+                
+                customProviderInput.required = false;
+                
+                const connector = connectorMap[provider];
+                if (!connector) {
+                    return;
+                }
+                
+                // For push-style connectors, show notice instead of credential fields
+                if (connector.syncStyle === 'push') {
+                    pushConnectorNotice.classList.remove('d-none');
+                    return;
+                }
+                
+                // Render credential fields for fetch-style connectors
+                const fields = connector.credentialFields || [];
+                if (fields.length === 0) {
+                    // Default fields if none specified
+                    credentialFieldsContainer.innerHTML = `
+                        <div class="col-12">
+                            <label class="form-label">User ID / External ID</label>
+                            <input class="form-control text-bg-dark" type="text" name="externalUserId" placeholder="Your external user ID">
+                        </div>
+                        <div class="col-12 mt-2">
+                            <label class="form-label">API Key / Token (optional)</label>
+                            <input class="form-control text-bg-dark" type="password" name="tokenRef" placeholder="API key or token if required">
+                            <div class="form-text text-white-50">This will be stored securely and used for syncing.</div>
+                        </div>
+                    `;
+                    return;
+                }
+                
+                // Generate fields from schema
+                fields.forEach((field, index) => {
+                    const fieldHtml = document.createElement('div');
+                    fieldHtml.className = 'col-12' + (index > 0 ? ' mt-2' : '');
                     
-                    if (isOther) {
-                        customProviderField.classList.remove('d-none');
-                        credentialFields.classList.add('d-none');
-                        manualAccountNotice.classList.remove('d-none');
-                        customProviderInput.required = true;
-                    } else {
-                        customProviderField.classList.add('d-none');
-                        credentialFields.classList.remove('d-none');
-                        manualAccountNotice.classList.add('d-none');
-                        customProviderInput.required = false;
-                    }
+                    const labelHtml = `<label class="form-label">${field.label}${field.required ? ' *' : ''}</label>`;
+                    const inputType = field.type || 'text';
+                    const inputName = field.mapsTo === 'externalUserId' ? 'externalUserId' : 
+                                      field.mapsTo === 'tokenRef' ? 'tokenRef' : field.name;
+                    const requiredAttr = field.required ? 'required' : '';
+                    const placeholderAttr = field.placeholder ? `placeholder="${field.placeholder}"` : '';
+                    const inputHtml = `<input class="form-control text-bg-dark" type="${inputType}" name="${inputName}" ${requiredAttr} ${placeholderAttr}>`;
+                    const helpHtml = field.helpText ? `<div class="form-text text-white-50">${field.helpText}</div>` : '';
+                    
+                    fieldHtml.innerHTML = labelHtml + inputHtml + helpHtml;
+                    credentialFieldsContainer.appendChild(fieldHtml);
+                });
+            }
+            
+            if (providerSelect) {
+                // Initial render for default selection
+                renderCredentialFields(providerSelect.value);
+                
+                providerSelect.addEventListener('change', function() {
+                    renderCredentialFields(this.value);
                 });
                 
                 // On form submit, if "Other" is selected, use custom provider name

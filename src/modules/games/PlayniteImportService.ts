@@ -15,7 +15,7 @@ import * as gameMappingService from '../database/services/GameExternalMappingSer
 import * as gameTitleService from '../database/services/GameTitleService';
 import * as gameReleaseService from '../database/services/GameReleaseService';
 import * as itemService from '../database/services/ItemService';
-import * as playniteDeviceService from '../database/services/PlayniteDeviceService';
+import * as connectorDeviceService from '../database/services/ConnectorDeviceService';
 import * as platformService from '../database/services/PlatformService';
 import {
     GameCopyType,
@@ -136,8 +136,8 @@ export async function processPlayniteImport(
     };
     const warningCounts: Record<string, number> = {};
     
-    // Get or create the Playnite external account for this device
-    let playniteAccount = await getOrCreatePlayniteAccount(deviceId, userId);
+    // Get the Playnite external account for this device
+    let playniteAccount = await getPlayniteAccountForDevice(deviceId, userId);
     
     // Track which entitlement keys we've seen in this import
     const seenEntitlementKeys = new Set<string>();
@@ -193,7 +193,7 @@ export async function processPlayniteImport(
     counts.softRemoved = softRemoved;
     
     // Update device last import time
-    await playniteDeviceService.updateLastImportAt(deviceId);
+    await connectorDeviceService.updateLastImportAt(deviceId);
     
     // Convert warning counts to array
     const warnings: ImportWarning[] = Object.entries(warningCounts).map(([code, count]) => ({
@@ -210,29 +210,26 @@ export async function processPlayniteImport(
 }
 
 /**
- * Get or create the external account for Playnite device
+ * Get the external account for a Playnite device
+ * In the new architecture, devices are tied to accounts, so we just return the device's account
  */
-async function getOrCreatePlayniteAccount(deviceId: string, userId: number): Promise<ExternalAccount> {
-    const device = await playniteDeviceService.getDeviceById(deviceId);
+async function getPlayniteAccountForDevice(deviceId: string, userId: number): Promise<ExternalAccount> {
+    const device = await connectorDeviceService.getDeviceById(deviceId);
     if (!device) {
         throw new Error(`Playnite device not found: ${deviceId}`);
     }
     
-    // Check if account already exists for this device
-    const accounts = await externalAccountService.getExternalAccountsByProvider(userId, 'playnite');
-    const existingAccount = accounts.find(a => a.externalUserId === deviceId);
-    
-    if (existingAccount) {
-        return existingAccount;
+    // The device already has a reference to its account
+    if (!device.externalAccount) {
+        throw new Error(`Device ${deviceId} has no linked account`);
     }
     
-    // Create new account for this device
-    return await externalAccountService.createExternalAccount({
-        provider: 'playnite',
-        accountName: `Playnite - ${device.name}`,
-        externalUserId: deviceId,
-        ownerId: userId,
-    });
+    // Verify ownership
+    if (device.externalAccount.owner?.id !== userId) {
+        throw new Error(`Device ${deviceId} belongs to another user`);
+    }
+    
+    return device.externalAccount;
 }
 
 /**

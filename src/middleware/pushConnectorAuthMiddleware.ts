@@ -1,18 +1,26 @@
 /**
- * Playnite Device Authentication Middleware
+ * Push Connector Device Authentication Middleware
  * 
- * Handles Bearer token authentication for Playnite device API endpoints
+ * Generic middleware for Bearer token authentication for push-style connector device API endpoints
  */
 
 import {NextFunction, Request, Response} from 'express';
 import rateLimit from 'express-rate-limit';
-import * as playniteController from '../controller/playniteController';
+import * as connectorDeviceService from '../modules/database/services/ConnectorDeviceService';
 import {ExpectedError} from '../modules/lib/errors';
 
-// Extend Express Request to include Playnite device info
+// Extend Express Request to include push connector device info
 declare global {
     namespace Express {
         interface Request {
+            connectorDevice?: {
+                deviceId: string;
+                accountId: string;
+                userId: number;
+                deviceName: string;
+                provider: string;
+            };
+            // Legacy alias for backwards compatibility
             playniteDevice?: {
                 deviceId: string;
                 userId: number;
@@ -23,10 +31,10 @@ declare global {
 }
 
 /**
- * Middleware to require Playnite device authentication
+ * Middleware to require push connector device authentication
  * Expects Authorization: Bearer <token>
  */
-export async function requirePlayniteAuth(
+export async function requirePushConnectorAuth(
     req: Request,
     res: Response,
     next: NextFunction
@@ -43,23 +51,39 @@ export async function requirePlayniteAuth(
         throw new ExpectedError('Invalid device token', 'error', 401);
     }
     
-    const deviceInfo = await playniteController.verifyDeviceToken(token);
+    const device = await connectorDeviceService.verifyDeviceToken(token);
     
-    if (!deviceInfo) {
+    if (!device) {
         throw new ExpectedError('Invalid or revoked device token', 'error', 401);
     }
     
     // Attach device info to request
-    req.playniteDevice = deviceInfo;
+    req.connectorDevice = {
+        deviceId: device.id,
+        accountId: device.externalAccountId,
+        userId: device.externalAccount.owner.id,
+        deviceName: device.name,
+        provider: device.externalAccount.provider,
+    };
+    
+    // Legacy alias for backwards compatibility
+    req.playniteDevice = {
+        deviceId: device.id,
+        userId: device.externalAccount.owner.id,
+        deviceName: device.name,
+    };
     
     next();
 }
 
+// Legacy export alias
+export const requirePlayniteAuth = requirePushConnectorAuth;
+
 /**
- * Rate limiter for Playnite import endpoint
+ * Rate limiter for push connector import endpoint
  * Limits to 10 imports per hour per device
  */
-export const playniteImportRateLimiter = rateLimit({
+export const pushConnectorImportRateLimiter = rateLimit({
     windowMs: 60 * 60 * 1000, // 1 hour
     max: 10, // 10 imports per hour
     message: {
@@ -70,9 +94,12 @@ export const playniteImportRateLimiter = rateLimit({
     legacyHeaders: false,
     keyGenerator: (req: Request) => {
         // Use device ID if available, otherwise use IP
-        return req.playniteDevice?.deviceId || req.ip || 'unknown';
+        return req.connectorDevice?.deviceId || req.playniteDevice?.deviceId || req.ip || 'unknown';
     },
 });
+
+// Legacy export alias
+export const playniteImportRateLimiter = pushConnectorImportRateLimiter;
 
 /**
  * Rate limiter for device registration
