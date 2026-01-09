@@ -39,6 +39,9 @@ export interface ExternalGame {
     developer?: string;
     publisher?: string;
     
+    // Store/Shop links for deep linking to the original store page
+    storeUrl?: string;  // Direct URL to the game on the store (e.g., Steam store page)
+    
     // Aggregator origin fields (for transparent aggregator pattern)
     // When a connector acts as an aggregator (e.g., Playnite), it can expose the original provider
     originalProviderPluginId?: string;  // Original provider's plugin ID (e.g., Playnite plugin GUID)
@@ -107,6 +110,11 @@ export interface SyncResult {
     games: ExternalGame[];
     error?: string;
     timestamp: Date;
+    
+    // Connector tracing information
+    connectorId?: string;    // ID of the connector that produced this result
+    connectorName?: string;  // Human-readable name of the connector
+    isAggregator?: boolean;  // Whether the connector is an aggregator
 }
 
 /**

@@ -25,7 +25,7 @@ import {
 } from '../ConnectorInterface';
 import {ConnectorCapability} from '../../../../types/InventoryEnums';
 import * as connectorDeviceService from '../../../database/services/ConnectorDeviceService';
-import {normalizeProviderName} from './PlayniteProviders';
+import {normalizeProviderName, generateStoreUrl} from './PlayniteProviders';
 import {validateImportPayload} from './PlayniteImportService';
 
 /**
@@ -246,6 +246,7 @@ export class PlayniteConnector extends BaseConnector implements PushConnector {
             }
             
             const normalizedProvider = normalizeProviderName(game.originalProviderPluginId);
+            const storeUrl = generateStoreUrl(normalizedProvider, game.originalProviderGameId);
             
             return {
                 externalGameId: entitlementKey,
@@ -255,6 +256,7 @@ export class PlayniteConnector extends BaseConnector implements PushConnector {
                 isInstalled: game.installed,
                 platform: game.platforms?.[0] || 'PC',
                 rawPayload: game.raw,
+                storeUrl,
                 
                 // Aggregator origin fields
                 originalProviderPluginId: game.originalProviderPluginId,

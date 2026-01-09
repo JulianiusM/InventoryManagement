@@ -447,6 +447,7 @@ export class SteamConnector extends BaseConnector {
             coverImageUrl: game.appid 
                 ? `https://cdn.cloudflare.steamstatic.com/steam/apps/${game.appid}/header.jpg`
                 : undefined,
+            storeUrl: `https://store.steampowered.com/app/${game.appid}`,
             platform: 'PC',
             rawPayload: {...game}, // Spread creates a plain object copy
         }));

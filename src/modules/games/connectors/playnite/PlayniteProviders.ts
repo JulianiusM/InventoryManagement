@@ -34,9 +34,44 @@ export const KNOWN_PROVIDERS: Record<string, string> = {
 };
 
 /**
+ * Store URL templates for generating deep links to original store pages
+ * {gameId} is replaced with the original provider game ID
+ */
+export const STORE_URL_TEMPLATES: Record<string, string | null> = {
+    'steam': 'https://store.steampowered.com/app/{gameId}',
+    'epic': 'https://store.epicgames.com/p/{gameId}',
+    'gog': 'https://www.gog.com/game/{gameId}',
+    'ea': null, // EA App doesn't have public store URLs
+    'origin': null,
+    'ubisoft': 'https://store.ubisoft.com/game/{gameId}',
+    'xbox': 'https://www.xbox.com/games/store/{gameId}',
+    'playstation': 'https://store.playstation.com/product/{gameId}',
+    'amazon': null, // Amazon Games doesn't have public store URLs
+    'itch': 'https://itch.io/{gameId}',
+    'humble': 'https://www.humblebundle.com/store/{gameId}',
+    'battlenet': null, // Battle.net doesn't have public store URLs
+};
+
+/**
  * Normalize provider name from Playnite plugin GUID
  */
 export function normalizeProviderName(pluginId: string): string {
     const lowerPluginId = pluginId.toLowerCase();
     return KNOWN_PROVIDERS[lowerPluginId] || 'unknown';
+}
+
+/**
+ * Generate store URL for a game based on its original provider
+ */
+export function generateStoreUrl(normalizedProvider: string, originalGameId: string | undefined): string | undefined {
+    if (!originalGameId) {
+        return undefined;
+    }
+    
+    const template = STORE_URL_TEMPLATES[normalizedProvider];
+    if (!template) {
+        return undefined;
+    }
+    
+    return template.replace('{gameId}', originalGameId);
 }

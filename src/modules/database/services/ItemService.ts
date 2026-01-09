@@ -34,6 +34,7 @@ export async function createItem(data: {
     originalProviderName?: string | null;
     originalProviderGameId?: string | null;
     originalProviderNormalizedId?: string | null;
+    storeUrl?: string | null;
     needsReview?: boolean;
 }): Promise<Item> {
     const repo = AppDataSource.getRepository(Item);
@@ -73,6 +74,7 @@ export async function createItem(data: {
     item.originalProviderName = data.originalProviderName ?? null;
     item.originalProviderGameId = data.originalProviderGameId ?? null;
     item.originalProviderNormalizedId = data.originalProviderNormalizedId ?? null;
+    item.storeUrl = data.storeUrl ?? null;
     item.needsReview = data.needsReview ?? false;
     
     return await repo.save(item);
@@ -266,6 +268,7 @@ export async function createGameItem(data: {
     originalProviderName?: string | null;
     originalProviderGameId?: string | null;
     originalProviderNormalizedId?: string | null;
+    storeUrl?: string | null;
     needsReview?: boolean;
 }): Promise<Item> {
     // Determine item type based on copy type
@@ -303,6 +306,7 @@ export async function createGameItem(data: {
         originalProviderName: data.originalProviderName,
         originalProviderGameId: data.originalProviderGameId,
         originalProviderNormalizedId: data.originalProviderNormalizedId,
+        storeUrl: data.storeUrl,
         needsReview: data.needsReview,
     });
 }

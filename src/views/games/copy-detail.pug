@@ -96,6 +96,16 @@ block content
                                         if copy.needsReview
                                             span.badge.text-bg-warning.ms-1 Needs Review
                                 
+                                //- Show store link if available
+                                if copy.storeUrl
+                                    dt.col-sm-4
+                                        i.bi.bi-shop.me-1
+                                        | Store Link
+                                    dd.col-sm-8
+                                        a.text-info(href=copy.storeUrl target="_blank" rel="noopener noreferrer")
+                                            | View on Store
+                                            i.bi.bi-box-arrow-up-right.ms-1
+                                
                                 if copy.playtimeMinutes
                                     dt.col-sm-4
                                         i.bi.bi-clock.me-1

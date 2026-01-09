@@ -39,6 +39,7 @@ jest.mock('../../src/modules/database/dataSource', () => ({
 }));
 
 import {validateImportPayload} from '../../src/modules/games/connectors/playnite/PlayniteImportService';
+import {normalizeProviderName, generateStoreUrl} from '../../src/modules/games/connectors/playnite/PlayniteProviders';
 
 describe('Playnite Import Service', () => {
     beforeEach(() => {
@@ -88,6 +89,52 @@ describe('Playnite Import Service', () => {
                 exportedAt: '2026-01-08T20:15:00Z',
             };
             expect(() => validateImportPayload(invalidPayload)).toThrow(/games/i);
+        });
+    });
+});
+
+describe('Playnite Providers', () => {
+    describe('normalizeProviderName', () => {
+        test('normalizes Steam plugin ID', () => {
+            expect(normalizeProviderName('cb91dfc9-b977-43bf-8e70-55f46e410fab')).toBe('steam');
+        });
+
+        test('normalizes Epic plugin ID', () => {
+            expect(normalizeProviderName('00000001-ebb2-4ecc-abcb-75c4f5a78e18')).toBe('epic');
+        });
+
+        test('normalizes GOG plugin ID', () => {
+            expect(normalizeProviderName('aebe8b7c-6dc3-4a66-af31-e7375c6b5e9e')).toBe('gog');
+        });
+
+        test('returns unknown for unrecognized plugin ID', () => {
+            expect(normalizeProviderName('unknown-plugin-id')).toBe('unknown');
+        });
+    });
+
+    describe('generateStoreUrl', () => {
+        test('generates Steam store URL', () => {
+            expect(generateStoreUrl('steam', '123456')).toBe('https://store.steampowered.com/app/123456');
+        });
+
+        test('generates Epic store URL', () => {
+            expect(generateStoreUrl('epic', 'my-game')).toBe('https://store.epicgames.com/p/my-game');
+        });
+
+        test('generates GOG store URL', () => {
+            expect(generateStoreUrl('gog', 'hades')).toBe('https://www.gog.com/game/hades');
+        });
+
+        test('returns undefined for EA (no public store URL)', () => {
+            expect(generateStoreUrl('ea', '12345')).toBeUndefined();
+        });
+
+        test('returns undefined for unknown provider', () => {
+            expect(generateStoreUrl('unknown', '12345')).toBeUndefined();
+        });
+
+        test('returns undefined when gameId is undefined', () => {
+            expect(generateStoreUrl('steam', undefined)).toBeUndefined();
         });
     });
 });

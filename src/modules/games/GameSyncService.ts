@@ -340,6 +340,7 @@ async function processGamesWithAutoCreate(
                     originalProviderName: enrichedGame.originalProviderName,
                     originalProviderGameId: enrichedGame.originalProviderGameId,
                     originalProviderNormalizedId: enrichedGame.originalProviderNormalizedId,
+                    storeUrl: enrichedGame.storeUrl,
                     needsReview: !enrichedGame.originalProviderGameId && isAggregator,
                 });
                 copiesCreated++;

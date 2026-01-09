@@ -118,6 +118,9 @@ export class Item {
     @Column("varchar", {name: "original_provider_normalized_id", length: 100, nullable: true})
     originalProviderNormalizedId?: string | null;
 
+    @Column("text", {name: "store_url", nullable: true})
+    storeUrl?: string | null;
+
     @Column("boolean", {name: "needs_review", default: false})
     needsReview!: boolean;
 
