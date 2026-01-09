@@ -131,6 +131,9 @@ export class Item {
     @Column("date", {name: "acquired_at", nullable: true})
     acquiredAt?: string | null;
 
+    @Column("text", {name: "notes", nullable: true})
+    notes?: string | null;
+
     @Column("timestamp", {
         name: "created_at",
         default: () => "CURRENT_TIMESTAMP",

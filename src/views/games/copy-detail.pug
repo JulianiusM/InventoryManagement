@@ -321,6 +321,11 @@ block content
                                         label.form-check-label(for="editLendable")
                                             i.bi.bi-hand-index.me-1
                                             | Allow lending
+                            if copy.gameCopyType === 'digital_license'
+                                .col-12
+                                    label.form-label Store Link
+                                    input.form-control.text-bg-dark(type="url" name="storeUrl" placeholder="https://store.example.com/game" value=(copy.storeUrl || ''))
+                                    .form-text.text-white-50 URL to the game's store page
                             .col-12
                                 label.form-label Notes
                                 textarea.form-control.text-bg-dark(name="notes" rows="3" placeholder="Optional notes") #{copy.notes || ''}
@@ -331,35 +336,4 @@ block content
                             | Save Changes
 
 block scripts
-    script.
-        // Barcode mapping
-        document.addEventListener('DOMContentLoaded', function() {
-            const form = document.getElementById('barcodeForm');
-            const input = document.getElementById('barcodeInput');
-            const msg = document.getElementById('barcodeMsg');
-            
-            if (form && input) {
-                form.addEventListener('submit', async function(e) {
-                    e.preventDefault();
-                    const code = input.value.trim();
-                    if (!code) return;
-                    
-                    try {
-                        const res = await fetch('/api/games/copies/!{copy.id}/barcode', {
-                            method: 'POST',
-                            headers: {'Content-Type': 'application/json'},
-                            body: JSON.stringify({code, symbology: 'UNKNOWN'})
-                        });
-                        const data = await res.json();
-                        msg.innerHTML = data.status === 'success' 
-                            ? '<div class="alert alert-success">' + data.message + '</div>'
-                            : '<div class="alert alert-danger">' + data.message + '</div>';
-                        if (data.status === 'success') {
-                            setTimeout(() => location.reload(), 1000);
-                        }
-                    } catch (err) {
-                        msg.innerHTML = '<div class="alert alert-danger">Error mapping barcode</div>';
-                    }
-                });
-            }
-        });
+    script(type="module" src="/js/games/copy-detail.gen.js")

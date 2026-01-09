@@ -239,6 +239,7 @@ router.post('/copies/:id/update', asyncHandler(async (req: Request, res: Respons
         condition: req.body.condition || null,
         lendable: req.body.lendable === 'true',
         notes: req.body.notes || null,
+        storeUrl: req.body.storeUrl || null,
     };
     await gamesController.updateGameCopy(id, body, userId);
     req.flash('success', 'Copy updated successfully');

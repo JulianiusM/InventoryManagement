@@ -384,21 +384,6 @@ block content
                             i.bi.bi-cloud-download.me-1
                             | Fetch Metadata
 
+
 block scripts
-    script(type="module" src="/js/stub.gen.js")
-    script.
-        // Initialize Select2 for merge dropdown
-        $(document).ready(function() {
-            $('#mergeTargetSelect').select2({
-                theme: 'bootstrap-5',
-                placeholder: 'Search games...',
-                allowClear: true,
-                dropdownParent: $('#mergeModal')
-            });
-            // Platform dropdown
-            $('select[name="platform"]').select2({
-                theme: 'bootstrap-5',
-                placeholder: 'Select platform...',
-                dropdownParent: $('#addReleaseModal')
-            });
-        });
+    script(type="module" src="/js/games/title-detail.gen.js")

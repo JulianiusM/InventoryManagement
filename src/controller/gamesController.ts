@@ -911,6 +911,7 @@ export async function updateGameCopy(
         condition?: string | null;
         lendable?: boolean;
         notes?: string | null;
+        storeUrl?: string | null;
     },
     userId: number
 ): Promise<void> {
@@ -935,6 +936,27 @@ export async function updateGameCopy(
         }
         if (body.lendable !== undefined) {
             updateData.lendable = body.lendable;
+        }
+    }
+    
+    // Digital licenses can have store URL
+    if (copy.gameCopyType === GameCopyType.DIGITAL_LICENSE) {
+        if (body.storeUrl !== undefined) {
+            const trimmed = typeof body.storeUrl === 'string' ? body.storeUrl.trim() : null;
+            // Validate URL if provided
+            if (trimmed) {
+                try {
+                    const url = new URL(trimmed);
+                    if (url.protocol !== 'https:' && url.protocol !== 'http:') {
+                        throw new Error('Invalid protocol');
+                    }
+                    updateData.storeUrl = trimmed;
+                } catch {
+                    // Invalid URL, skip
+                }
+            } else {
+                updateData.storeUrl = null;
+            }
         }
     }
     

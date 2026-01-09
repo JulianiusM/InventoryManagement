@@ -149,32 +149,9 @@ block content
                         i.bi.bi-search.display-4.text-white-50.mb-2.d-block
                         p.text-white-50.mb-0 No locations match your search.
 
+
 block scripts
-    script.
-        // Enhanced search
-        document.addEventListener('DOMContentLoaded', function() {
-            const searchInput = document.getElementById('locationSearch');
-            const clearBtn = document.querySelector('[data-search-clear]');
-            
-            // Clear button handler
-            if (clearBtn) {
-                clearBtn.addEventListener('click', function() {
-                    searchInput.value = '';
-                    searchInput.focus();
-                });
-            }
-            
-            // Initialize Select2 for parent location dropdown in modal
-            if (typeof $ !== 'undefined' && $.fn.select2) {
-                $('.select2-parent-location').select2({
-                    theme: 'bootstrap-5',
-                    dropdownParent: $('#addLocationModal'),
-                    placeholder: 'None (top-level)',
-                    allowClear: true,
-                    width: '100%'
-                });
-            }
-        });
+    script(type="module" src="/js/locations/list.gen.js")
 
     //- Add Location Modal
     #addLocationModal.modal.fade(tabindex="-1" aria-labelledby="addLocationModalLabel" aria-hidden="true")

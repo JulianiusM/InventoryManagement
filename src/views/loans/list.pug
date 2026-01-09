@@ -276,30 +276,6 @@ block content
                         | Mark as Returned
 
 block scripts
+
+block scripts
     script(type="module" src="/js/loans/list.gen.js")
-    script.
-        // Initialize Select2 for item dropdown in modal
-        document.addEventListener('DOMContentLoaded', function() {
-            if (typeof $ !== 'undefined' && $.fn.select2) {
-                $('.select2-item').select2({
-                    theme: 'bootstrap-5',
-                    dropdownParent: $('#newLoanModal'),
-                    placeholder: 'Select an item',
-                    width: '100%'
-                });
-            }
-            
-            // Return modal handling
-            const returnModalBtns = document.querySelectorAll('.loan-return-modal');
-            const returnForm = document.getElementById('returnLoanForm');
-            const returnItemName = document.getElementById('returnItemName');
-            
-            returnModalBtns.forEach(function(btn) {
-                btn.addEventListener('click', function() {
-                    const loanId = this.dataset.loanId;
-                    const itemName = this.dataset.itemName;
-                    returnForm.action = '/api/loans/' + loanId + '/return';
-                    returnItemName.textContent = itemName;
-                });
-            });
-        });

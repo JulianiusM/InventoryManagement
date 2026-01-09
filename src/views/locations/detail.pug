@@ -226,22 +226,6 @@ block content
                                 i.bi.bi-trash.me-1
                                 | Delete
 
+
 block scripts
-    script.
-        // Delete confirmation
-        document.addEventListener('DOMContentLoaded', function() {
-            const deleteBtn = document.getElementById('deleteLocationBtn');
-            const deleteModal = new bootstrap.Modal(document.getElementById('deleteModal'));
-            const deleteForm = document.getElementById('deleteForm');
-            const deleteLocationName = document.getElementById('deleteLocationName');
-            
-            if (deleteBtn) {
-                deleteBtn.addEventListener('click', function() {
-                    const locationId = this.dataset.locationId;
-                    const locationName = this.dataset.locationName;
-                    deleteLocationName.textContent = locationName;
-                    deleteForm.action = '/locations/' + locationId + '/delete';
-                    deleteModal.show();
-                });
-            }
-        });
+    script(type="module" src="/js/locations/detail.gen.js")
