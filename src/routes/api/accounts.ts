@@ -5,6 +5,7 @@
  */
 
 import express, {Request, Response} from 'express';
+import {deleteDevice, listDevices, registerDevice, revokeDevice} from "../../controller/gamesController";
 import {asyncHandler} from '../../modules/lib/asyncHandler';
 import renderer from '../../modules/renderer';
 import {requireAuth} from '../../middleware/authMiddleware';
@@ -53,7 +54,7 @@ router.get('/:accountId/devices', requireAuth, asyncHandler(async (req: Request,
         return;
     }
     
-    const devices = await connector.listDevices(accountId);
+    const devices = await listDevices(accountId);
     renderer.respondWithJson(res, {devices});
 }));
 
@@ -85,7 +86,7 @@ router.post('/:accountId/devices', requireAuth, deviceRegistrationLimiter, async
         return;
     }
     
-    const result = await connector.registerDevice(accountId, deviceName.trim());
+    const result = await registerDevice(accountId, deviceName.trim());
     renderer.respondWithJson(res, result);
 }));
 
@@ -111,7 +112,7 @@ router.post('/:accountId/devices/:deviceId/revoke', requireAuth, asyncHandler(as
         return;
     }
     
-    await connector.revokeDevice(accountId, deviceId);
+    await revokeDevice(accountId, deviceId);
     renderer.respondWithSuccessJson(res, 'Device revoked successfully');
 }));
 
@@ -137,7 +138,7 @@ router.delete('/:accountId/devices/:deviceId', requireAuth, asyncHandler(async (
         return;
     }
     
-    await connector.deleteDevice(accountId, deviceId);
+    await deleteDevice(accountId, deviceId);
     renderer.respondWithSuccessJson(res, 'Device deleted successfully');
 }));
 

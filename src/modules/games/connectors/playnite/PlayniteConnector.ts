@@ -15,9 +15,7 @@
 import {
     BaseConnector,
     ConnectorCredentials,
-    ConnectorDevice,
     ConnectorManifest,
-    DeviceRegistrationResult,
     ExternalGame,
     ImportPreprocessResult,
     PushConnector,
@@ -50,29 +48,6 @@ export interface PlayniteGamePayload {
     /** Store URL provided directly by Playnite (more reliable than generated URLs) */
     storeUrl?: string;
     raw?: object;
-}
-
-/**
- * Playnite import payload structure
- */
-export interface PlayniteImportPayload {
-    aggregator: 'playnite';
-    exportedAt: string;
-    plugins: Array<{pluginId: string; name: string}>;
-    games: PlayniteGamePayload[];
-}
-
-/**
- * Error codes for Playnite connector
- */
-export class PlayniteConnectorError extends Error {
-    constructor(
-        message: string,
-        public readonly code: 'DEVICE_NOT_FOUND' | 'TOKEN_INVALID' | 'DEVICE_REVOKED' | 'INVALID_PAYLOAD' | 'NETWORK_ERROR'
-    ) {
-        super(message);
-        this.name = 'PlayniteConnectorError';
-    }
 }
 
 const PLAYNITE_MANIFEST: ConnectorManifest = {
@@ -127,82 +102,6 @@ function deriveEntitlementKey(game: PlayniteGamePayload): {key: string; needsRev
 export class PlayniteConnector extends BaseConnector implements PushConnector {
     constructor() {
         super(PLAYNITE_MANIFEST);
-    }
-
-    // ============ PushConnector Device Management ============
-
-    /**
-     * Register a new device for an account
-     */
-    async registerDevice(accountId: string, deviceName: string): Promise<DeviceRegistrationResult> {
-        if (!deviceName || deviceName.trim() === '') {
-            throw new PlayniteConnectorError('Device name is required', 'INVALID_PAYLOAD');
-        }
-        
-        const result = await connectorDeviceService.createDevice(accountId, deviceName.trim());
-        
-        return {
-            deviceId: result.deviceId,
-            deviceName: deviceName.trim(),
-            token: result.token,
-        };
-    }
-
-    /**
-     * List all devices for an account
-     */
-    async listDevices(accountId: string): Promise<ConnectorDevice[]> {
-        const devices = await connectorDeviceService.getDevicesByAccountId(accountId);
-        
-        return devices.map(device => ({
-            id: device.id,
-            name: device.name,
-            createdAt: device.createdAt,
-            lastSeenAt: device.lastSeenAt || null,
-            lastImportAt: device.lastImportAt || null,
-            status: device.revokedAt ? 'revoked' as const : 'active' as const,
-        }));
-    }
-
-    /**
-     * Revoke a device (soft delete)
-     */
-    async revokeDevice(accountId: string, deviceId: string): Promise<void> {
-        const device = await connectorDeviceService.getDeviceById(deviceId);
-        if (!device || device.externalAccountId !== accountId) {
-            throw new PlayniteConnectorError('Device not found', 'DEVICE_NOT_FOUND');
-        }
-        await connectorDeviceService.revokeDevice(deviceId);
-    }
-
-    /**
-     * Delete a device permanently
-     */
-    async deleteDevice(accountId: string, deviceId: string): Promise<void> {
-        const device = await connectorDeviceService.getDeviceById(deviceId);
-        if (!device || device.externalAccountId !== accountId) {
-            throw new PlayniteConnectorError('Device not found', 'DEVICE_NOT_FOUND');
-        }
-        await connectorDeviceService.deleteDevice(deviceId);
-    }
-
-    /**
-     * Verify a device token
-     */
-    async verifyDeviceToken(token: string): Promise<{deviceId: string; accountId: string} | null> {
-        if (!token) {
-            return null;
-        }
-        
-        const device = await connectorDeviceService.verifyDeviceToken(token);
-        if (!device) {
-            return null;
-        }
-        
-        return {
-            deviceId: device.id,
-            accountId: device.externalAccountId,
-        };
     }
 
     /**

@@ -57,6 +57,17 @@ router.post('/releases/merge', asyncHandler(async (req: Request, res: Response) 
 
 // ============ Game Titles ============
 
+// Bulk delete game titles
+router.post('/titles/bulk-delete', asyncHandler(async (req: Request, res: Response) => {
+    const userId = req.session.user!.id;
+    const ids = req.body.ids;
+    // Handle both array and single value
+    const idsArray = Array.isArray(ids) ? ids : (ids ? [ids] : []);
+    const deleted = await gamesController.bulkDeleteGameTitles(idsArray, userId);
+    req.flash('success', `Deleted ${deleted} game(s)`);
+    res.redirect('/games');
+}));
+
 // Get game title detail
 router.get('/titles/:id', asyncHandler(async (req: Request, res: Response) => {
     const id = req.params.id;
@@ -123,17 +134,6 @@ router.post('/titles/:id/apply-metadata', asyncHandler(async (req: Request, res:
         req.flash('info', result.message);
     }
     res.redirect(`/games/titles/${id}`);
-}));
-
-// Bulk delete game titles
-router.post('/titles/bulk-delete', asyncHandler(async (req: Request, res: Response) => {
-    const userId = req.session.user!.id;
-    const ids = req.body.ids;
-    // Handle both array and single value
-    const idsArray = Array.isArray(ids) ? ids : (ids ? [ids] : []);
-    const deleted = await gamesController.bulkDeleteGameTitles(idsArray, userId);
-    req.flash('success', `Deleted ${deleted} game(s)`);
-    res.redirect('/games');
 }));
 
 // Resync metadata for all games (async - runs in background)

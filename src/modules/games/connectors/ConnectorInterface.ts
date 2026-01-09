@@ -133,27 +133,6 @@ export interface ConnectorCredentials {
 }
 
 /**
- * Device info for push-style connectors
- */
-export interface ConnectorDevice {
-    id: string;
-    name: string;
-    createdAt: Date;
-    lastSeenAt?: Date | null;
-    lastImportAt?: Date | null;
-    status: 'active' | 'revoked';
-}
-
-/**
- * Device registration result
- */
-export interface DeviceRegistrationResult {
-    deviceId: string;
-    deviceName: string;
-    token: string; // Only returned on registration, not stored
-}
-
-/**
  * Connector interface that all connectors must implement
  */
 export interface GameConnector {
@@ -202,39 +181,6 @@ export interface ImportPreprocessResult {
  * Extended interface for push-style connectors that support devices
  */
 export interface PushConnector extends GameConnector {
-    /**
-     * Register a new device for this connector
-     * @param accountId - The external account ID this device belongs to
-     * @param deviceName - Human-readable device name
-     */
-    registerDevice(accountId: string, deviceName: string): Promise<DeviceRegistrationResult>;
-    
-    /**
-     * List all devices for an account
-     * @param accountId - The external account ID
-     */
-    listDevices(accountId: string): Promise<ConnectorDevice[]>;
-    
-    /**
-     * Revoke a device (soft delete)
-     * @param accountId - The external account ID
-     * @param deviceId - The device ID to revoke
-     */
-    revokeDevice(accountId: string, deviceId: string): Promise<void>;
-    
-    /**
-     * Delete a device permanently
-     * @param accountId - The external account ID
-     * @param deviceId - The device ID to delete
-     */
-    deleteDevice(accountId: string, deviceId: string): Promise<void>;
-    
-    /**
-     * Verify a device token
-     * @param token - The device token to verify
-     * @returns Device info if valid, null otherwise
-     */
-    verifyDeviceToken(token: string): Promise<{deviceId: string; accountId: string} | null>;
     
     /**
      * Preprocess a pushed import payload into unified ExternalGame format

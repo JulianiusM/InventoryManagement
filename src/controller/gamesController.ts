@@ -17,6 +17,7 @@ import * as locationService from '../modules/database/services/LocationService';
 import * as partyService from '../modules/database/services/PartyService';
 import * as gameSyncService from '../modules/games/GameSyncService';
 import * as platformService from '../modules/database/services/PlatformService';
+import * as connectorDeviceService from '../modules/database/services/ConnectorDeviceService';
 import {connectorRegistry, initializeConnectors} from '../modules/games/connectors/ConnectorRegistry';
 import {metadataProviderRegistry} from '../modules/games/metadata/MetadataProviderRegistry';
 import {mergePlayerCounts, type GameMetadata, type MetadataSearchResult} from '../modules/games/metadata/MetadataProviderInterface';
@@ -45,7 +46,7 @@ import {
     MergeGameTitlesBody,
     MergeGameReleasesBody,
     LinkDigitalCopyToAccountBody,
-    ScheduleSyncBody
+    ScheduleSyncBody, DeviceRegistrationResult, ConnectorDevice
 } from '../types/GamesTypes';
 
 // Ensure connectors are initialized
@@ -1466,4 +1467,78 @@ export async function updatePlatform(id: string, body: {name?: string; descripti
         }
         throw error;
     }
+}
+
+/**
+ * Register a new device for an account
+ */
+export async function registerDevice(accountId: string, deviceName: string): Promise<DeviceRegistrationResult> {
+    if (!deviceName || deviceName.trim() === '') {
+    throw new ExpectedError('Device name is required');
+}
+
+const result = await connectorDeviceService.createDevice(accountId, deviceName.trim());
+
+return {
+    deviceId: result.deviceId,
+    deviceName: deviceName.trim(),
+    token: result.token,
+};
+}
+
+/**
+ * List all devices for an account
+ */
+export async function listDevices(accountId: string): Promise<ConnectorDevice[]> {
+    const devices = await connectorDeviceService.getDevicesByAccountId(accountId);
+
+    return devices.map(device => ({
+        id: device.id,
+        name: device.name,
+        createdAt: device.createdAt,
+        lastSeenAt: device.lastSeenAt || null,
+        lastImportAt: device.lastImportAt || null,
+        status: device.revokedAt ? 'revoked' as const : 'active' as const,
+    }));
+}
+
+/**
+ * Revoke a device (soft delete)
+ */
+export async function revokeDevice(accountId: string, deviceId: string): Promise<void> {
+    const device = await connectorDeviceService.getDeviceById(deviceId);
+    if (!device || device.externalAccountId !== accountId) {
+    throw new ExpectedError('Device not found', "error", 404);
+}
+await connectorDeviceService.revokeDevice(deviceId);
+}
+
+/**
+ * Delete a device permanently
+ */
+export async function deleteDevice(accountId: string, deviceId: string): Promise<void> {
+    const device = await connectorDeviceService.getDeviceById(deviceId);
+    if (!device || device.externalAccountId !== accountId) {
+    throw new ExpectedError('Device not found', "error", 404);
+}
+await connectorDeviceService.deleteDevice(deviceId);
+}
+
+/**
+ * Verify a device token
+ */
+export async function verifyDeviceToken(token: string): Promise<{deviceId: string; accountId: string} | null> {
+    if (!token) {
+    return null;
+}
+
+const device = await connectorDeviceService.verifyDeviceToken(token);
+if (!device) {
+    return null;
+}
+
+return {
+    deviceId: device.id,
+    accountId: device.externalAccountId,
+};
 }
