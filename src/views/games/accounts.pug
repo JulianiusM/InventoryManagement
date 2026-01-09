@@ -53,9 +53,15 @@ block content
     else
         //- Check which providers have connectors (case-insensitive match)
         - const connectorProviderNames = connectors.map(c => c.provider.toLowerCase())
+        - const connectorMap = {}
+        each conn in connectors
+            - connectorMap[conn.provider.toLowerCase()] = conn
         .row.g-3
             each account in accounts
                 - const hasConnector = connectorProviderNames.includes(account.provider.toLowerCase())
+                - const connector = connectorMap[account.provider.toLowerCase()]
+                - const isPushStyle = connector && connector.syncStyle === 'push'
+                - const supportsDevices = connector && connector.supportsDevices
                 .col-md-6.col-lg-4
                     .card.text-bg-dark.border-secondary.h-100
                         .card-body
@@ -67,11 +73,24 @@ block content
                                     span.badge.text-bg-info #{account.provider}
                                     if !hasConnector
                                         span.badge.text-bg-warning.ms-1 Manual
+                                    if isPushStyle
+                                        span.badge.text-bg-secondary.ms-1 Push
+                                    if connector && connector.isAggregator
+                                        span.badge.text-bg-primary.ms-1 Aggregator
                                 .dropdown
                                     button.btn.btn-sm.btn-outline-secondary.dropdown-toggle(type="button" data-bs-toggle="dropdown")
                                         i.bi.bi-three-dots-vertical
                                     ul.dropdown-menu.dropdown-menu-dark.dropdown-menu-end
-                                        if hasConnector
+                                        li
+                                            button.dropdown-item.edit-account-btn(type="button" data-account-id=account.id data-account-name=account.accountName data-external-user-id=account.externalUserId data-provider=account.provider)
+                                                i.bi.bi-pencil.me-2
+                                                | Edit Account
+                                        if supportsDevices
+                                            li
+                                                button.dropdown-item.manage-devices-btn(type="button" data-account-id=account.id data-account-name=account.accountName)
+                                                    i.bi.bi-device-hdd.me-2
+                                                    | Manage Devices
+                                        if hasConnector && !isPushStyle
                                             li
                                                 form(method="post" action=`/games/accounts/${account.id}/sync`)
                                                     button.dropdown-item(type="submit")
@@ -86,8 +105,8 @@ block content
                                                     button.dropdown-item(type="submit")
                                                         i.bi.bi-clock-history.me-2
                                                         | Cancel Schedule
-                                            li
-                                                hr.dropdown-divider
+                                        li
+                                            hr.dropdown-divider
                                         li
                                             form(method="post" action=`/games/accounts/${account.id}/delete`)
                                                 button.dropdown-item.text-danger(type="submit" onclick="return confirm('Remove this account?')")
@@ -98,6 +117,9 @@ block content
                                 if !hasConnector
                                     i.bi.bi-info-circle.me-1
                                     | Manual account (no connector) - use to track games without auto-sync
+                                else if isPushStyle
+                                    i.bi.bi-device-hdd.me-1
+                                    | Push-style connector - data is synced from the external agent
                                 else if account.lastSyncedAt
                                     i.bi.bi-clock.me-1
                                     | Last synced: #{new Date(account.lastSyncedAt).toLocaleString()}
@@ -106,13 +128,13 @@ block content
                                     | Never synced
                             
                             //- Sync status container (updated via JavaScript)
-                            if hasConnector
+                            if hasConnector && !isPushStyle
                                 .sync-status-container.mt-2(data-account-id=account.id)
                                     .sync-status.text-white-50.small
                                         //- Status will be populated by JavaScript
 
                         .card-footer.bg-transparent.border-secondary
-                            if hasConnector
+                            if hasConnector && !isPushStyle
                                 .d-flex.gap-2
                                     form.flex-grow-1(method="post" action=`/games/accounts/${account.id}/sync`)
                                         button.btn.btn-sm.btn-outline-primary.w-100.sync-btn(type="submit" data-account-id=account.id)
@@ -121,6 +143,10 @@ block content
                                     button.btn.btn-sm.btn-outline-secondary.check-status-btn(type="button" data-account-id=account.id)
                                         i.bi.bi-arrow-clockwise.me-1
                                         | Check Status
+                            else if supportsDevices
+                                button.btn.btn-sm.btn-outline-primary.w-100.manage-devices-btn(type="button" data-account-id=account.id data-account-name=account.accountName)
+                                    i.bi.bi-device-hdd.me-1
+                                    | Manage Devices
                             else
                                 .text-center.text-white-50.small
                                     i.bi.bi-hand-index.me-1
@@ -169,34 +195,58 @@ block content
                                     .d-flex.justify-content-between.align-items-start
                                         div
                                             h6.mb-1 #{conn.name}
+                                            if conn.syncStyle === 'push'
+                                                span.badge.text-bg-secondary.small.me-1 Push
+                                            else
+                                                span.badge.text-bg-primary.small.me-1 Fetch
                                             if conn.isAggregator
                                                 span.badge.text-bg-info.small.me-1 Aggregator
-                                        if conn.id === 'playnite'
-                                            button.btn.btn-sm.btn-outline-primary(type="button" data-bs-toggle="modal" data-bs-target="#playniteDevicesModal")
-                                                i.bi.bi-gear.me-1
-                                                | Manage
                                     p.small.text-white-50.mb-1 #{conn.description}
                                     .d-flex.flex-wrap.gap-1
                                         each cap in conn.capabilities
-                                            span.badge.text-bg-secondary.small #{cap.replace('_', ' ')}
+                                            span.badge.text-bg-dark.small.border.border-secondary #{cap.replace('_', ' ')}
 
-    //- Playnite Devices Modal
-    - const playniteDevices = (data && data.playniteDevices) ? data.playniteDevices : []
-    #playniteDevicesModal.modal.fade(tabindex="-1")
+    //- Edit Account Modal
+    #editAccountModal.modal.fade(tabindex="-1")
+        .modal-dialog
+            .modal-content.text-bg-dark
+                .modal-header.border-secondary
+                    h5.modal-title
+                        i.bi.bi-pencil.me-2
+                        | Edit Account
+                    button.btn-close.btn-close-white(type="button" data-bs-dismiss="modal")
+                .modal-body
+                    form#editAccountForm.row.g-3
+                        input#editAccountId(type="hidden" name="accountId")
+                        .col-12
+                            label.form-label Account Name *
+                            input#editAccountName.form-control.text-bg-dark(type="text" name="accountName" required)
+                        .col-12#editExternalUserIdField
+                            label.form-label.edit-field-label User ID / External ID
+                            input#editExternalUserId.form-control.text-bg-dark(type="text" name="externalUserId")
+                .modal-footer.border-secondary
+                    button.btn.btn-secondary(type="button" data-bs-dismiss="modal") Cancel
+                    button.btn.btn-primary(type="submit" form="editAccountForm")
+                        i.bi.bi-check-lg.me-1
+                        | Save Changes
+
+    //- Manage Devices Modal (for push-style connectors)
+    #manageDevicesModal.modal.fade(tabindex="-1")
         .modal-dialog.modal-lg
             .modal-content.text-bg-dark
                 .modal-header.border-secondary
                     h5.modal-title
-                        i.bi.bi-controller.me-2
-                        | Playnite Devices
+                        i.bi.bi-device-hdd.me-2
+                        span#devicesModalTitle Manage Devices
                     button.btn-close.btn-close-white(type="button" data-bs-dismiss="modal")
                 .modal-body
+                    input#devicesAccountId(type="hidden")
                     .alert.alert-info.mb-3
                         i.bi.bi-info-circle.me-2
-                        | Playnite is an aggregator that imports games from multiple sources (Steam, Epic, GOG, etc.) while preserving the original provider information.
+                        | Devices allow external agents to push data to this account. Register a device to get a token for the agent.
                     
                     //- Device registration form
-                    form#registerDeviceForm.mb-4(method="post" action="/api/integrations/playnite/devices")
+                    form#registerDeviceForm.mb-4
                         .row.g-2.align-items-end
                             .col-md-8
                                 label.form-label Device Name
@@ -206,57 +256,21 @@ block content
                                     i.bi.bi-plus-lg.me-1
                                     | Register Device
                     
-                    //- Device list
-                    if playniteDevices.length === 0
+                    //- Device list container (populated by JavaScript)
+                    #devicesList
                         .text-center.py-4
-                            i.bi.bi-controller.display-4.text-white-50.d-block.mb-3
-                            p.text-white-50 No Playnite devices registered yet.
-                            p.small.text-white-50 Register a device to get a token for the Playnite extension.
-                    else
-                        .table-responsive
-                            table.table.table-dark.table-hover.mb-0
-                                thead
-                                    tr
-                                        th Device Name
-                                        th Status
-                                        th Last Seen
-                                        th Last Import
-                                        th Actions
-                                tbody
-                                    each device in playniteDevices
-                                        tr
-                                            td #{device.name}
-                                            td
-                                                if device.status === 'active'
-                                                    span.badge.text-bg-success Active
-                                                else
-                                                    span.badge.text-bg-danger Revoked
-                                            td
-                                                if device.lastSeenAt
-                                                    | #{new Date(device.lastSeenAt).toLocaleDateString()}
-                                                else
-                                                    span.text-white-50 Never
-                                            td
-                                                if device.lastImportAt
-                                                    | #{new Date(device.lastImportAt).toLocaleDateString()}
-                                                else
-                                                    span.text-white-50 Never
-                                            td
-                                                if device.status === 'active'
-                                                    form.d-inline(method="post" action=`/api/integrations/playnite/devices/${device.id}/revoke`)
-                                                        button.btn.btn-sm.btn-outline-warning(type="submit" onclick="return confirm('Revoke this device? You will need to register a new device.')")
-                                                            i.bi.bi-x-circle.me-1
-                                                            | Revoke
-                                
+                            .spinner-border.text-primary(role="status")
+                                span.visually-hidden Loading...
+                    
                     .mt-4
                         h6.text-white-50
                             i.bi.bi-question-circle.me-1
                             | How to use
                         ol.small.text-white-50
                             li Register a device above and copy the token
-                            li Install the Playnite extension (available separately)
-                            li Configure the extension with your token
-                            li Sync your library from Playnite
+                            li Install and configure the agent for your platform
+                            li Use the token to authenticate the agent
+                            li The agent will push library data to this account
                 .modal-footer.border-secondary
                     button.btn.btn-secondary(type="button" data-bs-dismiss="modal") Close
 
@@ -479,18 +493,188 @@ block scripts
             }
         }
         
-        // Handle Playnite device registration
+        // ============ Edit Account Modal ============
+        document.querySelectorAll('.edit-account-btn').forEach(btn => {
+            btn.addEventListener('click', function() {
+                const accountId = this.dataset.accountId;
+                const accountName = this.dataset.accountName;
+                const externalUserId = this.dataset.externalUserId || '';
+                
+                document.getElementById('editAccountId').value = accountId;
+                document.getElementById('editAccountName').value = accountName;
+                document.getElementById('editExternalUserId').value = externalUserId;
+                
+                const modal = new bootstrap.Modal(document.getElementById('editAccountModal'));
+                modal.show();
+            });
+        });
+        
+        // Handle edit account form submission
+        const editAccountForm = document.getElementById('editAccountForm');
+        if (editAccountForm) {
+            editAccountForm.addEventListener('submit', async function(e) {
+                e.preventDefault();
+                
+                const accountId = document.getElementById('editAccountId').value;
+                const accountName = document.getElementById('editAccountName').value.trim();
+                const externalUserId = document.getElementById('editExternalUserId').value.trim();
+                
+                if (!accountId || !accountName) return;
+                
+                try {
+                    const response = await fetch(`/api/accounts/${encodeURIComponent(accountId)}`, {
+                        method: 'PATCH',
+                        headers: {'Content-Type': 'application/json'},
+                        body: JSON.stringify({accountName, externalUserId: externalUserId || null})
+                    });
+                    
+                    if (response.ok) {
+                        location.reload();
+                    } else {
+                        const data = await response.json();
+                        showAlert(data.message || 'Failed to update account', 'danger');
+                    }
+                } catch (err) {
+                    console.error('Failed to update account:', err);
+                    showAlert('Failed to update account. Please try again.', 'danger');
+                }
+            });
+        }
+        
+        // ============ Manage Devices Modal ============
+        let currentDevicesAccountId = null;
+        
+        document.querySelectorAll('.manage-devices-btn').forEach(btn => {
+            btn.addEventListener('click', function() {
+                currentDevicesAccountId = this.dataset.accountId;
+                const accountName = this.dataset.accountName;
+                
+                document.getElementById('devicesAccountId').value = currentDevicesAccountId;
+                document.getElementById('devicesModalTitle').textContent = `Devices for ${accountName}`;
+                
+                loadDevices(currentDevicesAccountId);
+                
+                const modal = new bootstrap.Modal(document.getElementById('manageDevicesModal'));
+                modal.show();
+            });
+        });
+        
+        // Load devices for an account
+        async function loadDevices(accountId) {
+            const container = document.getElementById('devicesList');
+            container.innerHTML = '<div class="text-center py-4"><div class="spinner-border text-primary" role="status"><span class="visually-hidden">Loading...</span></div></div>';
+            
+            try {
+                const response = await fetch(`/api/accounts/${encodeURIComponent(accountId)}/devices`);
+                const data = await response.json();
+                
+                if (response.ok) {
+                    renderDevicesList(data.devices, accountId);
+                } else {
+                    container.innerHTML = `<div class="alert alert-danger">${data.message || 'Failed to load devices'}</div>`;
+                }
+            } catch (err) {
+                console.error('Failed to load devices:', err);
+                container.innerHTML = '<div class="alert alert-danger">Failed to load devices. Please try again.</div>';
+            }
+        }
+        
+        // Render devices list
+        function renderDevicesList(devices, accountId) {
+            const container = document.getElementById('devicesList');
+            
+            if (!devices || devices.length === 0) {
+                container.innerHTML = `
+                    <div class="text-center py-4">
+                        <i class="bi bi-device-hdd display-4 text-white-50 d-block mb-3"></i>
+                        <p class="text-white-50">No devices registered yet.</p>
+                        <p class="small text-white-50">Register a device above to get a token.</p>
+                    </div>
+                `;
+                return;
+            }
+            
+            let html = `
+                <div class="table-responsive">
+                    <table class="table table-dark table-hover mb-0">
+                        <thead>
+                            <tr>
+                                <th>Device Name</th>
+                                <th>Status</th>
+                                <th>Last Seen</th>
+                                <th>Last Import</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+            `;
+            
+            devices.forEach(device => {
+                const statusBadge = device.status === 'active' 
+                    ? '<span class="badge text-bg-success">Active</span>'
+                    : '<span class="badge text-bg-danger">Revoked</span>';
+                const lastSeen = device.lastSeenAt ? new Date(device.lastSeenAt).toLocaleDateString() : '<span class="text-white-50">Never</span>';
+                const lastImport = device.lastImportAt ? new Date(device.lastImportAt).toLocaleDateString() : '<span class="text-white-50">Never</span>';
+                
+                html += `
+                    <tr>
+                        <td>${device.name}</td>
+                        <td>${statusBadge}</td>
+                        <td>${lastSeen}</td>
+                        <td>${lastImport}</td>
+                        <td>
+                            ${device.status === 'active' ? `
+                                <button class="btn btn-sm btn-outline-warning revoke-device-btn" data-device-id="${device.id}">
+                                    <i class="bi bi-x-circle me-1"></i>Revoke
+                                </button>
+                            ` : ''}
+                        </td>
+                    </tr>
+                `;
+            });
+            
+            html += '</tbody></table></div>';
+            container.innerHTML = html;
+            
+            // Add event listeners for revoke buttons
+            container.querySelectorAll('.revoke-device-btn').forEach(btn => {
+                btn.addEventListener('click', async function() {
+                    const deviceId = this.dataset.deviceId;
+                    if (!confirm('Revoke this device? You will need to register a new device.')) return;
+                    
+                    try {
+                        const response = await fetch(`/api/accounts/${encodeURIComponent(accountId)}/devices/${encodeURIComponent(deviceId)}/revoke`, {
+                            method: 'POST'
+                        });
+                        
+                        if (response.ok) {
+                            loadDevices(accountId);
+                        } else {
+                            const data = await response.json();
+                            showAlert(data.message || 'Failed to revoke device', 'danger');
+                        }
+                    } catch (err) {
+                        console.error('Failed to revoke device:', err);
+                        showAlert('Failed to revoke device. Please try again.', 'danger');
+                    }
+                });
+            });
+        }
+        
+        // Handle device registration form
         const registerDeviceForm = document.getElementById('registerDeviceForm');
         if (registerDeviceForm) {
             registerDeviceForm.addEventListener('submit', async function(e) {
                 e.preventDefault();
+                
+                const accountId = document.getElementById('devicesAccountId').value;
                 const deviceNameInput = document.getElementById('deviceNameInput');
                 const deviceName = deviceNameInput.value.trim();
                 
-                if (!deviceName) return;
+                if (!accountId || !deviceName) return;
                 
                 try {
-                    const response = await fetch('/api/integrations/playnite/devices', {
+                    const response = await fetch(`/api/accounts/${encodeURIComponent(accountId)}/devices`, {
                         method: 'POST',
                         headers: {'Content-Type': 'application/json'},
                         body: JSON.stringify({deviceName})
@@ -523,10 +707,10 @@ block scripts
                                                     <i class="bi bi-clipboard"></i>
                                                 </button>
                                             </div>
-                                            <p class="small text-white-50 mt-2">Use this token in the Playnite extension to sync your library.</p>
+                                            <p class="small text-white-50 mt-2">Use this token with your sync agent.</p>
                                         </div>
                                         <div class="modal-footer border-secondary">
-                                            <button type="button" class="btn btn-primary" data-bs-dismiss="modal" onclick="location.reload()">Done</button>
+                                            <button type="button" class="btn btn-primary" data-bs-dismiss="modal" onclick="loadDevices('${accountId}')">Done</button>
                                         </div>
                                     </div>
                                 </div>

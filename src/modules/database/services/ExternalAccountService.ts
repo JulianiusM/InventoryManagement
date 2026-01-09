@@ -21,10 +21,14 @@ export async function createExternalAccount(data: CreateExternalAccountData): Pr
     return await repo.save(account);
 }
 
-export async function getExternalAccountById(id: string): Promise<ExternalAccount | null> {
+export async function getExternalAccountById(id: string, ownerId?: number): Promise<ExternalAccount | null> {
     const repo = AppDataSource.getRepository(ExternalAccount);
+    const where: Record<string, unknown> = {id};
+    if (ownerId !== undefined) {
+        where.owner = {id: ownerId};
+    }
     return await repo.findOne({
-        where: {id},
+        where,
         relations: ['owner'],
     });
 }
@@ -48,9 +52,14 @@ export async function getExternalAccountsByProvider(ownerId: number, provider: s
     });
 }
 
-export async function updateExternalAccount(id: string, data: Partial<Omit<ExternalAccount, 'owner' | 'copies' | 'libraryEntries' | 'syncJobs'>>): Promise<void> {
+export async function updateExternalAccount(
+    id: string, 
+    ownerId: number, 
+    data: Partial<Pick<ExternalAccount, 'accountName' | 'externalUserId' | 'tokenRef'>>
+): Promise<void> {
     const repo = AppDataSource.getRepository(ExternalAccount);
-    await repo.update({id}, data as Record<string, unknown>);
+    // Ensure ownership
+    await repo.update({id, owner: {id: ownerId}}, data as Record<string, unknown>);
 }
 
 export async function updateLastSyncedAt(id: string): Promise<void> {

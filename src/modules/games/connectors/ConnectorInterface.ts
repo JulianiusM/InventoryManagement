@@ -48,6 +48,33 @@ export interface ExternalGame {
 }
 
 /**
+ * Sync style for connectors
+ * - fetch: Connector actively pulls data from external service (e.g., Steam API)
+ * - push: Connector receives data pushed from external agent (e.g., Playnite extension)
+ */
+export type ConnectorSyncStyle = 'fetch' | 'push';
+
+/**
+ * Credential field definition for dynamic UI generation
+ */
+export interface CredentialField {
+    /** Field identifier (used as form field name) */
+    name: string;
+    /** Human-readable label for the field */
+    label: string;
+    /** Field type for rendering */
+    type: 'text' | 'password' | 'url';
+    /** Whether this field is required */
+    required: boolean;
+    /** Placeholder text */
+    placeholder?: string;
+    /** Help text shown below the field */
+    helpText?: string;
+    /** Maps to: externalUserId, tokenRef, or custom field stored in account metadata */
+    mapsTo: 'externalUserId' | 'tokenRef';
+}
+
+/**
  * Connector manifest describing its capabilities
  */
 export interface ConnectorManifest {
@@ -57,9 +84,19 @@ export interface ConnectorManifest {
     provider: string; // Changed from enum to string for user-defined providers
     capabilities: ConnectorCapability[];
     version: string;
-    configSchema?: object; // JSON Schema for connector configuration
+    /** 
+     * Sync style: 'fetch' for pull-based connectors (default), 'push' for agent-based connectors 
+     */
+    syncStyle?: ConnectorSyncStyle;
+    /**
+     * Credential fields required from user - generates dynamic UI
+     * If not specified, shows default externalUserId + tokenRef fields
+     */
+    credentialFields?: CredentialField[];
     /** Whether this connector acts as an aggregator (imports from multiple sources) */
     isAggregator?: boolean;
+    /** Whether this connector supports devices (for push-style connectors) */
+    supportsDevices?: boolean;
 }
 
 /**
@@ -81,6 +118,31 @@ export interface ConnectorCredentials {
     externalUserId: string;
     /** Token/credential reference for authentication (e.g., API key) - optional for some providers */
     tokenRef?: string;
+    /** Device ID for push-style connectors */
+    deviceId?: string;
+    /** Device token for push-style connector authentication */
+    deviceToken?: string;
+}
+
+/**
+ * Device info for push-style connectors
+ */
+export interface ConnectorDevice {
+    id: string;
+    name: string;
+    createdAt: Date;
+    lastSeenAt?: Date | null;
+    lastImportAt?: Date | null;
+    status: 'active' | 'revoked';
+}
+
+/**
+ * Device registration result
+ */
+export interface DeviceRegistrationResult {
+    deviceId: string;
+    deviceName: string;
+    token: string; // Only returned on registration, not stored
 }
 
 /**
@@ -110,6 +172,60 @@ export interface GameConnector {
      * @returns true if credentials are valid
      */
     validateCredentials(credentials: ConnectorCredentials): Promise<boolean>;
+}
+
+/**
+ * Extended interface for push-style connectors that support devices
+ */
+export interface PushConnector extends GameConnector {
+    /**
+     * Register a new device for this connector
+     * @param accountId - The external account ID this device belongs to
+     * @param deviceName - Human-readable device name
+     */
+    registerDevice(accountId: string, deviceName: string): Promise<DeviceRegistrationResult>;
+    
+    /**
+     * List all devices for an account
+     * @param accountId - The external account ID
+     */
+    listDevices(accountId: string): Promise<ConnectorDevice[]>;
+    
+    /**
+     * Revoke a device (soft delete)
+     * @param accountId - The external account ID
+     * @param deviceId - The device ID to revoke
+     */
+    revokeDevice(accountId: string, deviceId: string): Promise<void>;
+    
+    /**
+     * Delete a device permanently
+     * @param accountId - The external account ID
+     * @param deviceId - The device ID to delete
+     */
+    deleteDevice(accountId: string, deviceId: string): Promise<void>;
+    
+    /**
+     * Verify a device token
+     * @param token - The device token to verify
+     * @returns Device info if valid, null otherwise
+     */
+    verifyDeviceToken(token: string): Promise<{deviceId: string; accountId: string} | null>;
+    
+    /**
+     * Process a pushed import payload
+     * @param deviceId - The device ID sending the payload
+     * @param payload - The import data
+     */
+    processImport(deviceId: string, payload: unknown): Promise<SyncResult>;
+}
+
+/**
+ * Type guard to check if a connector is a push-style connector
+ */
+export function isPushConnector(connector: GameConnector): connector is PushConnector {
+    return connector.getManifest().syncStyle === 'push' && 
+           connector.getManifest().supportsDevices === true;
 }
 
 /**

@@ -8,14 +8,22 @@
  * - Transparent aggregator: preserves original provider info (Steam/Epic/GOG/etc.)
  * - Supports multiple providers per import
  * 
- * Credentials:
- * - externalUserId: Device ID (UUID)
- * - tokenRef: Device token for authentication
+ * This is a push-style connector - the Playnite extension pushes data to us.
+ * Devices are tied to External Accounts, not users directly.
  */
 
-import {BaseConnector, ConnectorCredentials, ConnectorManifest, ExternalGame, SyncResult} from './ConnectorInterface';
+import {
+    BaseConnector,
+    ConnectorCredentials,
+    ConnectorDevice,
+    ConnectorManifest,
+    DeviceRegistrationResult,
+    ExternalGame,
+    PushConnector,
+    SyncResult
+} from './ConnectorInterface';
 import {ConnectorCapability} from '../../../types/InventoryEnums';
-import * as playniteDeviceService from '../../database/services/PlayniteDeviceService';
+import * as connectorDeviceService from '../../database/services/ConnectorDeviceService';
 import {normalizeProviderName} from '../PlayniteProviders';
 
 /**
@@ -51,15 +59,6 @@ export interface PlayniteImportPayload {
 }
 
 /**
- * Device registration result
- */
-export interface PlayniteDeviceResult {
-    deviceId: string;
-    deviceName: string;
-    token?: string; // Only returned on registration
-}
-
-/**
  * Error codes for Playnite connector
  */
 export class PlayniteConnectorError extends Error {
@@ -82,14 +81,20 @@ const PLAYNITE_MANIFEST: ConnectorManifest = {
         ConnectorCapability.PLAYTIME_SYNC,
     ],
     version: '1.0.0',
+    syncStyle: 'push',
+    supportsDevices: true,
     isAggregator: true,
-    configSchema: {
-        type: 'object',
-        properties: {
-            deviceName: {type: 'string', description: 'Name for this Playnite device'},
+    credentialFields: [
+        {
+            name: 'accountName',
+            label: 'Account Name',
+            type: 'text',
+            required: true,
+            placeholder: 'e.g., My Gaming PC',
+            helpText: 'A name for this Playnite installation',
+            mapsTo: 'externalUserId',
         },
-        required: ['deviceName'],
-    },
+    ],
 };
 
 /**
@@ -115,7 +120,33 @@ function deriveEntitlementKey(game: PlayniteGamePayload): {key: string; needsRev
     };
 }
 
-export class PlayniteConnector extends BaseConnector {
+/**
+ * Convert Playnite payload to ExternalGame format
+ */
+function convertToExternalGames(payload: PlayniteImportPayload): ExternalGame[] {
+    return payload.games.map((game): ExternalGame => {
+        const {key: entitlementKey} = deriveEntitlementKey(game);
+        const normalizedProvider = normalizeProviderName(game.originalProviderPluginId);
+        
+        return {
+            externalGameId: entitlementKey,
+            name: game.name,
+            playtimeMinutes: game.playtimeSeconds ? Math.round(game.playtimeSeconds / 60) : undefined,
+            lastPlayedAt: game.lastActivity ? new Date(game.lastActivity) : undefined,
+            isInstalled: game.installed,
+            platform: game.platforms?.[0] || 'PC',
+            rawPayload: game.raw,
+            
+            // Aggregator origin fields
+            originalProviderPluginId: game.originalProviderPluginId,
+            originalProviderName: game.originalProviderName,
+            originalProviderGameId: game.originalProviderGameId,
+            originalProviderNormalizedId: normalizedProvider,
+        };
+    });
+}
+
+export class PlayniteConnector extends BaseConnector implements PushConnector {
     // Store the imported games temporarily for syncLibrary
     private pendingImport: PlayniteImportPayload | null = null;
 
@@ -123,17 +154,17 @@ export class PlayniteConnector extends BaseConnector {
         super(PLAYNITE_MANIFEST);
     }
 
+    // ============ PushConnector Device Management ============
+
     /**
-     * Register a new Playnite device
-     * @param deviceName Name for the device
-     * @param userId Owner user ID
+     * Register a new device for an account
      */
-    public async registerDevice(deviceName: string, userId: number): Promise<PlayniteDeviceResult> {
+    async registerDevice(accountId: string, deviceName: string): Promise<DeviceRegistrationResult> {
         if (!deviceName || deviceName.trim() === '') {
             throw new PlayniteConnectorError('Device name is required', 'INVALID_PAYLOAD');
         }
         
-        const result = await playniteDeviceService.createDevice(userId, deviceName.trim());
+        const result = await connectorDeviceService.createDevice(accountId, deviceName.trim());
         
         return {
             deviceId: result.deviceId,
@@ -143,32 +174,10 @@ export class PlayniteConnector extends BaseConnector {
     }
 
     /**
-     * Get device info by ID
+     * List all devices for an account
      */
-    public async getDeviceInfo(deviceId: string): Promise<PlayniteDeviceResult | null> {
-        const device = await playniteDeviceService.getDeviceById(deviceId);
-        if (!device) {
-            return null;
-        }
-        
-        return {
-            deviceId: device.id,
-            deviceName: device.name,
-        };
-    }
-
-    /**
-     * List all devices for a user
-     */
-    public async listDevices(userId: number): Promise<Array<{
-        id: string;
-        name: string;
-        createdAt: Date;
-        lastSeenAt: Date | null;
-        lastImportAt: Date | null;
-        status: 'active' | 'revoked';
-    }>> {
-        const devices = await playniteDeviceService.getDevicesByUserId(userId);
+    async listDevices(accountId: string): Promise<ConnectorDevice[]> {
+        const devices = await connectorDeviceService.getDevicesByAccountId(accountId);
         
         return devices.map(device => ({
             id: device.id,
@@ -181,86 +190,110 @@ export class PlayniteConnector extends BaseConnector {
     }
 
     /**
-     * Revoke a device
+     * Revoke a device (soft delete)
      */
-    public async revokeDevice(deviceId: string): Promise<void> {
-        await playniteDeviceService.revokeDevice(deviceId);
+    async revokeDevice(accountId: string, deviceId: string): Promise<void> {
+        const device = await connectorDeviceService.getDeviceById(deviceId);
+        if (!device || device.externalAccountId !== accountId) {
+            throw new PlayniteConnectorError('Device not found', 'DEVICE_NOT_FOUND');
+        }
+        await connectorDeviceService.revokeDevice(deviceId);
     }
 
     /**
      * Delete a device permanently
      */
-    public async deleteDevice(deviceId: string): Promise<void> {
-        await playniteDeviceService.deleteDevice(deviceId);
+    async deleteDevice(accountId: string, deviceId: string): Promise<void> {
+        const device = await connectorDeviceService.getDeviceById(deviceId);
+        if (!device || device.externalAccountId !== accountId) {
+            throw new PlayniteConnectorError('Device not found', 'DEVICE_NOT_FOUND');
+        }
+        await connectorDeviceService.deleteDevice(deviceId);
     }
 
     /**
      * Verify a device token
-     * @param token The device token to verify
-     * @returns Device info if valid, null otherwise
      */
-    public async verifyToken(token: string): Promise<{deviceId: string; userId: number; deviceName: string} | null> {
+    async verifyDeviceToken(token: string): Promise<{deviceId: string; accountId: string} | null> {
         if (!token) {
             return null;
         }
         
-        const device = await playniteDeviceService.verifyTokenByToken(token);
+        const device = await connectorDeviceService.verifyDeviceToken(token);
         if (!device) {
             return null;
         }
         
         return {
             deviceId: device.id,
-            userId: device.userId,
-            deviceName: device.name,
+            accountId: device.externalAccountId,
         };
     }
 
     /**
-     * Set the import payload for processing
-     * This is used by the import endpoint to pass data to syncLibrary
+     * Process a pushed import payload
+     */
+    async processImport(deviceId: string, payload: unknown): Promise<SyncResult> {
+        // Validate payload structure
+        if (!this.isValidPayload(payload)) {
+            return {
+                success: false,
+                games: [],
+                error: 'Invalid import payload structure',
+                timestamp: new Date(),
+            };
+        }
+        
+        // Convert to external games
+        const games = convertToExternalGames(payload);
+        
+        // Update last import timestamp
+        await connectorDeviceService.updateLastImportAt(deviceId);
+        
+        return {
+            success: true,
+            games,
+            timestamp: new Date(),
+        };
+    }
+
+    /**
+     * Validate Playnite import payload
+     */
+    private isValidPayload(payload: unknown): payload is PlayniteImportPayload {
+        if (!payload || typeof payload !== 'object') return false;
+        const p = payload as Record<string, unknown>;
+        return p.aggregator === 'playnite' && Array.isArray(p.games);
+    }
+
+    // ============ Standard Connector Methods ============
+
+    /**
+     * Set the import payload for processing (used by import endpoint)
      */
     public setImportPayload(payload: PlayniteImportPayload): void {
         this.pendingImport = payload;
     }
 
     /**
-     * Convert Playnite payload to ExternalGame format
-     */
-    private convertToExternalGames(payload: PlayniteImportPayload): ExternalGame[] {
-        return payload.games.map((game): ExternalGame => {
-            const {key: entitlementKey} = deriveEntitlementKey(game);
-            const normalizedProvider = normalizeProviderName(game.originalProviderPluginId);
-            
-            return {
-                externalGameId: entitlementKey,
-                name: game.name,
-                playtimeMinutes: game.playtimeSeconds ? Math.round(game.playtimeSeconds / 60) : undefined,
-                lastPlayedAt: game.lastActivity ? new Date(game.lastActivity) : undefined,
-                isInstalled: game.installed,
-                platform: game.platforms?.[0] || 'PC',
-                rawPayload: game.raw,
-                
-                // Aggregator origin fields
-                originalProviderPluginId: game.originalProviderPluginId,
-                originalProviderName: game.originalProviderName,
-                originalProviderGameId: game.originalProviderGameId,
-                originalProviderNormalizedId: normalizedProvider,
-            };
-        });
-    }
-
-    /**
      * Sync game library from Playnite
      * Uses the pending import payload set via setImportPayload
-     * @param credentials - externalUserId is deviceId, tokenRef is device token
      */
     async syncLibrary(credentials: ConnectorCredentials): Promise<SyncResult> {
         try {
-            const {externalUserId: deviceId, tokenRef: token} = credentials;
+            const {deviceId} = credentials;
+            
+            if (!deviceId) {
+                return {
+                    success: false,
+                    games: [],
+                    error: 'Device ID is required for Playnite sync.',
+                    timestamp: new Date(),
+                };
+            }
             
             // Verify device exists
-            const device = await playniteDeviceService.getDeviceById(deviceId);
+            const device = await connectorDeviceService.getDeviceById(deviceId);
             if (!device) {
                 return {
                     success: false,
@@ -280,19 +313,6 @@ export class PlayniteConnector extends BaseConnector {
                 };
             }
             
-            // Verify token if provided
-            if (token) {
-                const tokenDevice = await playniteDeviceService.verifyTokenByToken(token);
-                if (!tokenDevice || tokenDevice.id !== deviceId) {
-                    return {
-                        success: false,
-                        games: [],
-                        error: 'Invalid device token.',
-                        timestamp: new Date(),
-                    };
-                }
-            }
-            
             // Check for pending import
             if (!this.pendingImport) {
                 return {
@@ -304,10 +324,10 @@ export class PlayniteConnector extends BaseConnector {
             }
             
             // Convert payload to external games
-            const games = this.convertToExternalGames(this.pendingImport);
+            const games = convertToExternalGames(this.pendingImport);
             
             // Update last import timestamp
-            await playniteDeviceService.updateLastImportAt(deviceId);
+            await connectorDeviceService.updateLastImportAt(deviceId);
             
             // Clear pending import
             this.pendingImport = null;
@@ -330,24 +350,23 @@ export class PlayniteConnector extends BaseConnector {
 
     /**
      * Validate credentials by checking if the device exists and token is valid
-     * @param credentials - externalUserId is deviceId, tokenRef is device token
      */
     async validateCredentials(credentials: ConnectorCredentials): Promise<boolean> {
         try {
-            const {externalUserId: deviceId, tokenRef: token} = credentials;
+            const {deviceId, deviceToken} = credentials;
             
             if (!deviceId) {
                 return false;
             }
             
-            const device = await playniteDeviceService.getDeviceById(deviceId);
+            const device = await connectorDeviceService.getDeviceById(deviceId);
             if (!device || device.revokedAt) {
                 return false;
             }
             
             // If token is provided, verify it
-            if (token) {
-                const tokenDevice = await playniteDeviceService.verifyTokenByToken(token);
+            if (deviceToken) {
+                const tokenDevice = await connectorDeviceService.verifyDeviceToken(deviceToken);
                 return tokenDevice !== null && tokenDevice.id === deviceId;
             }
             
