@@ -27,6 +27,8 @@ const playniteGameSchema = Joi.object({
     originalProviderPluginId: Joi.string().required(),
     originalProviderName: Joi.string().required(),
     originalProviderGameId: Joi.string().optional().allow(null, ''),
+    // Store URL provided directly by Playnite (more reliable than generated URLs)
+    storeUrl: Joi.string().uri({scheme: ['http', 'https']}).optional().allow(null, ''),
     raw: Joi.object().optional(),
 }).unknown(true);
 
@@ -65,6 +67,8 @@ export interface PlayniteGame {
     originalProviderPluginId: string;
     originalProviderName: string;
     originalProviderGameId?: string;
+    /** Store URL provided directly by Playnite (more reliable than generated URLs) */
+    storeUrl?: string;
     raw?: object;
 }
 

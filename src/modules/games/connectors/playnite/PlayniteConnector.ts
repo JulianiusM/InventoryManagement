@@ -47,6 +47,8 @@ export interface PlayniteGamePayload {
     originalProviderPluginId: string;
     originalProviderName: string;
     originalProviderGameId?: string;
+    /** Store URL provided directly by Playnite (more reliable than generated URLs) */
+    storeUrl?: string;
     raw?: object;
 }
 
@@ -246,7 +248,8 @@ export class PlayniteConnector extends BaseConnector implements PushConnector {
             }
             
             const normalizedProvider = normalizeProviderName(game.originalProviderPluginId);
-            const storeUrl = generateStoreUrl(normalizedProvider, game.originalProviderGameId);
+            // Prefer storeUrl from Playnite payload (more reliable), fallback to generated URL
+            const storeUrl = game.storeUrl || generateStoreUrl(normalizedProvider, game.originalProviderGameId);
             
             return {
                 externalGameId: entitlementKey,
