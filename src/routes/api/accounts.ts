@@ -23,6 +23,10 @@ const deviceRegistrationLimiter = rateLimit({
     message: {status: 'error', message: 'Too many device registrations. Try again later.'},
     standardHeaders: true,
     legacyHeaders: false,
+    keyGenerator: (req: Request) => {
+        // Rate limit by user ID instead of IP
+        return req.session.user?.id?.toString() || req.ip || 'unknown';
+    },
 });
 
 // ============ Account Device Management ============
