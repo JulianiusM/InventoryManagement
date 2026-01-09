@@ -175,6 +175,22 @@ export interface GameConnector {
 }
 
 /**
+ * Import preprocessing result from push connector
+ * Contains validated games in the unified ExternalGame format
+ */
+export interface ImportPreprocessResult {
+    success: boolean;
+    games: ExternalGame[];
+    error?: string;
+    /** List of entitlement keys to use for soft-removal tracking */
+    entitlementKeys: string[];
+    /** Warnings generated during preprocessing */
+    warnings: Array<{code: string; count: number}>;
+    /** Number of games that need manual review */
+    needsReviewCount: number;
+}
+
+/**
  * Extended interface for push-style connectors that support devices
  */
 export interface PushConnector extends GameConnector {
@@ -213,11 +229,14 @@ export interface PushConnector extends GameConnector {
     verifyDeviceToken(token: string): Promise<{deviceId: string; accountId: string} | null>;
     
     /**
-     * Process a pushed import payload
-     * @param deviceId - The device ID sending the payload
-     * @param payload - The import data
+     * Preprocess a pushed import payload into unified ExternalGame format
+     * This is the connector-specific validation and transformation step.
+     * The result is then fed into the unified sync pipeline.
+     * 
+     * @param payload - The raw import data from the external agent
+     * @returns Preprocessed games in unified format with tracking info
      */
-    processImport(deviceId: string, payload: unknown): Promise<SyncResult>;
+    preprocessImport(payload: unknown): Promise<ImportPreprocessResult>;
 }
 
 /**

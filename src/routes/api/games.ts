@@ -4,18 +4,22 @@ import * as gamesController from '../../controller/gamesController';
 import renderer from '../../modules/renderer';
 import {requireAuth} from '../../middleware/authMiddleware';
 import {requirePushConnectorAuth, pushConnectorImportRateLimiter} from '../../middleware/pushConnectorAuthMiddleware';
-import {connectorRegistry} from '../../modules/games/connectors/ConnectorRegistry';
-import {isPushConnector} from '../../modules/games/connectors/ConnectorInterface';
-import * as playniteImportService from '../../modules/games/connectors/playnite/PlayniteImportService';
+import * as gameSyncService from '../../modules/games/GameSyncService';
 
 const router = express.Router();
 
-// ============ Generic Push Connector Import (device token auth) ============
+// ============ Unified Push Connector Import (device token auth) ============
 
-// Import library via push connector - generic endpoint for all push-style connectors
-// Uses device token auth (Authorization: Bearer <token>)
-router.post('/connectors/:provider/import', requirePushConnectorAuth, pushConnectorImportRateLimiter, asyncHandler(async (req: Request, res: Response) => {
-    const {provider} = req.params;
+/**
+ * Unified import endpoint for all push-style connectors
+ * 
+ * Uses device token to identify the account and connector.
+ * Delegates preprocessing to the connector, then uses the shared sync pipeline.
+ * 
+ * Authorization: Bearer <deviceToken>
+ * Body: Connector-specific payload (e.g., Playnite import format)
+ */
+router.post('/import', requirePushConnectorAuth, pushConnectorImportRateLimiter, asyncHandler(async (req: Request, res: Response) => {
     const device = req.connectorDevice;
     
     if (!device) {
@@ -23,44 +27,16 @@ router.post('/connectors/:provider/import', requirePushConnectorAuth, pushConnec
         return;
     }
     
-    // Verify the device belongs to an account for the requested provider
-    if (device.provider.toLowerCase() !== provider.toLowerCase()) {
-        res.status(403).json({status: 'error', message: `Device is not authorized for ${provider} imports`});
-        return;
-    }
+    // Use the unified push import pipeline
+    // This handles connector lookup, preprocessing, and sync - all generically
+    const result = await gameSyncService.processPushImport(
+        device.deviceId,
+        device.accountId,
+        device.userId,
+        req.body
+    );
     
-    // Get the connector and verify it supports push imports
-    const connector = connectorRegistry.getByProvider(provider);
-    if (!connector) {
-        res.status(404).json({status: 'error', message: `Unknown connector: ${provider}`});
-        return;
-    }
-    
-    if (!isPushConnector(connector)) {
-        res.status(400).json({status: 'error', message: `${provider} does not support push imports`});
-        return;
-    }
-    
-    // Delegate import processing to the connector-specific service
-    // For now, we handle Playnite specifically - other push connectors can be added later
-    if (provider.toLowerCase() === 'playnite') {
-        const result = await playniteImportService.processPlayniteImport(
-            device.deviceId,
-            device.userId,
-            req.body
-        );
-        renderer.respondWithJson(res, result);
-    } else {
-        // Generic push connector processing via connector interface
-        const syncResult = await connector.processImport(device.deviceId, req.body);
-        renderer.respondWithJson(res, {
-            deviceId: device.deviceId,
-            importedAt: syncResult.timestamp.toISOString(),
-            success: syncResult.success,
-            gamesCount: syncResult.games.length,
-            error: syncResult.error,
-        });
-    }
+    renderer.respondWithJson(res, result);
 }));
 
 // Apply session auth middleware to remaining games API routes
@@ -117,7 +93,7 @@ router.get('/copies/:id', asyncHandler(async (req: Request, res: Response) => {
     const userId = req.session.user!.id;
     const data = await gamesController.getGameCopyDetail(id, userId);
     
-    // Build response with origin info for Playnite-imported copies
+    // Build response with origin info for aggregator-imported copies
     const copy = data.copy;
     const response: Record<string, unknown> = {
         id: copy.id,

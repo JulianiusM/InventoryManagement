@@ -14,7 +14,7 @@
  */
 
 import {connectorRegistry} from './connectors/ConnectorRegistry';
-import {ConnectorCredentials, ExternalGame} from './connectors/ConnectorInterface';
+import {ConnectorCredentials, ExternalGame, ImportPreprocessResult, isPushConnector} from './connectors/ConnectorInterface';
 import {metadataProviderRegistry, initializeMetadataProviders} from './metadata/MetadataProviderRegistry';
 import {GameMetadata, mergePlayerCounts} from './metadata/MetadataProviderInterface';
 import {extractEdition} from './GameNameUtils';
@@ -27,6 +27,7 @@ import * as gameReleaseService from '../database/services/GameReleaseService';
 import * as itemService from '../database/services/ItemService';
 import * as syncJobService from '../database/services/SyncJobService';
 import * as platformService from '../database/services/PlatformService';
+import * as connectorDeviceService from '../database/services/ConnectorDeviceService';
 import {
     GameCopyType, 
     MappingStatus, 
@@ -42,6 +43,23 @@ export interface SyncStats {
     entriesUpdated: number;
     titlesCreated: number;
     copiesCreated: number;
+}
+
+/**
+ * Push import result returned to API caller
+ */
+export interface PushImportResult {
+    deviceId: string;
+    importedAt: string;
+    counts: {
+        received: number;
+        created: number;
+        updated: number;
+        unchanged: number;
+        softRemoved: number;
+        needsReview: number;
+    };
+    warnings: Array<{code: string; count: number}>;
 }
 
 // Map provider to default platform (user-defined platforms now, so using common defaults)
@@ -663,4 +681,147 @@ export async function getSyncStatus(accountId: string): Promise<{
         } : null,
         isScheduled,
     };
+}
+
+/**
+ * Process a push import from an external agent
+ * 
+ * Unified pipeline for all push-style connectors:
+ * 1. Get account/connector from device info
+ * 2. Delegate preprocessing to connector (validates and converts to ExternalGame[])
+ * 3. Use the same processGamesWithAutoCreate pipeline as fetch-style connectors
+ * 4. Handle soft-removal for missing entries
+ * 5. Return import summary
+ * 
+ * @param deviceId - Device ID that pushed the data
+ * @param accountId - Account ID the device belongs to
+ * @param userId - User ID who owns the account
+ * @param payload - Raw import payload from the external agent
+ */
+export async function processPushImport(
+    deviceId: string,
+    accountId: string,
+    userId: number,
+    payload: unknown
+): Promise<PushImportResult> {
+    const importedAt = new Date().toISOString();
+    
+    // Get account info
+    const account = await externalAccountService.getExternalAccountById(accountId);
+    if (!account) {
+        throw new Error('Account not found');
+    }
+    
+    // Verify ownership
+    if (account.ownerId !== userId) {
+        throw new Error('Access denied');
+    }
+    
+    // Get connector - must be a push connector
+    const connector = connectorRegistry.getByProvider(account.provider);
+    if (!connector) {
+        throw new Error(`No connector for provider: ${account.provider}`);
+    }
+    
+    if (!isPushConnector(connector)) {
+        throw new Error(`${account.provider} does not support push imports`);
+    }
+    
+    // Preprocess the payload via the connector
+    // This is the ONLY connector-specific step - everything else is generic
+    const preprocessResult: ImportPreprocessResult = await connector.preprocessImport(payload);
+    
+    if (!preprocessResult.success) {
+        throw new Error(preprocessResult.error || 'Preprocessing failed');
+    }
+    
+    // Check if connector is an aggregator
+    const isAggregator = connector.getManifest().isAggregator || false;
+    
+    // Use the same pipeline as fetch-style connectors
+    const stats = await processGamesWithAutoCreate(
+        accountId,
+        account.provider,
+        preprocessResult.games,
+        userId,
+        isAggregator
+    );
+    
+    // Handle soft-removal for entries not in this import batch
+    const softRemoved = await softRemoveUnseenEntries(
+        accountId,
+        account.provider,
+        new Set(preprocessResult.entitlementKeys),
+        isAggregator
+    );
+    
+    // Update device last import timestamp
+    await connectorDeviceService.updateLastImportAt(deviceId);
+    
+    // Update account last synced timestamp
+    await externalAccountService.updateLastSyncedAt(accountId);
+    
+    return {
+        deviceId,
+        importedAt,
+        counts: {
+            received: preprocessResult.games.length,
+            created: stats.copiesCreated,
+            updated: stats.entriesUpdated,
+            unchanged: stats.entriesProcessed - stats.copiesCreated - stats.entriesUpdated,
+            softRemoved,
+            needsReview: preprocessResult.needsReviewCount,
+        },
+        warnings: preprocessResult.warnings,
+    };
+}
+
+/**
+ * Soft-remove entries not seen in the current import
+ * Sets isInstalled to false for items that were previously synced but are not in the current batch
+ */
+async function softRemoveUnseenEntries(
+    accountId: string,
+    provider: string,
+    seenEntitlementKeys: Set<string>,
+    isAggregator: boolean
+): Promise<number> {
+    // Get all library entries for this account
+    const allEntries = await externalLibraryEntryService.getLibraryEntriesByAccountId(accountId);
+    
+    // Find entries not in the current import batch
+    const unseenEntries = allEntries.filter(entry => !seenEntitlementKeys.has(entry.externalGameId));
+    
+    if (unseenEntries.length === 0) {
+        return 0;
+    }
+    
+    // Mark unseen entries as not installed (soft removal)
+    for (const entry of unseenEntries) {
+        // Update library entry - preserve existing data except isInstalled
+        await externalLibraryEntryService.upsertLibraryEntry({
+            externalAccountId: accountId,
+            externalGameId: entry.externalGameId,
+            externalGameName: entry.externalGameName,
+            playtimeMinutes: entry.playtimeMinutes,
+            lastPlayedAt: entry.lastPlayedAt,
+            rawPayload: entry.rawPayload,
+            isInstalled: false,
+        });
+        
+        // Update corresponding item
+        if (isAggregator) {
+            const item = await itemService.findItemByAggregatorEntitlementKey(provider, accountId, entry.externalGameId);
+            if (item) {
+                await itemService.updateItem(item.id, {isInstalled: false});
+            }
+        } else {
+            const item = await itemService.findGameItemByExternalId(accountId, entry.externalGameId);
+            if (item) {
+                await itemService.updateItem(item.id, {isInstalled: false});
+            }
+        }
+    }
+    
+    return unseenEntries.length;
 }

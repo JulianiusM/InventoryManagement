@@ -19,12 +19,14 @@ import {
     ConnectorManifest,
     DeviceRegistrationResult,
     ExternalGame,
+    ImportPreprocessResult,
     PushConnector,
     SyncResult
 } from '../ConnectorInterface';
 import {ConnectorCapability} from '../../../../types/InventoryEnums';
 import * as connectorDeviceService from '../../../database/services/ConnectorDeviceService';
 import {normalizeProviderName} from './PlayniteProviders';
+import {validateImportPayload} from './PlayniteImportService';
 
 /**
  * Playnite game data from import payload
@@ -120,32 +122,6 @@ function deriveEntitlementKey(game: PlayniteGamePayload): {key: string; needsRev
     };
 }
 
-/**
- * Convert Playnite payload to ExternalGame format
- */
-function convertToExternalGames(payload: PlayniteImportPayload): ExternalGame[] {
-    return payload.games.map((game): ExternalGame => {
-        const {key: entitlementKey} = deriveEntitlementKey(game);
-        const normalizedProvider = normalizeProviderName(game.originalProviderPluginId);
-        
-        return {
-            externalGameId: entitlementKey,
-            name: game.name,
-            playtimeMinutes: game.playtimeSeconds ? Math.round(game.playtimeSeconds / 60) : undefined,
-            lastPlayedAt: game.lastActivity ? new Date(game.lastActivity) : undefined,
-            isInstalled: game.installed,
-            platform: game.platforms?.[0] || 'PC',
-            rawPayload: game.raw,
-            
-            // Aggregator origin fields
-            originalProviderPluginId: game.originalProviderPluginId,
-            originalProviderName: game.originalProviderName,
-            originalProviderGameId: game.originalProviderGameId,
-            originalProviderNormalizedId: normalizedProvider,
-        };
-    });
-}
-
 export class PlayniteConnector extends BaseConnector implements PushConnector {
     constructor() {
         super(PLAYNITE_MANIFEST);
@@ -228,39 +204,76 @@ export class PlayniteConnector extends BaseConnector implements PushConnector {
     }
 
     /**
-     * Process a pushed import payload
+     * Preprocess a pushed import payload into unified ExternalGame format
+     * This validates the Playnite-specific payload and converts it to the unified format.
+     * The result is then fed into the unified sync pipeline in GameSyncService.
      */
-    async processImport(deviceId: string, payload: unknown): Promise<SyncResult> {
-        // Validate payload structure
-        if (!this.isValidPayload(payload)) {
+    async preprocessImport(payload: unknown): Promise<ImportPreprocessResult> {
+        // Use Joi validation from PlayniteImportService
+        let validatedPayload;
+        try {
+            validatedPayload = validateImportPayload(payload);
+        } catch (error) {
             return {
                 success: false,
                 games: [],
-                error: 'Invalid import payload structure',
-                timestamp: new Date(),
+                error: error instanceof Error ? error.message : 'Invalid import payload structure',
+                entitlementKeys: [],
+                warnings: [],
+                needsReviewCount: 0,
             };
         }
         
-        // Convert to external games
-        const games = convertToExternalGames(payload);
+        // Track warnings and review counts
+        const warningCounts: Record<string, number> = {};
+        let needsReviewCount = 0;
+        const entitlementKeys: string[] = [];
         
-        // Update last import timestamp
-        await connectorDeviceService.updateLastImportAt(deviceId);
+        // Convert to external games with full tracking
+        const games: ExternalGame[] = validatedPayload.games.map((game) => {
+            const {key: entitlementKey, needsReview: derivedNeedsReview} = deriveEntitlementKey(game);
+            entitlementKeys.push(entitlementKey);
+            
+            // Check for missing original game ID
+            let needsReview = derivedNeedsReview;
+            if (!game.originalProviderGameId) {
+                warningCounts['MISSING_ORIGINAL_GAME_ID'] = (warningCounts['MISSING_ORIGINAL_GAME_ID'] || 0) + 1;
+                needsReview = true;
+            }
+            
+            if (needsReview) {
+                needsReviewCount++;
+            }
+            
+            const normalizedProvider = normalizeProviderName(game.originalProviderPluginId);
+            
+            return {
+                externalGameId: entitlementKey,
+                name: game.name,
+                playtimeMinutes: game.playtimeSeconds ? Math.round(game.playtimeSeconds / 60) : undefined,
+                lastPlayedAt: game.lastActivity ? new Date(game.lastActivity) : undefined,
+                isInstalled: game.installed,
+                platform: game.platforms?.[0] || 'PC',
+                rawPayload: game.raw,
+                
+                // Aggregator origin fields
+                originalProviderPluginId: game.originalProviderPluginId,
+                originalProviderName: game.originalProviderName,
+                originalProviderGameId: game.originalProviderGameId,
+                originalProviderNormalizedId: normalizedProvider,
+            };
+        });
+        
+        // Convert warning counts to array
+        const warnings = Object.entries(warningCounts).map(([code, count]) => ({code, count}));
         
         return {
             success: true,
             games,
-            timestamp: new Date(),
+            entitlementKeys,
+            warnings,
+            needsReviewCount,
         };
-    }
-
-    /**
-     * Validate Playnite import payload
-     */
-    private isValidPayload(payload: unknown): payload is PlayniteImportPayload {
-        if (!payload || typeof payload !== 'object') return false;
-        const p = payload as Record<string, unknown>;
-        return p.aggregator === 'playnite' && Array.isArray(p.games);
     }
 
     // ============ Standard Connector Methods ============
