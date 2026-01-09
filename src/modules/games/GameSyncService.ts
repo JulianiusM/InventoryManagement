@@ -345,11 +345,12 @@ async function processGamesWithAutoCreate(
                 });
                 copiesCreated++;
             } else {
-                // Update existing item with latest data
+                // Update existing item with latest data (including storeUrl in case generation improved)
                 await itemService.updateItem(existingItem.id, {
                     playtimeMinutes: enrichedGame.playtimeMinutes,
                     lastPlayedAt: enrichedGame.lastPlayedAt,
                     isInstalled: enrichedGame.isInstalled,
+                    storeUrl: enrichedGame.storeUrl,
                 });
             }
         }

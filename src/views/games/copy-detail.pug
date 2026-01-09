@@ -13,6 +13,9 @@ block content
     - const conditions = ['new', 'like_new', 'good', 'fair', 'poor']
     - const platformLabels = {pc: 'PC', ps5: 'PS5', ps4: 'PS4', xbox_series: 'Xbox Series', xbox_one: 'Xbox One', switch: 'Switch', mobile: 'Mobile', physical_only: 'Physical Only', other: 'Other'}
     - const providerLabels = {steam: 'Steam', epic: 'Epic Games', gog: 'GOG', xbox: 'Xbox', playstation: 'PlayStation', nintendo: 'Nintendo', origin: 'Origin', ubisoft: 'Ubisoft', other: 'Other'}
+    //- Trusted store domains for URL validation (security: prevent XSS via malicious URLs)
+    - const trustedStoreDomains = ['store.steampowered.com', 'store.epicgames.com', 'www.gog.com', 'store.ubisoft.com', 'www.xbox.com', 'store.playstation.com', 'itch.io', 'www.humblebundle.com']
+    - function isValidStoreUrl(url) { if (!url || typeof url !== 'string') return false; try { const parsed = new URL(url); return parsed.protocol === 'https:' && trustedStoreDomains.some(d => parsed.hostname === d || parsed.hostname.endsWith('.' + d)); } catch { return false; } }
 
     #liveAlerts
 
@@ -96,8 +99,8 @@ block content
                                         if copy.needsReview
                                             span.badge.text-bg-warning.ms-1 Needs Review
                                 
-                                //- Show store link if available
-                                if copy.storeUrl
+                                //- Show store link if available and validated
+                                if copy.storeUrl && isValidStoreUrl(copy.storeUrl)
                                     dt.col-sm-4
                                         i.bi.bi-shop.me-1
                                         | Store Link
