@@ -224,8 +224,13 @@ async function getPlayniteAccountForDevice(deviceId: string, userId: number): Pr
         throw new Error(`Device ${deviceId} has no linked account`);
     }
     
-    // Verify ownership
-    if (device.externalAccount.owner?.id !== userId) {
+    // Verify ownership - handle case where owner relation is not loaded
+    const ownerId = device.externalAccount.owner?.id;
+    if (ownerId === undefined || ownerId === null) {
+        throw new Error(`Device ${deviceId} has no account owner`);
+    }
+    
+    if (ownerId !== userId) {
         throw new Error(`Device ${deviceId} belongs to another user`);
     }
     

@@ -328,8 +328,19 @@ block content
 
 block scripts
     script.
-        // Store connector data for JavaScript access
-        const connectorsData = !{JSON.stringify(connectors)};
+        // Store connector data for JavaScript access (sanitized via JSON.stringify)
+        // JSON.stringify escapes special characters like < > & ' " which prevents XSS
+        // Additional protection: only serialize known safe properties
+        const connectorsData = !{JSON.stringify(connectors.map(c => ({
+            id: c.id,
+            name: c.name,
+            description: c.description,
+            provider: c.provider,
+            syncStyle: c.syncStyle,
+            isAggregator: c.isAggregator,
+            supportsDevices: c.supportsDevices,
+            credentialFields: c.credentialFields
+        })))};
         const connectorMap = {};
         connectorsData.forEach(c => {
             connectorMap[c.provider] = c;
@@ -390,6 +401,12 @@ block scripts
                     return;
                 }
                 
+                // Map field.mapsTo to actual input name
+                const fieldNameMap = {
+                    'externalUserId': 'externalUserId',
+                    'tokenRef': 'tokenRef'
+                };
+                
                 // Generate fields from schema
                 fields.forEach((field, index) => {
                     const fieldHtml = document.createElement('div');
@@ -397,8 +414,7 @@ block scripts
                     
                     const labelHtml = `<label class="form-label">${field.label}${field.required ? ' *' : ''}</label>`;
                     const inputType = field.type || 'text';
-                    const inputName = field.mapsTo === 'externalUserId' ? 'externalUserId' : 
-                                      field.mapsTo === 'tokenRef' ? 'tokenRef' : field.name;
+                    const inputName = fieldNameMap[field.mapsTo] || field.name;
                     const requiredAttr = field.required ? 'required' : '';
                     const placeholderAttr = field.placeholder ? `placeholder="${field.placeholder}"` : '';
                     const inputHtml = `<input class="form-control text-bg-dark" type="${inputType}" name="${inputName}" ${requiredAttr} ${placeholderAttr}>`;

@@ -12,10 +12,14 @@ const router = express.Router();
 
 // Import Playnite library - this endpoint uses device token auth, not session auth
 router.post('/import/playnite', requirePushConnectorAuth, pushConnectorImportRateLimiter, asyncHandler(async (req: Request, res: Response) => {
-    const {deviceId, userId} = req.connectorDevice || req.playniteDevice!;
-    const payload = req.body;
+    // connectorDevice is always set by requirePushConnectorAuth middleware
+    const device = req.connectorDevice;
+    if (!device) {
+        res.status(401).json({status: 'error', message: 'Device authentication required'});
+        return;
+    }
     
-    const result = await playniteController.importPlayniteLibrary(deviceId, userId, payload);
+    const result = await playniteController.importPlayniteLibrary(device.deviceId, device.userId, req.body);
     
     renderer.respondWithJson(res, result);
 }));
