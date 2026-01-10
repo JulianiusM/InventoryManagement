@@ -81,6 +81,13 @@ describe('extractEdition', () => {
             ['Game - Special Edition', 'Game', 'Special Edition'],
             ['Game - Premium Edition', 'Game', 'Premium Edition'],
             ['Game - Complete Edition', 'Game', 'Complete Edition'],
+            // Parentheses format
+            ['Game (Deluxe Edition)', 'Game', 'Deluxe Edition'],
+            ['Game (Premium Edition)', 'Game', 'Premium Edition'],
+            ['Game (Special Edition)', 'Game', 'Special Edition'],
+            // Brackets format
+            ['Game [Ultimate Edition]', 'Game', 'Ultimate Edition'],
+            ['Game [Collector\'s Edition]', 'Game', 'Collector\'s Edition'],
         ])('extracts edition from "%s"', (input, expectedBase, expectedEdition) => {
             const result = extractEdition(input);
             expect(result.baseName).toBe(expectedBase);

@@ -960,64 +960,78 @@ async function autoCreateGameFromMetadata(
 
 /**
  * Clamp player profile values to ensure they pass validation
- * Instead of using safe defaults, this attempts to preserve as much data as possible
- * by correcting inconsistencies in the metadata
+ * 
+ * Key principles:
+ * 1. Mode-specific values (online/local max) take PRECEDENCE over overall values
+ * 2. If mode-specific values exist but supportsX is false, enable supportsX
+ * 3. Overall max is EXTENDED to accommodate mode max values (not clamped down)
+ * 4. Only clamp if we have actual data (not defaults)
+ * 
+ * This ensures syncs complete even with inconsistent metadata from providers
  */
 function clampPlayerProfileValues(game: ExternalGame): ExternalGame {
     // Start with a copy
     const clamped: ExternalGame = {...game};
     
-    // Ensure overall min is at least 1
+    // Step 1: If mode-specific values exist but supportsX is false, enable the support flag
+    // This is because having player counts implies support for that mode
+    if (clamped.onlineMaxPlayers !== undefined && clamped.onlineMaxPlayers > 0) {
+        clamped.supportsOnline = true;
+    }
+    if (clamped.localMaxPlayers !== undefined && clamped.localMaxPlayers > 0) {
+        clamped.supportsLocal = true;
+    }
+    
+    // Step 2: Find the maximum player count across all modes (mode values take precedence)
+    let derivedMaxPlayers = clamped.overallMaxPlayers ?? 1;
+    
+    if (clamped.supportsOnline && clamped.onlineMaxPlayers !== undefined) {
+        derivedMaxPlayers = Math.max(derivedMaxPlayers, clamped.onlineMaxPlayers);
+    }
+    if (clamped.supportsLocal && clamped.localMaxPlayers !== undefined) {
+        derivedMaxPlayers = Math.max(derivedMaxPlayers, clamped.localMaxPlayers);
+    }
+    
+    // Step 3: Ensure overall max is at least 1 and accommodates all mode maxes
+    clamped.overallMaxPlayers = Math.max(1, derivedMaxPlayers);
+    
+    // Step 4: Ensure overall min is at least 1 and <= overall max
     if (!clamped.overallMinPlayers || clamped.overallMinPlayers < 1) {
         clamped.overallMinPlayers = 1;
     }
-    
-    // Ensure overall max is at least min
-    if (!clamped.overallMaxPlayers || clamped.overallMaxPlayers < clamped.overallMinPlayers) {
-        clamped.overallMaxPlayers = clamped.overallMinPlayers;
+    if (clamped.overallMinPlayers > clamped.overallMaxPlayers) {
+        clamped.overallMinPlayers = clamped.overallMaxPlayers;
     }
     
-    // If supports online but mode players are inconsistent, clamp them
-    if (clamped.supportsOnline) {
-        // Online min must be >= overall min
-        if (clamped.onlineMinPlayers !== undefined && clamped.onlineMinPlayers < clamped.overallMinPlayers) {
-            clamped.onlineMinPlayers = clamped.overallMinPlayers;
+    // Step 5: Clear mode-specific values if mode is not supported (validation requires this)
+    if (!clamped.supportsOnline) {
+        clamped.onlineMinPlayers = undefined;
+        clamped.onlineMaxPlayers = undefined;
+    } else {
+        // Ensure online min is valid
+        if (clamped.onlineMinPlayers !== undefined && clamped.onlineMinPlayers < 1) {
+            clamped.onlineMinPlayers = 1;
         }
-        
-        // Online max must be <= overall max
-        if (clamped.onlineMaxPlayers !== undefined && clamped.onlineMaxPlayers > clamped.overallMaxPlayers) {
-            // If online max is larger, extend overall max to accommodate
-            clamped.overallMaxPlayers = clamped.onlineMaxPlayers;
-        }
-        
-        // Online max must be >= online min
+        // Ensure online max >= online min
         if (clamped.onlineMinPlayers !== undefined && clamped.onlineMaxPlayers !== undefined 
             && clamped.onlineMaxPlayers < clamped.onlineMinPlayers) {
             clamped.onlineMaxPlayers = clamped.onlineMinPlayers;
         }
-    } else {
-        // Not supported, clear the mode-specific values
-        clamped.onlineMinPlayers = undefined;
-        clamped.onlineMaxPlayers = undefined;
     }
     
-    // Same for local multiplayer
-    if (clamped.supportsLocal) {
-        if (clamped.localMinPlayers !== undefined && clamped.localMinPlayers < clamped.overallMinPlayers) {
-            clamped.localMinPlayers = clamped.overallMinPlayers;
+    if (!clamped.supportsLocal) {
+        clamped.localMinPlayers = undefined;
+        clamped.localMaxPlayers = undefined;
+    } else {
+        // Ensure local min is valid
+        if (clamped.localMinPlayers !== undefined && clamped.localMinPlayers < 1) {
+            clamped.localMinPlayers = 1;
         }
-        
-        if (clamped.localMaxPlayers !== undefined && clamped.localMaxPlayers > clamped.overallMaxPlayers) {
-            clamped.overallMaxPlayers = clamped.localMaxPlayers;
-        }
-        
+        // Ensure local max >= local min
         if (clamped.localMinPlayers !== undefined && clamped.localMaxPlayers !== undefined 
             && clamped.localMaxPlayers < clamped.localMinPlayers) {
             clamped.localMaxPlayers = clamped.localMinPlayers;
         }
-    } else {
-        clamped.localMinPlayers = undefined;
-        clamped.localMaxPlayers = undefined;
     }
     
     return clamped;

@@ -9,25 +9,26 @@ import {v4 as uuidv4} from "uuid";
  */
 const DEFAULT_PLATFORMS = [
     // PC - covers Windows, Mac, Linux, and common variations
-    {name: "PC", description: "Windows/Mac/Linux", aliases: "windows,mac,macos,mac os,mac os x,macintosh,linux,ubuntu,computer,pc windows,pc (windows),microsoft windows,steam,desktop,win,win32,win64,ibm pc,personal computer"},
+    {name: "PC", description: "Windows/Mac/Linux", aliases: "windows,mac,macos,mac os,mac os x,macintosh,linux,ubuntu,computer,pc windows,pc (windows),microsoft windows,steam,desktop,win,win32,win64,ibm pc,personal computer,windows pc,pc game,pc games,pc gaming,windows gaming,windows 10,windows 11,windows 7,windows 8"},
     
     // PlayStation family - Sony
-    {name: "PlayStation 5", description: "Sony PlayStation 5", aliases: "ps5,playstation5,playstation 5,sony playstation 5,sony ps5"},
-    {name: "PlayStation 4", description: "Sony PlayStation 4", aliases: "ps4,playstation4,playstation 4,sony playstation 4,sony ps4,ps4 pro"},
-    {name: "PlayStation 3", description: "Sony PlayStation 3", aliases: "ps3,playstation3,playstation 3,sony playstation 3,sony ps3"},
-    {name: "PlayStation 2", description: "Sony PlayStation 2", aliases: "ps2,playstation2,playstation 2,sony playstation 2,sony ps2"},
-    {name: "PlayStation", description: "Sony PlayStation (PS1)", aliases: "ps1,psx,playstation1,playstation 1,sony playstation,ps one,psone"},
-    {name: "PlayStation Vita", description: "Sony PlayStation Vita", aliases: "psvita,ps vita,vita,sony vita,playstation vita"},
-    {name: "PlayStation Portable", description: "Sony PlayStation Portable (PSP)", aliases: "psp,sony psp"},
+    {name: "PlayStation 5", description: "Sony PlayStation 5", aliases: "ps5,playstation5,playstation 5,sony playstation 5,sony ps5,ps5 digital,playstation 5 digital edition,sony ps 5"},
+    {name: "PlayStation 4", description: "Sony PlayStation 4", aliases: "ps4,playstation4,playstation 4,sony playstation 4,sony ps4,ps4 pro,ps4 slim,playstation 4 pro,playstation 4 slim,sony ps 4"},
+    {name: "PlayStation 3", description: "Sony PlayStation 3", aliases: "ps3,playstation3,playstation 3,sony playstation 3,sony ps3,ps3 slim,ps3 super slim,sony ps 3"},
+    {name: "PlayStation 2", description: "Sony PlayStation 2", aliases: "ps2,playstation2,playstation 2,sony playstation 2,sony ps2,ps2 slim,sony ps 2"},
+    {name: "PlayStation", description: "Sony PlayStation (PS1)", aliases: "ps1,psx,playstation1,playstation 1,sony playstation,ps one,psone,sony ps1,sony ps 1"},
+    {name: "PlayStation Vita", description: "Sony PlayStation Vita", aliases: "psvita,ps vita,vita,sony vita,playstation vita,sony psvita,sony playstation vita"},
+    {name: "PlayStation Portable", description: "Sony PlayStation Portable (PSP)", aliases: "psp,sony psp,sony playstation portable"},
     
     // Xbox family - Microsoft
-    {name: "Xbox Series X|S", description: "Microsoft Xbox Series X|S", aliases: "xbox series x,xbox series s,xbox series,xsx,xss,microsoft xbox series x,microsoft xbox series s,xbox series x|s"},
-    {name: "Xbox One", description: "Microsoft Xbox One", aliases: "xbone,xb1,xbox one,microsoft xbox one,xbox one x,xbox one s"},
-    {name: "Xbox 360", description: "Microsoft Xbox 360", aliases: "x360,xb360,microsoft xbox 360"},
-    {name: "Xbox", description: "Microsoft Xbox (Original)", aliases: "xbox original,original xbox,microsoft xbox"},
+    {name: "Xbox Series X|S", description: "Microsoft Xbox Series X|S", aliases: "xbox series x,xbox series s,xbox series,xsx,xss,microsoft xbox series x,microsoft xbox series s,xbox series x|s,microsoft xbox series,xbox series x/s,series x,series s"},
+    {name: "Xbox One", description: "Microsoft Xbox One", aliases: "xbone,xb1,xbox one,microsoft xbox one,xbox one x,xbox one s,xbox one digital,microsoft xbone,microsoft xb1,xboxone"},
+    {name: "Xbox 360", description: "Microsoft Xbox 360", aliases: "x360,xb360,microsoft xbox 360,xbox360,microsoft x360"},
+    {name: "Xbox", description: "Microsoft Xbox (Original)", aliases: "xbox original,original xbox,microsoft xbox,xbox classic,xbox og"},
     
     // Nintendo family
-    {name: "Nintendo Switch", description: "Nintendo Switch/Switch Lite/Switch OLED", aliases: "switch,ns,nx,nintendo switch lite,switch lite,switch oled,nintendo switch oled"},
+    {name: "Nintendo Switch", description: "Nintendo Switch/Switch Lite/Switch OLED", aliases: "switch,ns,nx,nintendo switch lite,switch lite,switch oled,nintendo switch oled,nsw,nintendo nsw"},
+    {name: "Nintendo Switch 2", description: "Nintendo Switch 2", aliases: "switch 2,ns2,nintendo switch2,switch2,nsw2,nintendo nsw2"},
     {name: "Nintendo 3DS", description: "Nintendo 3DS/2DS", aliases: "3ds,new 3ds,2ds,new 2ds,n3ds,new nintendo 3ds,nintendo 2ds"},
     {name: "Nintendo DS", description: "Nintendo DS/DS Lite/DSi", aliases: "nds,ds,ds lite,dsi,nintendo ds lite,nintendo dsi"},
     {name: "Nintendo Wii U", description: "Nintendo Wii U", aliases: "wii u,wiiu"},
