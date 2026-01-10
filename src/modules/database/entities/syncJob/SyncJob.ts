@@ -7,6 +7,7 @@ import {
     RelationId,
 } from "typeorm";
 import {ExternalAccount} from "../externalAccount/ExternalAccount";
+import {User} from "../user/User";
 import {SyncStatus, SyncJobType} from "../../../../types/InventoryEnums";
 
 @Entity("sync_jobs")
@@ -54,7 +55,11 @@ export class SyncJob {
     @Column("text", {name: "error_message", nullable: true})
     errorMessage?: string | null;
     
-    @Column("int", {name: "owner_id", nullable: true})
+    @ManyToOne(() => User, {onDelete: "SET NULL", nullable: true})
+    @JoinColumn({name: "owner_id"})
+    owner?: User | null;
+    
+    @RelationId((job: SyncJob) => job.owner)
     ownerId?: number | null;
 
     @Column("timestamp", {

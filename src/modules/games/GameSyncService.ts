@@ -17,6 +17,7 @@
  * ARCHITECTURE:
  * - GameProcessor (./sync/GameProcessor.ts) - SINGLE implementation for game processing
  * - MetadataFetcher (./sync/MetadataFetcher.ts) - Centralized metadata fetching with rate limiting
+ * - MetadataService (./metadata/MetadataService.ts) - Centralized metadata application
  * - Both fetch-style and push-style connectors use processGameBatch() from GameProcessor
  * - Metadata enrichment is handled asynchronously after batch processing
  */
@@ -32,7 +33,6 @@ import * as gameTitleService from '../database/services/GameTitleService';
 import * as itemService from '../database/services/ItemService';
 import * as syncJobService from '../database/services/SyncJobService';
 import * as connectorDeviceService from '../database/services/ConnectorDeviceService';
-import {normalizeDescription} from '../lib/htmlUtils';
 import {PlayerProfileValidationError} from '../database/services/GameValidationService';
 import {
     SyncStatus
@@ -242,79 +242,8 @@ export async function syncExternalAccount(
     }
 }
 
-/**
- * Enrich a game with metadata from provider
- * Adds player info, multiplayer flags, store URL, and other metadata
- * 
- * NOTE: This function is kept here because it's used by the metadata enrichment flow.
- * The core game processing logic has been moved to sync/GameProcessor.ts
- */
-function enrichGameWithMetadata(
-    game: ExternalGame,
-    metadata: GameMetadata | undefined
-): ExternalGame {
-    if (!metadata) {
-        return game;
-    }
-    
-    const enriched: ExternalGame = {...game};
-    
-    // Only override if not already set by connector
-    // Apply normalizeDescription to ensure clean descriptions regardless of source
-    if (enriched.description === undefined && metadata.description) {
-        enriched.description = normalizeDescription(metadata.description);
-    }
-    
-    if (enriched.releaseDate === undefined && metadata.releaseDate) {
-        enriched.releaseDate = metadata.releaseDate;
-    }
-    
-    if (enriched.developer === undefined && metadata.developers?.[0]) {
-        enriched.developer = metadata.developers[0];
-    }
-    
-    if (enriched.publisher === undefined && metadata.publishers?.[0]) {
-        enriched.publisher = metadata.publishers[0];
-    }
-    
-    if (enriched.genres === undefined && metadata.genres) {
-        enriched.genres = metadata.genres;
-    }
-    
-    // Enrich store URL from metadata provider if not already set
-    if (enriched.storeUrl === undefined && metadata.storeUrl) {
-        enriched.storeUrl = metadata.storeUrl;
-    }
-    
-    // Enrich cover image URL from metadata provider if not already set
-    if (enriched.coverImageUrl === undefined && metadata.coverImageUrl) {
-        enriched.coverImageUrl = metadata.coverImageUrl;
-    }
-    
-    // Enrich player info from metadata provider
-    if (metadata.playerInfo) {
-        if (enriched.overallMinPlayers === undefined) {
-            enriched.overallMinPlayers = metadata.playerInfo.overallMinPlayers;
-        }
-        if (enriched.overallMaxPlayers === undefined) {
-            enriched.overallMaxPlayers = metadata.playerInfo.overallMaxPlayers;
-        }
-        if (enriched.supportsOnline === undefined) {
-            enriched.supportsOnline = metadata.playerInfo.supportsOnline;
-        }
-        if (enriched.supportsLocal === undefined) {
-            enriched.supportsLocal = metadata.playerInfo.supportsLocal;
-        }
-        if (enriched.onlineMaxPlayers === undefined) {
-            enriched.onlineMaxPlayers = metadata.playerInfo.onlineMaxPlayers;
-        }
-        if (enriched.localMaxPlayers === undefined) {
-            enriched.localMaxPlayers = metadata.playerInfo.localMaxPlayers;
-        }
-    }
-    
-    return enriched;
-}
+// Import enrichGameWithMetadata from centralized MetadataService
+import {enrichGameWithMetadata} from './metadata/MetadataService';
 
 /**
  * Get sync status for an account

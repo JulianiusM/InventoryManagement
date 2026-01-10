@@ -458,6 +458,16 @@ export function extractStoreUrlFromLinks(
         }
     }
     
+    // Final fallback: return any Website/Official Website link
+    // It's better to point to the official website than have no link at all
+    // since the website will probably have further URLs to the shops we didn't find
+    for (const link of links) {
+        const linkNameLower = link.name.toLowerCase();
+        if (websitePatterns.some(p => linkNameLower.includes(p))) {
+            return link.url;
+        }
+    }
+    
     return undefined;
 }
 

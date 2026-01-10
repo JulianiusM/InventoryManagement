@@ -1,14 +1,17 @@
 /**
  * Game Title Controller
  * Business logic for game title operations
+ * 
+ * Metadata operations are delegated to the centralized MetadataService
+ * to maintain DRY and separation of concerns principles.
  */
 
 import * as gameTitleService from '../../modules/database/services/GameTitleService';
 import * as gameReleaseService from '../../modules/database/services/GameReleaseService';
 import * as platformService from '../../modules/database/services/PlatformService';
 import * as syncJobService from '../../modules/database/services/SyncJobService';
-import {metadataProviderRegistry} from '../../modules/games/metadata/MetadataProviderRegistry';
-import {mergePlayerCounts, type GameMetadata, type MetadataSearchResult} from '../../modules/games/metadata/MetadataProviderInterface';
+import * as metadataService from '../../modules/games/metadata/MetadataService';
+import {type MetadataSearchResult} from '../../modules/games/metadata/MetadataProviderInterface';
 import {validatePlayerProfile, PlayerProfileValidationError} from '../../modules/database/services/GameValidationService';
 import {ExpectedError} from '../../modules/lib/errors';
 import {checkOwnership, requireAuthenticatedUser} from '../../middleware/authMiddleware';
@@ -16,7 +19,7 @@ import {GameTitle} from '../../modules/database/entities/gameTitle/GameTitle';
 import {GameType} from '../../types/InventoryEnums';
 import {CreateGameTitleBody, MergeGameTitlesBody} from '../../types/GamesTypes';
 import {fuzzySearchGames} from '../../modules/games/GameNameUtils';
-import {parseCheckboxBoolean, MIN_VALID_DESCRIPTION_LENGTH} from './helpers';
+import {parseCheckboxBoolean} from './helpers';
 
 // ============ Game Titles ============
 
@@ -291,11 +294,7 @@ export async function mergeGameTitleAsRelease(
 
 /**
  * Fetch metadata for a single game title
- * Uses appropriate metadata provider based on game type
- * 
- * Strategy:
- * 1. Get basic metadata from primary provider (Steam/RAWG/BGG based on game type)
- * 2. If multiplayer but missing player counts, enrich from IGDB
+ * Uses centralized MetadataService for consistency
  */
 export async function fetchMetadataForTitle(
     titleId: string,
@@ -310,155 +309,24 @@ export async function fetchMetadataForTitle(
     }
     checkOwnership(title, userId);
     
-    // Get providers based on game type
-    const providers = metadataProviderRegistry.getByGameType(title.type);
-    if (providers.length === 0) {
-        return {updated: false, message: 'No metadata providers available for this game type'};
+    // Use centralized metadata service
+    const result = await metadataService.fetchMetadata(title, searchQuery);
+    
+    if (!result.metadata) {
+        return {updated: false, message: result.message};
     }
     
-    // Search query defaults to game name
-    const query = searchQuery?.trim() || title.name;
+    // Apply metadata using centralized service
+    const {fieldsUpdated} = await metadataService.applyMetadataToTitle(titleId, title, result.metadata);
     
-    // Track what we found and from where
-    let foundMetadata: GameMetadata | null = null;
-    let primaryProviderName = '';
-    
-    // Step 1: Get basic metadata from primary providers
-    for (const provider of providers) {
-        try {
-            // Search for the game
-            const searchResults = await provider.searchGames(query, 5);
-            if (searchResults.length === 0) continue;
-            
-            // Get full metadata for best match
-            const metadata = await provider.getGameMetadata(searchResults[0].externalId);
-            if (!metadata) continue;
-            
-            foundMetadata = metadata;
-            primaryProviderName = provider.getManifest().name;
-            break; // Found metadata, stop searching
-        } catch (error) {
-            console.warn(`Metadata fetch from ${provider.getManifest().id} failed:`, error);
-            // Continue to next provider
-        }
-    }
-    
-    if (!foundMetadata) {
-        return {updated: false, message: 'No metadata found from any provider'};
-    }
-    
-    // Step 2: If game supports multiplayer but lacks specific player counts, enrich from IGDB
-    const hasMultiplayer = foundMetadata.playerInfo?.supportsOnline || foundMetadata.playerInfo?.supportsLocal;
-    const hasSpecificCounts = foundMetadata.playerInfo?.onlineMaxPlayers !== undefined || 
-                              foundMetadata.playerInfo?.localMaxPlayers !== undefined;
-    
-    if (hasMultiplayer && !hasSpecificCounts) {
-        // Use capability-based lookup for player count enrichment
-        const playerCountProviders = metadataProviderRegistry.getAllByCapability('hasAccuratePlayerCounts');
-        for (const provider of playerCountProviders) {
-            try {
-                const providerName = provider.getManifest().name;
-                console.log(`Enriching "${title.name}" with player counts from ${providerName}`);
-                const results = await provider.searchGames(query, 1);
-                if (results.length > 0) {
-                    const playerMeta = await provider.getGameMetadata(results[0].externalId);
-                    if (playerMeta?.playerInfo) {
-                        // Merge player counts into metadata using utility
-                        foundMetadata.playerInfo = mergePlayerCounts(foundMetadata.playerInfo, playerMeta.playerInfo);
-                        primaryProviderName += ` + ${providerName}`;
-                        break; // Stop after first successful enrichment
-                    }
-                }
-            } catch (error) {
-                console.warn(`${provider.getManifest().name} enrichment failed:`, error);
-                // Continue with next provider
-            }
-        }
-    }
-    
-    // Step 3: Apply metadata updates to title
-    // Update fields even if they exist, to allow refresh with better data
-    const updates: Partial<GameTitle> = {};
-    
-    // Always update description if we found a better one
-    if (foundMetadata.shortDescription || foundMetadata.description) {
-        const newDescription = foundMetadata.shortDescription || foundMetadata.description;
-        // Update if no existing description OR if existing one is very short/placeholder
-        if (!title.description || title.description.length < MIN_VALID_DESCRIPTION_LENGTH || title.description === title.name) {
-            updates.description = newDescription;
-        }
-    }
-    
-    // Update cover image if we found one and don't have one
-    if (foundMetadata.coverImageUrl && !title.coverImageUrl) {
-        updates.coverImageUrl = foundMetadata.coverImageUrl;
-    }
-    
-    if (foundMetadata.playerInfo) {
-        if (foundMetadata.playerInfo.overallMinPlayers) {
-            updates.overallMinPlayers = foundMetadata.playerInfo.overallMinPlayers;
-        }
-        if (foundMetadata.playerInfo.overallMaxPlayers) {
-            updates.overallMaxPlayers = foundMetadata.playerInfo.overallMaxPlayers;
-        }
-        
-        // Handle online mode - only set player counts if supportsOnline is true
-        if (foundMetadata.playerInfo.supportsOnline !== undefined) {
-            updates.supportsOnline = foundMetadata.playerInfo.supportsOnline;
-            // When setting supportsOnline to false, clear the player counts
-            if (!foundMetadata.playerInfo.supportsOnline) {
-                updates.onlineMinPlayers = null;
-                updates.onlineMaxPlayers = null;
-            }
-        }
-        // Only set online player counts if supportsOnline is or will be true
-        const willSupportOnline = updates.supportsOnline ?? title.supportsOnline;
-        if (willSupportOnline) {
-            if (foundMetadata.playerInfo.onlineMaxPlayers !== undefined && foundMetadata.playerInfo.onlineMaxPlayers !== null) {
-                updates.onlineMaxPlayers = foundMetadata.playerInfo.onlineMaxPlayers;
-            }
-        }
-        
-        // Handle local mode - only set player counts if supportsLocal is true
-        if (foundMetadata.playerInfo.supportsLocal !== undefined) {
-            updates.supportsLocal = foundMetadata.playerInfo.supportsLocal;
-            if (!foundMetadata.playerInfo.supportsLocal) {
-                updates.localMinPlayers = null;
-                updates.localMaxPlayers = null;
-            }
-        }
-        const willSupportLocal = updates.supportsLocal ?? title.supportsLocal;
-        if (willSupportLocal) {
-            if (foundMetadata.playerInfo.localMaxPlayers !== undefined && foundMetadata.playerInfo.localMaxPlayers !== null) {
-                updates.localMaxPlayers = foundMetadata.playerInfo.localMaxPlayers;
-            }
-        }
-        
-        // Handle physical mode
-        if (foundMetadata.playerInfo.supportsPhysical !== undefined) {
-            updates.supportsPhysical = foundMetadata.playerInfo.supportsPhysical;
-            if (!foundMetadata.playerInfo.supportsPhysical) {
-                updates.physicalMinPlayers = null;
-                updates.physicalMaxPlayers = null;
-            }
-        }
-        const willSupportPhysical = updates.supportsPhysical ?? title.supportsPhysical;
-        if (willSupportPhysical) {
-            if (foundMetadata.playerInfo.physicalMaxPlayers !== undefined && foundMetadata.playerInfo.physicalMaxPlayers !== null) {
-                updates.physicalMaxPlayers = foundMetadata.playerInfo.physicalMaxPlayers;
-            }
-        }
-    }
-    
-    if (Object.keys(updates).length > 0) {
-        await gameTitleService.updateGameTitle(titleId, updates);
+    if (fieldsUpdated.length > 0) {
         return {
             updated: true, 
-            message: `Updated from ${primaryProviderName}: ${Object.keys(updates).join(', ')}`
+            message: `Updated from ${result.providerName}: ${fieldsUpdated.join(', ')}`
         };
     }
     
-    return {updated: false, message: `No new data from ${primaryProviderName}`};
+    return {updated: false, message: `No new data from ${result.providerName}`};
 }
 
 /**
@@ -478,57 +346,10 @@ export async function searchMetadataOptions(
     }
     checkOwnership(title, userId);
     
-    // Get providers based on game type
-    const providers = metadataProviderRegistry.getByGameType(title.type);
-    if (providers.length === 0) {
-        return {title, options: []};
-    }
+    // Use centralized metadata service
+    const options = await metadataService.searchMetadataOptions(title, searchQuery);
     
-    // Search query defaults to game name
-    const query = searchQuery?.trim() || title.name;
-    
-    // Collect all search results from all providers
-    const allResults: MetadataSearchResult[] = [];
-    
-    for (const provider of providers) {
-        try {
-            const results = await provider.searchGames(query, 10);
-            allResults.push(...results);
-        } catch (error) {
-            console.warn(`Metadata search from ${provider.getManifest().id} failed:`, error);
-        }
-    }
-    
-    // Deduplicate by name (keep first occurrence of each unique name)
-    const seenNames = new Set<string>();
-    const uniqueResults = allResults.filter(r => {
-        const key = r.name.toLowerCase().trim();
-        if (seenNames.has(key)) return false;
-        seenNames.add(key);
-        return true;
-    });
-    
-    // Sort by relevance: exact match first, then prefix match, then others
-    const normalizedQuery = query.toLowerCase().trim();
-    uniqueResults.sort((a, b) => {
-        const aName = a.name.toLowerCase().trim();
-        const bName = b.name.toLowerCase().trim();
-        
-        // Exact match priority
-        const aExact = aName === normalizedQuery ? 0 : 1;
-        const bExact = bName === normalizedQuery ? 0 : 1;
-        if (aExact !== bExact) return aExact - bExact;
-        
-        // Prefix match priority
-        const aPrefix = aName.startsWith(normalizedQuery) ? 0 : 1;
-        const bPrefix = bName.startsWith(normalizedQuery) ? 0 : 1;
-        if (aPrefix !== bPrefix) return aPrefix - bPrefix;
-        
-        // Shorter names preferred
-        return aName.length - bName.length;
-    });
-    
-    return {title, options: uniqueResults.slice(0, 15)};
+    return {title, options};
 }
 
 /**
@@ -548,127 +369,24 @@ export async function applyMetadataOption(
     }
     checkOwnership(title, userId);
     
-    // Get the specific provider
-    const provider = metadataProviderRegistry.getById(providerId);
-    if (!provider) {
-        return {updated: false, message: `Provider '${providerId}' not found`};
+    // Use centralized metadata service
+    const result = await metadataService.fetchMetadataFromProvider(providerId, externalId);
+    
+    if (!result.metadata) {
+        return {updated: false, message: result.message};
     }
     
-    // Fetch full metadata
-    let foundMetadata: GameMetadata | null = null;
-    let primaryProviderName = provider.getManifest().name;
+    // Apply metadata using centralized service
+    const {fieldsUpdated} = await metadataService.applyMetadataToTitle(titleId, title, result.metadata);
     
-    try {
-        foundMetadata = await provider.getGameMetadata(externalId);
-    } catch (error) {
-        console.warn(`Metadata fetch from ${providerId} failed:`, error);
-        return {updated: false, message: `Failed to fetch metadata from ${primaryProviderName}`};
-    }
-    
-    if (!foundMetadata) {
-        return {updated: false, message: `No metadata found for ID ${externalId}`};
-    }
-    
-    // Enrich with player count providers if needed
-    const hasMultiplayer = foundMetadata.playerInfo?.supportsOnline || foundMetadata.playerInfo?.supportsLocal;
-    const hasSpecificCounts = foundMetadata.playerInfo?.onlineMaxPlayers !== undefined || 
-                              foundMetadata.playerInfo?.localMaxPlayers !== undefined;
-    
-    if (hasMultiplayer && !hasSpecificCounts) {
-        // Use capability-based lookup for player count enrichment
-        const playerCountProviders = metadataProviderRegistry.getAllByCapability('hasAccuratePlayerCounts');
-        for (const pcProvider of playerCountProviders) {
-            try {
-                const results = await pcProvider.searchGames(foundMetadata.name, 1);
-                if (results.length > 0) {
-                    const playerMeta = await pcProvider.getGameMetadata(results[0].externalId);
-                    if (playerMeta?.playerInfo) {
-                        foundMetadata.playerInfo = mergePlayerCounts(foundMetadata.playerInfo, playerMeta.playerInfo);
-                        primaryProviderName += ` + ${pcProvider.getManifest().name}`;
-                        break; // Stop after first successful enrichment
-                    }
-                }
-            } catch (error) {
-                console.warn(`${pcProvider.getManifest().name} enrichment failed:`, error);
-                // Continue with next provider
-            }
-        }
-    }
-    
-    // Apply metadata updates to title
-    const updates: Partial<GameTitle> = {};
-    
-    if (foundMetadata.description) {
-        updates.description = foundMetadata.shortDescription || foundMetadata.description;
-    }
-    
-    if (foundMetadata.coverImageUrl) {
-        updates.coverImageUrl = foundMetadata.coverImageUrl;
-    }
-    
-    if (foundMetadata.playerInfo) {
-        if (foundMetadata.playerInfo.overallMinPlayers) {
-            updates.overallMinPlayers = foundMetadata.playerInfo.overallMinPlayers;
-        }
-        if (foundMetadata.playerInfo.overallMaxPlayers) {
-            updates.overallMaxPlayers = foundMetadata.playerInfo.overallMaxPlayers;
-        }
-        
-        // Handle online mode
-        if (foundMetadata.playerInfo.supportsOnline !== undefined) {
-            updates.supportsOnline = foundMetadata.playerInfo.supportsOnline;
-            if (!foundMetadata.playerInfo.supportsOnline) {
-                updates.onlineMinPlayers = null;
-                updates.onlineMaxPlayers = null;
-            }
-        }
-        const willSupportOnline = updates.supportsOnline ?? title.supportsOnline;
-        if (willSupportOnline) {
-            if (foundMetadata.playerInfo.onlineMaxPlayers !== undefined && foundMetadata.playerInfo.onlineMaxPlayers !== null) {
-                updates.onlineMaxPlayers = foundMetadata.playerInfo.onlineMaxPlayers;
-            }
-        }
-        
-        // Handle local mode
-        if (foundMetadata.playerInfo.supportsLocal !== undefined) {
-            updates.supportsLocal = foundMetadata.playerInfo.supportsLocal;
-            if (!foundMetadata.playerInfo.supportsLocal) {
-                updates.localMinPlayers = null;
-                updates.localMaxPlayers = null;
-            }
-        }
-        const willSupportLocal = updates.supportsLocal ?? title.supportsLocal;
-        if (willSupportLocal) {
-            if (foundMetadata.playerInfo.localMaxPlayers !== undefined && foundMetadata.playerInfo.localMaxPlayers !== null) {
-                updates.localMaxPlayers = foundMetadata.playerInfo.localMaxPlayers;
-            }
-        }
-        
-        // Handle physical mode
-        if (foundMetadata.playerInfo.supportsPhysical !== undefined) {
-            updates.supportsPhysical = foundMetadata.playerInfo.supportsPhysical;
-            if (!foundMetadata.playerInfo.supportsPhysical) {
-                updates.physicalMinPlayers = null;
-                updates.physicalMaxPlayers = null;
-            }
-        }
-        const willSupportPhysical = updates.supportsPhysical ?? title.supportsPhysical;
-        if (willSupportPhysical) {
-            if (foundMetadata.playerInfo.physicalMaxPlayers !== undefined && foundMetadata.playerInfo.physicalMaxPlayers !== null) {
-                updates.physicalMaxPlayers = foundMetadata.playerInfo.physicalMaxPlayers;
-            }
-        }
-    }
-    
-    if (Object.keys(updates).length > 0) {
-        await gameTitleService.updateGameTitle(titleId, updates);
+    if (fieldsUpdated.length > 0) {
         return {
             updated: true, 
-            message: `Updated from ${primaryProviderName}: ${Object.keys(updates).join(', ')}`
+            message: `Updated from ${result.providerName}: ${fieldsUpdated.join(', ')}`
         };
     }
     
-    return {updated: false, message: `No new data from ${primaryProviderName}`};
+    return {updated: false, message: `No new data from ${result.providerName}`};
 }
 
 /**

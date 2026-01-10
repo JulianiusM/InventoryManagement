@@ -136,11 +136,12 @@ describe('Playnite Providers', () => {
             expect(extractStoreUrlFromLinks(links, 'gog')).toBe('https://www.gog.com/game/hades');
         });
 
-        test('returns undefined when no matching link found', () => {
+        test('falls back to Website link when no store link is found for provider', () => {
             const links = [
                 {name: 'Website', url: 'https://example.com'},
             ];
-            expect(extractStoreUrlFromLinks(links, 'steam')).toBeUndefined();
+            // Should return website as fallback - better than no link at all
+            expect(extractStoreUrlFromLinks(links, 'steam')).toBe('https://example.com');
         });
 
         test('returns undefined for unknown provider but finds store in Website link', () => {
@@ -176,13 +177,13 @@ describe('Playnite Providers', () => {
             expect(extractStoreUrlFromLinks(links, 'unknown')).toBe('https://www.gog.com/game/some-game');
         });
 
-        test('does not use Website link that does not point to a store', () => {
+        test('falls back to Website link when no store URL is found', () => {
             const links = [
                 {name: 'Official Website', url: 'https://game-publisher.com/news'},
                 {name: 'Forum', url: 'https://forum.example.com'},
             ];
-            // Should not use a non-store URL
-            expect(extractStoreUrlFromLinks(links, 'unknown')).toBeUndefined();
+            // Should return official website as fallback (better than no link at all)
+            expect(extractStoreUrlFromLinks(links, 'unknown')).toBe('https://game-publisher.com/news');
         });
 
         test('uses originalProviderName as fallback for store URL matching', () => {

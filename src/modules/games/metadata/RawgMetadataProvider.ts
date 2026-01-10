@@ -337,14 +337,49 @@ export class RawgMetadataProvider extends BaseMetadataProvider {
      * Extract store URL from RAWG stores array
      * Prefers the appropriate platform store first, then falls back to priority order
      * 
+     * For PC platform with transparent aggregator pattern:
+     * - If originalProviderName is provided (e.g., "Steam", "Epic"), prefer that store
+     * 
      * @param stores RAWG stores array
      * @param targetPlatform Optional platform to prefer (e.g., "PC", "PlayStation 5")
+     * @param originalProviderName Optional provider name for transparent aggregator pattern
      */
-    private extractStoreUrl(stores?: RawgGameResponse['stores'], targetPlatform?: string): string | undefined {
+    private extractStoreUrl(stores?: RawgGameResponse['stores'], targetPlatform?: string, originalProviderName?: string): string | undefined {
         if (!stores || stores.length === 0) return undefined;
         
         // Normalize target platform for matching
         const normalizedPlatform = targetPlatform?.toLowerCase() || '';
+        
+        // For PC platform, check if we have a specific store from transparent aggregator
+        if (normalizedPlatform.includes('pc') && originalProviderName) {
+            const providerLower = originalProviderName.toLowerCase();
+            
+            // Map provider names to store slugs (transparent aggregator pattern)
+            const providerToStore: Record<string, string[]> = {
+                'steam': ['steam'],
+                'epic': ['epic-games-store'],
+                'epic games': ['epic-games-store'],
+                'gog': ['gog'],
+                'ea': ['origin', 'ea-app'],
+                'ea app': ['origin', 'ea-app'],
+                'origin': ['origin', 'ea-app'],
+                'ubisoft': ['ubisoft-connect'],
+                'ubisoft connect': ['ubisoft-connect'],
+                'uplay': ['ubisoft-connect'],
+                'xbox': ['xbox-store'],
+                'microsoft store': ['xbox-store'],
+            };
+            
+            // Find matching provider
+            for (const [provider, storeSlugs] of Object.entries(providerToStore)) {
+                if (providerLower.includes(provider)) {
+                    for (const slug of storeSlugs) {
+                        const store = stores.find(s => s.store.slug === slug && s.url);
+                        if (store?.url) return store.url;
+                    }
+                }
+            }
+        }
         
         // Map platforms to preferred store slugs
         const platformToStore: Record<string, string[]> = {
@@ -358,7 +393,7 @@ export class RawgMetadataProvider extends BaseMetadataProvider {
             'switch': ['nintendo'],
         };
         
-        // First, try platform-specific stores
+        // Try platform-specific stores
         for (const [platform, storeSlugs] of Object.entries(platformToStore)) {
             if (normalizedPlatform.includes(platform)) {
                 for (const slug of storeSlugs) {
