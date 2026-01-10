@@ -5,6 +5,8 @@
 import {setCurrentNavLocation} from '../core/navigation';
 import {showAlert} from '../shared/alerts';
 
+declare const $: any;
+
 // Types
 interface ConnectorData {
     id: string;
@@ -675,8 +677,6 @@ export function init(): void {
     initManageDevicesModal();
     initSelect2();
 }
-
-declare const $: any;
 
 /**
  * Initialize Select2 for all dropdowns

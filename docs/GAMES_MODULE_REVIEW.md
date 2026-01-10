@@ -204,6 +204,12 @@ Recommended improvements:
 - [x] Advanced filtering (by platform, per-page control)
 - [x] Loading spinners for async form submissions
 - [x] Store URL unavailable indicator on copy detail page
+- [x] Source name normalization with extensive alias mapping (EA/Origin, Ubisoft/UPlay, etc.)
+- [x] 5-pass store URL extraction algorithm for comprehensive URL discovery
+- [x] Language-specific store URL patterns (de, fr, es, it, jp locales)
+- [x] Metadata providers return store URLs (Steam, RAWG)
+- [x] Select2 dropdowns for all game module filters and form controls
+- [x] Store URL and cover image enrichment from metadata providers
 
 ---
 

@@ -119,19 +119,32 @@ export function normalizeSourceName(sourceName: string): string {
     
     const normalized = sourceName.toLowerCase().trim();
     
-    // Direct lookup
+    // Direct lookup first (most reliable)
     if (SOURCE_NAME_ALIASES[normalized]) {
         return SOURCE_NAME_ALIASES[normalized];
     }
     
-    // Partial match - check if any alias is contained in the source name
+    // Word boundary match - check if source name contains alias as a complete word
+    // This avoids false positives like 'ea' matching 'steam' or 'team'
     for (const [alias, providerId] of Object.entries(SOURCE_NAME_ALIASES)) {
-        if (normalized.includes(alias) || alias.includes(normalized)) {
-            return providerId;
+        // Only do partial match if alias is longer than 2 chars to avoid false positives
+        if (alias.length > 2) {
+            // Use word boundary regex for precise matching
+            const wordBoundaryRegex = new RegExp(`\\b${escapeRegex(alias)}\\b`, 'i');
+            if (wordBoundaryRegex.test(normalized)) {
+                return providerId;
+            }
         }
     }
     
     return 'unknown';
+}
+
+/**
+ * Escape special regex characters
+ */
+function escapeRegex(str: string): string {
+    return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
 
 /**
@@ -364,14 +377,23 @@ export function extractStoreUrlFromLinks(
     }
     
     // Pass 3: If we have originalProviderName, try to match the link by name directly
-    if (originalProviderName) {
+    // Only match if provider name is specific enough (3+ chars) to avoid false positives
+    if (originalProviderName && originalProviderName.length >= 3) {
         const providerNameLower = originalProviderName.toLowerCase();
         for (const link of links) {
             const linkNameLower = link.name.toLowerCase();
-            // Check if link name matches or contains the provider name
-            if (linkNameLower === providerNameLower || 
-                linkNameLower.includes(providerNameLower) || 
-                providerNameLower.includes(linkNameLower)) {
+            // Use word boundary matching for partial matches to avoid false positives
+            // Direct equality is always safe
+            let isMatch = linkNameLower === providerNameLower;
+            
+            // Only do partial matching for longer names (4+ chars) to be safe
+            if (!isMatch && providerNameLower.length >= 4) {
+                // Check if link name contains provider name as a word
+                const wordBoundaryRegex = new RegExp(`\\b${escapeRegex(providerNameLower)}\\b`, 'i');
+                isMatch = wordBoundaryRegex.test(linkNameLower);
+            }
+            
+            if (isMatch) {
                 // Verify it's actually a store URL (not a random website)
                 const linkUrlLower = link.url.toLowerCase();
                 if (KNOWN_STORE_URL_PATTERNS.some(storePattern => linkUrlLower.includes(storePattern))) {

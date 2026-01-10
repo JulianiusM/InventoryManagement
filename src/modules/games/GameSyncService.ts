@@ -243,7 +243,7 @@ export async function syncExternalAccount(
 
 /**
  * Enrich a game with metadata from provider
- * Adds player info, multiplayer flags, and other metadata
+ * Adds player info, multiplayer flags, store URL, and other metadata
  * 
  * NOTE: This function is kept here because it's used by the metadata enrichment flow.
  * The core game processing logic has been moved to sync/GameProcessor.ts
@@ -277,6 +277,16 @@ function enrichGameWithMetadata(
     
     if (enriched.genres === undefined && metadata.genres) {
         enriched.genres = metadata.genres;
+    }
+    
+    // Enrich store URL from metadata provider if not already set
+    if (enriched.storeUrl === undefined && metadata.storeUrl) {
+        enriched.storeUrl = metadata.storeUrl;
+    }
+    
+    // Enrich cover image URL from metadata provider if not already set
+    if (enriched.coverImageUrl === undefined && metadata.coverImageUrl) {
+        enriched.coverImageUrl = metadata.coverImageUrl;
     }
     
     // Enrich player info from metadata provider
