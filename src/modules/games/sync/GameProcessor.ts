@@ -24,6 +24,7 @@ import * as gameMappingService from '../../database/services/GameExternalMapping
 import {GameTitle} from '../../database/entities/gameTitle/GameTitle';
 import {GameRelease} from '../../database/entities/gameRelease/GameRelease';
 import {GameType, MappingStatus, GameCopyType} from '../../../types/InventoryEnums';
+import {validateStoreUrl} from '../../lib/util';
 
 // Default maximum players for multiplayer games when not specified
 const DEFAULT_MULTIPLAYER_MAX_PLAYERS = 4;
@@ -101,7 +102,8 @@ export async function updateExistingGameItem(
         playtimeMinutes: game.playtimeMinutes,
         lastPlayedAt: game.lastPlayedAt,
         isInstalled: game.isInstalled,
-        storeUrl: game.storeUrl,
+        // Validate store URL before storing - only allow valid HTTPS URLs
+        storeUrl: validateStoreUrl(game.storeUrl),
     });
 }
 
@@ -447,7 +449,8 @@ export async function processGameBatch(
                     originalProviderName: game.originalProviderName,
                     originalProviderGameId: game.originalProviderGameId,
                     originalProviderNormalizedId: game.originalProviderNormalizedId,
-                    storeUrl: game.storeUrl,
+                    // Validate store URL before storing - only allow valid HTTPS URLs
+                    storeUrl: validateStoreUrl(game.storeUrl) ?? undefined,
                     needsReview: !game.originalProviderGameId && isAggregator,
                 });
                 copiesCreated++;

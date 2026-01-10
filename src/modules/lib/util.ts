@@ -270,3 +270,40 @@ export function jsonReplacer(key: any, value: any) {
 
 // simple allowlist to keep LIKE fast and avoid expensive patterns
 export const SQL_ALLOW_LIST = /^[a-z0-9._+\-@ ]{3,}$/i;
+
+/**
+ * Validate and sanitize a store URL for digital game copies
+ * Only allows HTTPS URLs for security
+ * @param url The URL to validate
+ * @returns The valid URL or null if invalid
+ */
+export function validateStoreUrl(url: string | undefined | null): string | null {
+    if (!url || typeof url !== 'string') return null;
+    
+    const trimmed = url.trim();
+    if (!trimmed) return null;
+    
+    try {
+        const parsed = new URL(trimmed);
+        // Only allow HTTPS for security
+        if (parsed.protocol !== 'https:') {
+            return null;
+        }
+        // Basic hostname validation - must have at least a domain and TLD
+        if (!parsed.hostname.includes('.')) {
+            return null;
+        }
+        return parsed.href;
+    } catch {
+        return null;
+    }
+}
+
+/**
+ * Check if a URL is a valid store URL (for display purposes)
+ * @param url The URL to check
+ * @returns true if the URL is valid
+ */
+export function isValidStoreUrl(url: string | undefined | null): boolean {
+    return validateStoreUrl(url) !== null;
+}
