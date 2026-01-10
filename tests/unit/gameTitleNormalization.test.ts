@@ -190,4 +190,84 @@ describe('extractEdition', () => {
             expect(new Set(normalized).size).toBe(3);
         });
     });
+
+    describe('real-world failing examples', () => {
+        /**
+         * These are examples that were previously failing in production.
+         * They include trailing whitespace and various edition formats.
+         */
+        test('handles trailing whitespace in game name', () => {
+            const result = extractEdition('The Sims 4 Premium Edition ');
+            expect(result.baseName).toBe('The Sims 4');
+            expect(result.edition).toBe('Premium Edition');
+        });
+
+        test('handles Game of the Year Edition without separator', () => {
+            const result = extractEdition('Middle-earth: Shadow of Mordor Game of the Year Edition');
+            expect(result.baseName).toBe('Middle-earth: Shadow of Mordor');
+            expect(result.edition).toBe('Game of the Year Edition');
+        });
+
+        test('handles History Edition with separator', () => {
+            const result = extractEdition('The Settlers 7 - History Edition');
+            expect(result.baseName).toBe('The Settlers 7');
+            expect(result.edition).toBe('History Edition');
+        });
+
+        test('handles Definitive Edition after colon separator', () => {
+            const result = extractEdition('Weird West: Definitive Edition');
+            expect(result.baseName).toBe('Weird West');
+            expect(result.edition).toBe('Definitive Edition');
+        });
+
+        test('handles various colon-separated editions', () => {
+            const testCases = [
+                ['Borderlands: Game of the Year Edition', 'Borderlands', 'Game of the Year Edition'],
+                ['Fallout: New Vegas - Ultimate Edition', 'Fallout: New Vegas', 'Ultimate Edition'],
+                ['Mass Effect: Legendary Edition', 'Mass Effect', 'Legendary Edition'],
+            ];
+
+            for (const [input, expectedBase, expectedEdition] of testCases) {
+                const result = extractEdition(input);
+                expect(result.baseName).toBe(expectedBase);
+                expect(result.edition).toBe(expectedEdition);
+            }
+        });
+
+        test('batch from Playnite with real game names', () => {
+            const batch = [
+                'The Sims 4',
+                'The Sims 4 Premium Edition ',
+                'Middle-earth: Shadow of Mordor Game of the Year Edition',
+                'The Settlers 7 - History Edition',
+                'Weird West: Definitive Edition',
+            ];
+
+            const processed = batch.map(gameName => {
+                const {baseName, edition} = extractEdition(gameName);
+                return {gameName, baseName, edition};
+            });
+
+            // Verify editions are correctly extracted
+            expect(processed[0].baseName).toBe('The Sims 4');
+            expect(processed[0].edition).toBe('Standard Edition');
+            
+            expect(processed[1].baseName).toBe('The Sims 4');
+            expect(processed[1].edition).toBe('Premium Edition');
+            
+            expect(processed[2].baseName).toBe('Middle-earth: Shadow of Mordor');
+            expect(processed[2].edition).toBe('Game of the Year Edition');
+            
+            expect(processed[3].baseName).toBe('The Settlers 7');
+            expect(processed[3].edition).toBe('History Edition');
+            
+            expect(processed[4].baseName).toBe('Weird West');
+            expect(processed[4].edition).toBe('Definitive Edition');
+
+            // The Sims 4 variations should merge
+            const sims4Normalized = normalizeGameTitle(processed[0].baseName);
+            const sims4PremiumNormalized = normalizeGameTitle(processed[1].baseName);
+            expect(sims4Normalized).toBe(sims4PremiumNormalized);
+        });
+    });
 });

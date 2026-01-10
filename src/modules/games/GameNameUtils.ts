@@ -4,111 +4,179 @@
  */
 
 /**
- * Common game editions that should be extracted.
- * 
- * IMPORTANT: Patterns are processed in order - more specific patterns must come
- * before more generic ones. For example, "Game of the Year Edition" comes before
- * "GOTY" to ensure the full phrase is matched when present.
+ * Edition types and their canonical names.
+ * We use a simplified approach: define edition types once and generate patterns dynamically.
  */
-const EDITION_PATTERNS: Array<{pattern: RegExp; edition: string}> = [
-    // GOTY variants (specific first, then abbreviation)
-    {pattern: /\s*[-–—:]\s*Game of the Year Edition$/i, edition: 'Game of the Year Edition'},
-    {pattern: /\s*\(Game of the Year Edition\)$/i, edition: 'Game of the Year Edition'},
-    {pattern: /\s*\[Game of the Year Edition\]$/i, edition: 'Game of the Year Edition'},
-    {pattern: /\s+GOTY(?:\s+Edition)?$/i, edition: 'Game of the Year Edition'},
-    {pattern: /\s+Game of the Year$/i, edition: 'Game of the Year Edition'},
+const EDITION_TYPES = [
+    // Multi-word edition types (must come first for longest match)
+    { keywords: ['game', 'of', 'the', 'year', 'edition'], canonical: 'Game of the Year Edition' },
+    { keywords: ['game', 'of', 'the', 'year'], canonical: 'Game of the Year Edition' },
+    { keywords: ['goty', 'edition'], canonical: 'Game of the Year Edition' },
+    { keywords: ['goty'], canonical: 'Game of the Year Edition' },
+    { keywords: ['hd', 'remaster'], canonical: 'HD Remaster' },
+    { keywords: ['hd', 'remix'], canonical: 'HD Remix' },
+    { keywords: ['directors', 'cut'], canonical: 'Director\'s Cut' },
+    { keywords: ['director\'s', 'cut'], canonical: 'Director\'s Cut' },
+    { keywords: ['collector\'s', 'edition'], canonical: 'Collector\'s Edition' },
+    { keywords: ['collectors', 'edition'], canonical: 'Collector\'s Edition' },
     
-    // Gold/Complete variants (both with separator and just space)
-    {pattern: /\s*[-–—:]\s*Gold Edition$/i, edition: 'Gold Edition'},
-    {pattern: /\s*\(Gold Edition\)$/i, edition: 'Gold Edition'},
-    {pattern: /\s*\[Gold Edition\]$/i, edition: 'Gold Edition'},
-    {pattern: /\s+Gold\s+Edition$/i, edition: 'Gold Edition'},
-    {pattern: /\s+Gold$/i, edition: 'Gold Edition'},
-    {pattern: /\s*[-–—:]\s*Complete Edition$/i, edition: 'Complete Edition'},
-    {pattern: /\s*\(Complete Edition\)$/i, edition: 'Complete Edition'},
-    {pattern: /\s*\[Complete Edition\]$/i, edition: 'Complete Edition'},
-    {pattern: /\s+Complete\s+Edition$/i, edition: 'Complete Edition'},
-    {pattern: /\s+Complete$/i, edition: 'Complete Edition'},
+    // Two-word edition types (X Edition patterns)
+    { keywords: ['definitive', 'edition'], canonical: 'Definitive Edition' },
+    { keywords: ['ultimate', 'edition'], canonical: 'Ultimate Edition' },
+    { keywords: ['enhanced', 'edition'], canonical: 'Enhanced Edition' },
+    { keywords: ['complete', 'edition'], canonical: 'Complete Edition' },
+    { keywords: ['deluxe', 'edition'], canonical: 'Deluxe Edition' },
+    { keywords: ['premium', 'edition'], canonical: 'Premium Edition' },
+    { keywords: ['limited', 'edition'], canonical: 'Limited Edition' },
+    { keywords: ['special', 'edition'], canonical: 'Special Edition' },
+    { keywords: ['anniversary', 'edition'], canonical: 'Anniversary Edition' },
+    { keywords: ['standard', 'edition'], canonical: 'Standard Edition' },
+    { keywords: ['gold', 'edition'], canonical: 'Gold Edition' },
+    { keywords: ['platinum', 'edition'], canonical: 'Platinum Edition' },
+    { keywords: ['legendary', 'edition'], canonical: 'Legendary Edition' },
+    { keywords: ['history', 'edition'], canonical: 'History Edition' },
+    { keywords: ['classic', 'edition'], canonical: 'Classic Edition' },
+    { keywords: ['royal', 'edition'], canonical: 'Royal Edition' },
+    { keywords: ['digital', 'edition'], canonical: 'Digital Edition' },
+    { keywords: ['expansion', 'edition'], canonical: 'Expansion Edition' },
+    { keywords: ['extended', 'edition'], canonical: 'Extended Edition' },
     
-    // Definitive/Ultimate/Enhanced variants (both with separator and just space)
-    {pattern: /\s*[-–—:]\s*Definitive Edition$/i, edition: 'Definitive Edition'},
-    {pattern: /\s*\(Definitive Edition\)$/i, edition: 'Definitive Edition'},
-    {pattern: /\s*\[Definitive Edition\]$/i, edition: 'Definitive Edition'},
-    {pattern: /\s+Definitive\s+Edition$/i, edition: 'Definitive Edition'},
-    {pattern: /\s*[-–—:]\s*Ultimate Edition$/i, edition: 'Ultimate Edition'},
-    {pattern: /\s*\(Ultimate Edition\)$/i, edition: 'Ultimate Edition'},
-    {pattern: /\s*\[Ultimate Edition\]$/i, edition: 'Ultimate Edition'},
-    {pattern: /\s+Ultimate\s+Edition$/i, edition: 'Ultimate Edition'},
-    {pattern: /\s*[-–—:]\s*Enhanced Edition$/i, edition: 'Enhanced Edition'},
-    {pattern: /\s*\(Enhanced Edition\)$/i, edition: 'Enhanced Edition'},
-    {pattern: /\s*\[Enhanced Edition\]$/i, edition: 'Enhanced Edition'},
-    {pattern: /\s+Enhanced\s+Edition$/i, edition: 'Enhanced Edition'},
-    
-    // Special editions (both with separator and just space)
-    {pattern: /\s*[-–—:]\s*Deluxe Edition$/i, edition: 'Deluxe Edition'},
-    {pattern: /\s*\(Deluxe Edition\)$/i, edition: 'Deluxe Edition'},
-    {pattern: /\s*\[Deluxe Edition\]$/i, edition: 'Deluxe Edition'},
-    {pattern: /\s+Deluxe\s+Edition$/i, edition: 'Deluxe Edition'},
-    {pattern: /\s*[-–—:]\s*Premium Edition$/i, edition: 'Premium Edition'},
-    {pattern: /\s*\(Premium Edition\)$/i, edition: 'Premium Edition'},
-    {pattern: /\s*\[Premium Edition\]$/i, edition: 'Premium Edition'},
-    {pattern: /\s+Premium\s+Edition$/i, edition: 'Premium Edition'},
-    {pattern: /\s*[-–—:]\s*Collector'?s Edition$/i, edition: 'Collector\'s Edition'},
-    {pattern: /\s*\(Collector'?s Edition\)$/i, edition: 'Collector\'s Edition'},
-    {pattern: /\s*\[Collector'?s Edition\]$/i, edition: 'Collector\'s Edition'},
-    {pattern: /\s+Collector'?s\s+Edition$/i, edition: 'Collector\'s Edition'},
-    {pattern: /\s*[-–—:]\s*Limited Edition$/i, edition: 'Limited Edition'},
-    {pattern: /\s*\(Limited Edition\)$/i, edition: 'Limited Edition'},
-    {pattern: /\s*\[Limited Edition\]$/i, edition: 'Limited Edition'},
-    {pattern: /\s+Limited\s+Edition$/i, edition: 'Limited Edition'},
-    {pattern: /\s*[-–—:]\s*Special Edition$/i, edition: 'Special Edition'},
-    {pattern: /\s*\(Special Edition\)$/i, edition: 'Special Edition'},
-    {pattern: /\s*\[Special Edition\]$/i, edition: 'Special Edition'},
-    {pattern: /\s+Special\s+Edition$/i, edition: 'Special Edition'},
-    {pattern: /\s*[-–—:]\s*Anniversary Edition$/i, edition: 'Anniversary Edition'},
-    {pattern: /\s*\(Anniversary Edition\)$/i, edition: 'Anniversary Edition'},
-    {pattern: /\s*\[Anniversary Edition\]$/i, edition: 'Anniversary Edition'},
-    {pattern: /\s+Anniversary\s+Edition$/i, edition: 'Anniversary Edition'},
-    {pattern: /\s*[-–—:]\s*Director'?s Cut$/i, edition: 'Director\'s Cut'},
-    {pattern: /\s*\(Director'?s Cut\)$/i, edition: 'Director\'s Cut'},
-    {pattern: /\s*\[Director'?s Cut\]$/i, edition: 'Director\'s Cut'},
-    {pattern: /\s+Director'?s\s+Cut$/i, edition: 'Director\'s Cut'},
-    
-    // Remasters/Remakes (both with separator and just space)
-    {pattern: /\s*[-–—:]\s*Remastered$/i, edition: 'Remastered'},
-    {pattern: /\s*\(Remastered\)$/i, edition: 'Remastered'},
-    {pattern: /\s*\[Remastered\]$/i, edition: 'Remastered'},
-    {pattern: /\s+Remastered$/i, edition: 'Remastered'},
-    {pattern: /\s*[-–—:]\s*HD Remaster$/i, edition: 'HD Remaster'},
-    {pattern: /\s*\(HD Remaster\)$/i, edition: 'HD Remaster'},
-    {pattern: /\s*\[HD Remaster\]$/i, edition: 'HD Remaster'},
-    {pattern: /\s+HD\s+Remaster$/i, edition: 'HD Remaster'},
-    {pattern: /\s*[-–—:]\s*Remake$/i, edition: 'Remake'},
-    {pattern: /\s*\(Remake\)$/i, edition: 'Remake'},
-    {pattern: /\s*\[Remake\]$/i, edition: 'Remake'},
-    {pattern: /\s+Remake$/i, edition: 'Remake'},
-    
-    // Standard edition (often implicit, but sometimes explicit)
-    {pattern: /\s*[-–—:]\s*Standard Edition$/i, edition: 'Standard Edition'},
-    {pattern: /\s*\(Standard Edition\)$/i, edition: 'Standard Edition'},
-    {pattern: /\s*\[Standard Edition\]$/i, edition: 'Standard Edition'},
-    {pattern: /\s+Standard\s+Edition$/i, edition: 'Standard Edition'},
+    // Single-word edition markers
+    { keywords: ['remastered'], canonical: 'Remastered' },
+    { keywords: ['remake'], canonical: 'Remake' },
+    { keywords: ['redux'], canonical: 'Redux' },
+    { keywords: ['complete'], canonical: 'Complete Edition' },
+    { keywords: ['gold'], canonical: 'Gold Edition' },
+    { keywords: ['definitive'], canonical: 'Definitive Edition' },
 ];
 
 /**
- * Extract edition from game name
+ * Extract edition from game name using a token-based approach.
+ * This handles all common formats:
+ * - "Game - Premium Edition"
+ * - "Game: Premium Edition"
+ * - "Game Premium Edition"
+ * - "Game (Premium Edition)"
+ * - "Game [Premium Edition]"
+ * 
  * @returns Object with base name and detected edition
  */
 export function extractEdition(gameName: string): {baseName: string; edition: string} {
-    for (const {pattern, edition} of EDITION_PATTERNS) {
-        if (pattern.test(gameName)) {
-            const baseName = gameName.replace(pattern, '').trim();
-            return {baseName, edition};
+    // Normalize input: trim whitespace
+    const trimmedName = gameName.trim();
+    if (!trimmedName) {
+        return { baseName: '', edition: 'Standard Edition' };
+    }
+    
+    // Step 1: Check for parentheses/brackets format first
+    // "Game (Premium Edition)" or "Game [Premium Edition]"
+    const parenMatch = trimmedName.match(/^(.+?)\s*\(([^)]+Edition|GOTY|Remastered|Remake|Redux|Director'?s?\s+Cut|HD\s+Remaster)\)$/i);
+    if (parenMatch) {
+        const baseName = parenMatch[1].trim();
+        const editionPart = parenMatch[2].trim();
+        const canonical = findCanonicalEdition(editionPart);
+        if (canonical) {
+            return { baseName, edition: canonical };
+        }
+    }
+    
+    const bracketMatch = trimmedName.match(/^(.+?)\s*\[([^\]]+Edition|GOTY|Remastered|Remake|Redux|Director'?s?\s+Cut|HD\s+Remaster)\]$/i);
+    if (bracketMatch) {
+        const baseName = bracketMatch[1].trim();
+        const editionPart = bracketMatch[2].trim();
+        const canonical = findCanonicalEdition(editionPart);
+        if (canonical) {
+            return { baseName, edition: canonical };
+        }
+    }
+    
+    // Step 2: Split on common separators (-, –, —, :) and check the last part
+    // Handle cases like "Game - Premium Edition" or "Game: Premium Edition"
+    // Use greedy matching to find the last separator
+    const separatorMatch = trimmedName.match(/^(.+)\s*[-–—:]\s*([^-–—:]+)$/);
+    if (separatorMatch) {
+        const potentialBase = separatorMatch[1].trim();
+        const potentialEdition = separatorMatch[2].trim();
+        const canonical = findCanonicalEdition(potentialEdition);
+        if (canonical) {
+            // Strip any trailing separators from base name
+            const cleanBase = potentialBase.replace(/\s*[-–—:]\s*$/, '').trim();
+            return { baseName: cleanBase, edition: canonical };
+        }
+    }
+    
+    // Step 3: Token-based matching for space-separated editions
+    // "The Sims 4 Premium Edition" -> "The Sims 4" + "Premium Edition"
+    const words = trimmedName.split(/\s+/);
+    
+    // Try to find edition keywords from the end of the title
+    for (const editionType of EDITION_TYPES) {
+        const keywordCount = editionType.keywords.length;
+        if (words.length > keywordCount) {
+            // Get the last N words
+            const lastWords = words.slice(-keywordCount).map(w => w.toLowerCase().replace(/[''`]/g, ''));
+            
+            // Check if they match the edition keywords
+            let matches = true;
+            for (let i = 0; i < keywordCount; i++) {
+                if (lastWords[i] !== editionType.keywords[i]) {
+                    matches = false;
+                    break;
+                }
+            }
+            
+            if (matches) {
+                const baseName = words.slice(0, -keywordCount).join(' ').trim();
+                if (baseName) { // Only return if we have a non-empty base name
+                    return { baseName, edition: editionType.canonical };
+                }
+            }
         }
     }
     
     // No edition detected - return original name with Standard Edition
-    return {baseName: gameName, edition: 'Standard Edition'};
+    return { baseName: trimmedName, edition: 'Standard Edition' };
+}
+
+/**
+ * Find the canonical edition name for a given edition string.
+ */
+function findCanonicalEdition(editionPart: string): string | null {
+    const normalized = editionPart.toLowerCase().replace(/[''`]/g, '').trim();
+    const words = normalized.split(/\s+/);
+    
+    for (const editionType of EDITION_TYPES) {
+        // Check if all keywords are present in order
+        if (editionType.keywords.length === words.length) {
+            let matches = true;
+            for (let i = 0; i < editionType.keywords.length; i++) {
+                if (words[i] !== editionType.keywords[i]) {
+                    matches = false;
+                    break;
+                }
+            }
+            if (matches) {
+                return editionType.canonical;
+            }
+        }
+    }
+    
+    // If we have "X Edition" format, try to match just the pattern
+    if (words.length === 2 && words[1] === 'edition') {
+        // Return a capitalized version of the edition type
+        return words[0].charAt(0).toUpperCase() + words[0].slice(1) + ' Edition';
+    }
+    
+    // For single-word special cases
+    if (words.length === 1) {
+        for (const editionType of EDITION_TYPES) {
+            if (editionType.keywords.length === 1 && editionType.keywords[0] === words[0]) {
+                return editionType.canonical;
+            }
+        }
+    }
+    
+    return null;
 }
 
 /**
