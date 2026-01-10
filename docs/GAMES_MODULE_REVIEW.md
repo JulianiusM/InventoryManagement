@@ -174,20 +174,20 @@ Recommended improvements:
 ## 4. Action Items Summary
 
 ### High Priority
-- [x] Ensure all connectors provide store URLs when available (implemented via `extractStoreUrlFromLinks()` - extracts from Playnite's raw.links array)
-- [ ] Add visual feedback for async operations (loading spinners)
-- [ ] Improve search with advanced filters
+- [x] Ensure all connectors provide store URLs when available (implemented via `extractStoreUrlFromLinks()` - extracts from Playnite's raw.links array with platform-aware matching)
+- [x] Add visual feedback for async operations (loading spinners on filter submit and resync metadata)
+- [x] Improve search with advanced filters (platform filter, per-page selector)
 
 ### Medium Priority
 - [x] Add breadcrumb navigation (implemented for release and copy detail pages)
-- [ ] Show indicator when store URL is unavailable
+- [x] Show indicator when store URL is unavailable (warning icon displayed)
 - [ ] Improve error handling consistency
-- [ ] Add grid view for game list
+- [x] Add grid view for game list (with view mode toggle and localStorage persistence)
 
 ### Low Priority
 - [ ] Add bulk operations to copies list
-- [ ] Add "show all" pagination option
-- [ ] Add hover preview for cover images
+- [x] Add "show all" pagination option (via per-page dropdown)
+- [x] Add cover images to game list (displayed in grid view with lazy loading)
 - [ ] Consider BackgroundJob entity for non-sync operations
 
 ### Completed in This PR
@@ -196,8 +196,14 @@ Recommended improvements:
 - [x] Show inherited title/release info on copy detail page
 - [x] Add breadcrumb navigation for hierarchical browsing
 - [x] Extract store URLs from Playnite's raw.links array (transparent aggregator pattern)
+- [x] Platform-aware store URL extraction (e.g., Nintendo 3DS vs Switch eShop)
+- [x] Fallback to "Website"/"Official Website" links when they point to known stores
 - [x] Extract extended metadata from Playnite raw data (description, genres, developers, publishers, releaseDate)
 - [x] Remove unreliable URL generation - only use URLs from actual data sources
+- [x] Grid/list view toggle for games list with localStorage persistence
+- [x] Advanced filtering (by platform, per-page control)
+- [x] Loading spinners for async form submissions
+- [x] Store URL unavailable indicator on copy detail page
 
 ---
 

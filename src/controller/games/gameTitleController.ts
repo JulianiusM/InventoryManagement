@@ -22,9 +22,10 @@ import {parseCheckboxBoolean, MIN_VALID_DESCRIPTION_LENGTH} from './helpers';
 export async function listGameTitles(ownerId: number, options?: {
     search?: string;
     typeFilter?: string;
+    platformFilter?: string;
     playersFilter?: number;
     page?: number;
-    limit?: number;
+    limit?: number | 'all';
 }) {
     requireAuthenticatedUser(ownerId);
     let titles = await gameTitleService.getAllGameTitles(ownerId);
@@ -39,6 +40,13 @@ export async function listGameTitles(ownerId: number, options?: {
         titles = titles.filter(t => t.type === options.typeFilter);
     }
     
+    // Filter by platform (check if any release has this platform)
+    if (options?.platformFilter) {
+        titles = titles.filter(t => 
+            t.releases && t.releases.some(r => r.platform === options.platformFilter)
+        );
+    }
+    
     if (options?.playersFilter) {
         const count = options.playersFilter;
         titles = titles.filter(t => 
@@ -46,16 +54,23 @@ export async function listGameTitles(ownerId: number, options?: {
         );
     }
     
-    // Apply pagination
+    // Get all platforms for filter dropdown
+    const platforms = await platformService.getAllPlatforms(ownerId);
+    
+    // Apply pagination (unless 'all' is specified)
     const page = options?.page || 1;
-    const limit = options?.limit || 24;
+    const showAll = options?.limit === 'all';
+    const limit = showAll ? titles.length : (typeof options?.limit === 'number' ? options.limit : 24);
     const totalCount = titles.length;
-    const totalPages = Math.ceil(totalCount / limit);
-    const offset = (page - 1) * limit;
+    const totalPages = showAll ? 1 : Math.ceil(totalCount / limit);
+    const offset = showAll ? 0 : (page - 1) * limit;
     titles = titles.slice(offset, offset + limit);
     
     return {
         titles,
+        platforms,
+        perPage: options?.limit || 24,
+        platformFilter: options?.platformFilter || '',
         pagination: {
             page,
             limit,

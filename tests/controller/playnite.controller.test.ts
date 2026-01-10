@@ -143,11 +143,12 @@ describe('Playnite Providers', () => {
             expect(extractStoreUrlFromLinks(links, 'steam')).toBeUndefined();
         });
 
-        test('returns undefined for unknown provider', () => {
+        test('returns undefined for unknown provider but finds store in Website link', () => {
             const links = [
-                {name: 'Steam', url: 'https://store.steampowered.com/app/123456'},
+                {name: 'Official Website', url: 'https://store.steampowered.com/app/123456'},
             ];
-            expect(extractStoreUrlFromLinks(links, 'unknown')).toBeUndefined();
+            // Should find store URL via website fallback
+            expect(extractStoreUrlFromLinks(links, 'unknown')).toBe('https://store.steampowered.com/app/123456');
         });
 
         test('returns undefined when links is undefined', () => {
@@ -156,6 +157,32 @@ describe('Playnite Providers', () => {
 
         test('returns undefined when links array is empty', () => {
             expect(extractStoreUrlFromLinks([], 'steam')).toBeUndefined();
+        });
+
+        test('extracts URL with platform consideration for Nintendo Switch', () => {
+            const links = [
+                {name: 'Nintendo', url: 'https://www.nintendo.com/games/detail/zelda'},
+                {name: 'Website', url: 'https://example.com'},
+            ];
+            expect(extractStoreUrlFromLinks(links, 'nintendo', 'Nintendo Switch')).toBeDefined();
+        });
+
+        test('falls back to Website link that points to a known store', () => {
+            const links = [
+                {name: 'Official Website', url: 'https://www.gog.com/game/some-game'},
+                {name: 'Forum', url: 'https://forum.example.com'},
+            ];
+            // Should find GOG store URL via website fallback even with unknown provider
+            expect(extractStoreUrlFromLinks(links, 'unknown')).toBe('https://www.gog.com/game/some-game');
+        });
+
+        test('does not use Website link that does not point to a store', () => {
+            const links = [
+                {name: 'Official Website', url: 'https://game-publisher.com/news'},
+                {name: 'Forum', url: 'https://forum.example.com'},
+            ];
+            // Should not use a non-store URL
+            expect(extractStoreUrlFromLinks(links, 'unknown')).toBeUndefined();
         });
     });
 });

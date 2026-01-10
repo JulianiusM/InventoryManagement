@@ -41,9 +41,9 @@ block content
     //- Search and filter row
     .card.text-bg-dark.border-secondary.mb-3
         .card-body.py-2
-            form(method="get" action="/games")
+            form#filterForm(method="get" action="/games")
                 .row.g-2.align-items-center
-                    .col-md-6
+                    .col-md-4
                         .input-group
                             span.input-group-text.text-bg-dark.border-secondary
                                 i.bi.bi-search
@@ -53,15 +53,33 @@ block content
                                 placeholder="Search games..." 
                                 value=(data && data.search) || ''
                             )
-                    .col-md-3
+                    .col-md-2
                         select#filterType.form-select.text-bg-dark.border-secondary(name="type")
                             option(value="") All types
                             each t in gameTypes
-                                option(value=t) #{typeLabels[t]}
-                    .col-md-3
-                        button.btn.btn-primary.w-100(type="submit")
-                            i.bi.bi-funnel.me-1
-                            | Filter
+                                option(value=t selected=(data && data.typeFilter === t)) #{typeLabels[t]}
+                    .col-md-2
+                        select#filterPlatform.form-select.text-bg-dark.border-secondary(name="platform")
+                            option(value="") All platforms
+                            if data && data.platforms
+                                each p in data.platforms
+                                    option(value=p.name selected=(data && data.platformFilter === p.name)) #{p.name}
+                    .col-md-2
+                        select#perPage.form-select.text-bg-dark.border-secondary(name="perPage")
+                            option(value="24" selected=(data && data.perPage === 24)) 24 per page
+                            option(value="48" selected=(data && data.perPage === 48)) 48 per page
+                            option(value="100" selected=(data && data.perPage === 100)) 100 per page
+                            option(value="all" selected=(data && data.perPage === 'all')) Show all
+                    .col-md-2
+                        .d-flex.gap-2
+                            button.btn.btn-primary.flex-grow-1(type="submit")
+                                i.bi.bi-funnel.me-1
+                                | Filter
+                            //- View toggle buttons
+                            button.btn.btn-outline-light#gridViewBtn(type="button" title="Grid view" onclick="setViewMode('grid')")
+                                i.bi.bi-grid-3x3-gap
+                            button.btn.btn-outline-light#listViewBtn(type="button" title="List view" onclick="setViewMode('list')")
+                                i.bi.bi-list
 
     //- Games list
     if titles.length === 0
@@ -92,10 +110,20 @@ block content
                             i.bi.bi-trash.me-1
                             | Delete Selected
             
-            .row.g-3
+            //- Game cards container (supports both grid and list views)
+            #gamesContainer.row.g-3(data-view-mode="grid")
                 each title in titles
-                    .col-md-6.col-lg-4
+                    .col-md-6.col-lg-4.game-card
                         .card.text-bg-dark.border-secondary.h-100
+                            //- Cover image with hover preview (only in grid view)
+                            if title.coverImageUrl
+                                .card-img-top-wrapper.position-relative(style="height: 120px; overflow: hidden;")
+                                    img.card-img-top.cover-image(
+                                        src=title.coverImageUrl 
+                                        alt=`${title.name} cover` 
+                                        style="width: 100%; height: 100%; object-fit: cover;"
+                                        loading="lazy"
+                                    )
                             .card-body
                                 .d-flex.justify-content-between.align-items-start.mb-2
                                     .d-flex.align-items-start
@@ -137,24 +165,32 @@ block content
                                     | View Details
         
         //- Pagination
-        - const pagination = (data && data.pagination) ? data.pagination : {page: 1, totalPages: 1, hasNext: false, hasPrev: false, totalCount: 0}
-        if pagination.totalPages > 1
+        - const pagination = (data && data.pagination) ? data.pagination : {page: 1, totalPages: 1, hasNext: false, hasPrev: false, totalCount: 0, perPage: 24}
+        - const perPage = data && data.perPage ? data.perPage : 24
+        - const showingAll = perPage === 'all' || pagination.totalPages === 1
+        if pagination.totalPages > 1 && !showingAll
             .d-flex.justify-content-center.mt-4
                 nav(aria-label="Games pagination")
                     ul.pagination
                         li.page-item(class=!pagination.hasPrev ? 'disabled' : '')
-                            a.page-link.text-bg-dark.border-secondary(href=`/games?page=${pagination.page - 1}&search=${data.search || ''}&type=${data.typeFilter || ''}`)
+                            a.page-link.text-bg-dark.border-secondary(href=`/games?page=${pagination.page - 1}&search=${data.search || ''}&type=${data.typeFilter || ''}&platform=${data.platformFilter || ''}&perPage=${perPage}`)
                                 i.bi.bi-chevron-left
                         each i in Array.from({length: Math.min(pagination.totalPages, 10)}, (_, j) => j + 1)
                             - const pageNum = pagination.page <= 5 ? i : pagination.page - 5 + i
                             if pageNum <= pagination.totalPages
                                 li.page-item(class=pageNum === pagination.page ? 'active' : '')
-                                    a.page-link.text-bg-dark.border-secondary(href=`/games?page=${pageNum}&search=${data.search || ''}&type=${data.typeFilter || ''}`) #{pageNum}
+                                    a.page-link.text-bg-dark.border-secondary(href=`/games?page=${pageNum}&search=${data.search || ''}&type=${data.typeFilter || ''}&platform=${data.platformFilter || ''}&perPage=${perPage}`) #{pageNum}
                         li.page-item(class=!pagination.hasNext ? 'disabled' : '')
-                            a.page-link.text-bg-dark.border-secondary(href=`/games?page=${pagination.page + 1}&search=${data.search || ''}&type=${data.typeFilter || ''}`)
+                            a.page-link.text-bg-dark.border-secondary(href=`/games?page=${pagination.page + 1}&search=${data.search || ''}&type=${data.typeFilter || ''}&platform=${data.platformFilter || ''}&perPage=${perPage}`)
                                 i.bi.bi-chevron-right
+        if pagination.totalCount > 0
             .text-center.text-white-50.small.mb-3
-                | Showing #{(pagination.page - 1) * 24 + 1} - #{Math.min(pagination.page * 24, pagination.totalCount)} of #{pagination.totalCount} games
+                if showingAll
+                    | Showing all #{pagination.totalCount} games
+                else
+                    - const startItem = (pagination.page - 1) * (typeof perPage === 'number' ? perPage : 24) + 1
+                    - const endItem = Math.min(pagination.page * (typeof perPage === 'number' ? perPage : 24), pagination.totalCount)
+                    | Showing #{startItem} - #{endItem} of #{pagination.totalCount} games
 
     //- Add Game Modal
     #addGameModal.modal.fade(tabindex="-1")

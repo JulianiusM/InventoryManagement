@@ -156,9 +156,9 @@ export class PlayniteConnector extends BaseConnector implements PushConnector {
             // Cast raw to PlayniteRawData for type safety
             const rawData = game.raw as PlayniteRawData | undefined;
             
-            // Extract store URL from raw.links array by matching the provider
-            // This is more reliable than generating URLs from templates
-            const storeUrl = extractStoreUrlFromLinks(rawData?.links, normalizedProvider);
+            // Extract store URL from raw.links array by matching the provider and platform
+            // Platform is important for providers with platform-specific stores (e.g., Nintendo 3DS vs Switch)
+            const storeUrl = extractStoreUrlFromLinks(rawData?.links, normalizedProvider, rawPlatform);
             
             // Extract additional metadata from raw data
             const metadata = extractMetadataFromRaw(rawData);

@@ -53,6 +53,54 @@ export const PROVIDER_LINK_PATTERNS: Record<string, string[]> = {
 };
 
 /**
+ * Platform-specific store link patterns
+ * Some providers have different stores for different platforms
+ * (e.g., Nintendo has separate stores for 3DS/Wii U eShop vs Switch eShop)
+ */
+export const PLATFORM_STORE_PATTERNS: Record<string, Record<string, string[]>> = {
+    // Nintendo platforms have separate eShops
+    'nintendo': {
+        'switch': ['nintendo.com', 'nintendo switch', 'nintendo eshop'],
+        '3ds': ['3ds.nintendo.com', 'nintendo 3ds', '3ds eshop'],
+        'wii u': ['wiiu.nintendo.com', 'wii u eshop'],
+    },
+    // PlayStation platform-specific stores
+    'playstation': {
+        'ps5': ['playstation.com/ps5', 'ps5 store'],
+        'ps4': ['playstation.com/ps4', 'ps4 store'],
+        'vita': ['playstation.com/vita', 'vita store'],
+    },
+    // Xbox platform-specific (though usually unified)
+    'xbox': {
+        'xbox series x|s': ['microsoft.com', 'xbox store'],
+        'xbox one': ['microsoft.com', 'xbox store'],
+    },
+};
+
+/**
+ * Known store URL patterns that verify a link actually points to a store
+ * Used to validate "Website" or "Official Website" links
+ */
+export const KNOWN_STORE_URL_PATTERNS: string[] = [
+    'store.steampowered.com',
+    'store.epicgames.com',
+    'epicgames.com/store',
+    'gog.com/game',
+    'gog.com/en/game',
+    'ea.com/games',
+    'origin.com/store',
+    'ubisoft.com/game',
+    'store.ubi.com',
+    'microsoft.com/store',
+    'xbox.com/games',
+    'store.playstation.com',
+    'nintendo.com/store',
+    'itch.io',
+    'humblebundle.com/store',
+    'battle.net/shop',
+];
+
+/**
  * Link structure from Playnite's raw.links array
  */
 export interface PlayniteLink {
@@ -95,38 +143,82 @@ export interface PlayniteRawData {
 }
 
 /**
- * Extract store URL from Playnite's raw.links array based on provider
+ * Extract store URL from Playnite's raw.links array based on provider and platform
  * 
  * The links array contains named URLs like:
  * - { name: "Steam", url: "https://store.steampowered.com/app/123" }
  * - { name: "GOG", url: "https://www.gog.com/game/some-game" }
+ * - { name: "Website", url: "https://example.com" }
+ * - { name: "Official Website", url: "https://game-publisher.com" }
  * 
- * This function matches the normalized provider to find the appropriate store link.
+ * This function uses a multi-pass approach:
+ * 1. First, try to match platform-specific store patterns (e.g., 3DS eShop vs Switch eShop)
+ * 2. Then, try to match provider patterns
+ * 3. Finally, check "Website" or "Official Website" links that actually point to stores
  * 
  * @param links - Array of links from Playnite raw data
  * @param normalizedProvider - The normalized provider name (e.g., 'steam', 'epic')
+ * @param platform - Optional platform name (e.g., 'PC', 'Nintendo Switch', '3DS')
  * @returns The store URL if found, undefined otherwise
  */
 export function extractStoreUrlFromLinks(
     links: PlayniteLink[] | undefined,
-    normalizedProvider: string
+    normalizedProvider: string,
+    platform?: string
 ): string | undefined {
     if (!links || links.length === 0) {
         return undefined;
     }
     
-    const patterns = PROVIDER_LINK_PATTERNS[normalizedProvider];
-    if (!patterns) {
-        return undefined;
+    const normalizedPlatform = platform?.toLowerCase().trim();
+    
+    // Pass 1: Check platform-specific patterns for this provider
+    if (normalizedPlatform && PLATFORM_STORE_PATTERNS[normalizedProvider]) {
+        const platformPatterns = PLATFORM_STORE_PATTERNS[normalizedProvider];
+        
+        // Find matching platform key
+        for (const [platformKey, patterns] of Object.entries(platformPatterns)) {
+            if (normalizedPlatform.includes(platformKey) || platformKey.includes(normalizedPlatform)) {
+                // Try to find a link matching platform-specific patterns
+                for (const link of links) {
+                    const linkUrlLower = link.url.toLowerCase();
+                    for (const pattern of patterns) {
+                        if (linkUrlLower.includes(pattern)) {
+                            return link.url;
+                        }
+                    }
+                }
+            }
+        }
     }
     
-    // Find a link that matches the provider patterns
+    // Pass 2: Check general provider patterns
+    const patterns = PROVIDER_LINK_PATTERNS[normalizedProvider];
+    if (patterns) {
+        for (const link of links) {
+            const linkNameLower = link.name.toLowerCase();
+            const linkUrlLower = link.url.toLowerCase();
+            
+            for (const pattern of patterns) {
+                if (linkNameLower.includes(pattern) || linkUrlLower.includes(pattern)) {
+                    return link.url;
+                }
+            }
+        }
+    }
+    
+    // Pass 3: Check "Website" or "Official Website" links that point to known stores
+    // This is a fallback for cases where the link name doesn't match but the URL is valid
+    const websitePatterns = ['website', 'official', 'store', 'buy', 'purchase'];
     for (const link of links) {
         const linkNameLower = link.name.toLowerCase();
-        const linkUrlLower = link.url.toLowerCase();
         
-        for (const pattern of patterns) {
-            if (linkNameLower.includes(pattern) || linkUrlLower.includes(pattern)) {
+        // Only check links that look like website/store links
+        if (websitePatterns.some(p => linkNameLower.includes(p))) {
+            const linkUrlLower = link.url.toLowerCase();
+            
+            // Verify the URL actually points to a known store
+            if (KNOWN_STORE_URL_PATTERNS.some(storePattern => linkUrlLower.includes(storePattern))) {
                 return link.url;
             }
         }

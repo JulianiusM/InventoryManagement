@@ -17,16 +17,21 @@ router.get('/', asyncHandler(async (req: Request, res: Response) => {
     const ownerId = req.session.user!.id;
     const search = (req.query.search as string) || '';
     const typeFilter = (req.query.type as string) || '';
+    const platformFilter = (req.query.platform as string) || '';
     const playersFilter = req.query.players ? parseInt(req.query.players as string) : undefined;
     const page = req.query.page ? parseInt(req.query.page as string) : 1;
+    const perPageRaw = req.query.perPage as string;
+    const perPage = perPageRaw === 'all' ? 'all' : (perPageRaw ? parseInt(perPageRaw) : 24);
     
     const data = await gamesController.listGameTitles(ownerId, {
         search,
         typeFilter,
+        platformFilter,
         playersFilter,
-        page
+        page,
+        limit: perPage
     });
-    renderer.renderWithData(res, 'games/list', {...data, search, typeFilter});
+    renderer.renderWithData(res, 'games/list', {...data, search, typeFilter, platformFilter, perPage});
 }));
 
 // Create game title

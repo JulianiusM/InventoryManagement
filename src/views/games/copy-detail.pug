@@ -153,6 +153,15 @@ block content
                                         a.text-info(href=copy.storeUrl target="_blank" rel="noopener noreferrer")
                                             | View on Store
                                             i.bi.bi-box-arrow-up-right.ms-1
+                                else
+                                    //- Show indicator when store URL is unavailable
+                                    dt.col-sm-4
+                                        i.bi.bi-shop.me-1
+                                        | Store Link
+                                    dd.col-sm-8
+                                        span.text-white-50
+                                            i.bi.bi-exclamation-circle.me-1.text-warning
+                                            | Unavailable
                                 
                                 if copy.playtimeMinutes
                                     dt.col-sm-4
