@@ -2,36 +2,38 @@ import {AppDataSource} from "../dataSource";
 import {Platform} from "../entities/platform/Platform";
 import {v4 as uuidv4} from "uuid";
 
+/**
+ * Default platforms with their default aliases
+ * Aliases are stored in the database for user customization
+ */
 const DEFAULT_PLATFORMS = [
-    {name: "PC", description: "Windows/Mac/Linux"},
-    {name: "PlayStation 5", description: "Sony PlayStation 5"},
-    {name: "PlayStation 4", description: "Sony PlayStation 4"},
-    {name: "PlayStation 3", description: "Sony PlayStation 3"},
-    {name: "PlayStation 2", description: "Sony PlayStation 2"},
-    {name: "PlayStation", description: "Sony PlayStation (PS1)"},
-    {name: "PlayStation Vita", description: "Sony PlayStation Vita"},
-    {name: "PlayStation Portable", description: "Sony PlayStation Portable (PSP)"},
-    {name: "Xbox Series X|S", description: "Microsoft Xbox Series X|S"},
-    {name: "Xbox One", description: "Microsoft Xbox One"},
-    {name: "Xbox 360", description: "Microsoft Xbox 360"},
-    {name: "Xbox", description: "Microsoft Xbox (Original)"},
-    {name: "Nintendo Switch", description: "Nintendo Switch/Switch Lite/Switch OLED"},
-    {name: "Nintendo 3DS", description: "Nintendo 3DS/2DS"},
-    {name: "Nintendo DS", description: "Nintendo DS/DS Lite/DSi"},
-    {name: "Nintendo Wii U", description: "Nintendo Wii U"},
-    {name: "Nintendo Wii", description: "Nintendo Wii"},
-    {name: "Nintendo GameCube", description: "Nintendo GameCube"},
-    {name: "Mobile", description: "iOS/Android"},
-    {name: "Physical Only", description: "Board games, card games, etc."},
+    {name: "PC", description: "Windows/Mac/Linux", aliases: "windows,mac,macos,mac os,mac os x,macintosh,linux,computer,pc windows,pc (windows),microsoft windows,steam,desktop"},
+    {name: "PlayStation 5", description: "Sony PlayStation 5", aliases: "ps5,playstation5,playstation 5,sony playstation 5"},
+    {name: "PlayStation 4", description: "Sony PlayStation 4", aliases: "ps4,playstation4,playstation 4,sony playstation 4"},
+    {name: "PlayStation 3", description: "Sony PlayStation 3", aliases: "ps3,playstation3,playstation 3,sony playstation 3"},
+    {name: "PlayStation 2", description: "Sony PlayStation 2", aliases: "ps2,playstation2,playstation 2,sony playstation 2"},
+    {name: "PlayStation", description: "Sony PlayStation (PS1)", aliases: "ps1,psx,playstation1,playstation 1,sony playstation"},
+    {name: "PlayStation Vita", description: "Sony PlayStation Vita", aliases: "psvita,ps vita,vita"},
+    {name: "PlayStation Portable", description: "Sony PlayStation Portable (PSP)", aliases: "psp"},
+    {name: "Xbox Series X|S", description: "Microsoft Xbox Series X|S", aliases: "xbox series x,xbox series s,xbox series,xsx,xss"},
+    {name: "Xbox One", description: "Microsoft Xbox One", aliases: "xbone,xb1"},
+    {name: "Xbox 360", description: "Microsoft Xbox 360", aliases: "x360,xb360"},
+    {name: "Xbox", description: "Microsoft Xbox (Original)", aliases: "xbox original,original xbox"},
+    {name: "Nintendo Switch", description: "Nintendo Switch/Switch Lite/Switch OLED", aliases: "switch,ns,nx"},
+    {name: "Nintendo 3DS", description: "Nintendo 3DS/2DS", aliases: "3ds,new 3ds,2ds,new 2ds,n3ds"},
+    {name: "Nintendo DS", description: "Nintendo DS/DS Lite/DSi", aliases: "nds,ds,ds lite,dsi"},
+    {name: "Nintendo Wii U", description: "Nintendo Wii U", aliases: "wii u,wiiu"},
+    {name: "Nintendo Wii", description: "Nintendo Wii", aliases: "wii"},
+    {name: "Nintendo GameCube", description: "Nintendo GameCube", aliases: "gamecube,gc,ngc,gcn"},
+    {name: "Mobile", description: "iOS/Android", aliases: "ios,android,iphone,ipad"},
+    {name: "Physical Only", description: "Board games, card games, etc.", aliases: ""},
 ];
 
 /**
- * Platform name aliases for normalization
- * Maps common variations/shorthands to canonical platform names
- * 
- * Example: "PS5", "Playstation 5", "playstation5" all map to "PlayStation 5"
+ * Hardcoded fallback aliases for normalization when database is not accessible
+ * These are used as a fallback when normalizePlatformNameWithDb() can't be used
  */
-const PLATFORM_ALIASES: Record<string, string> = {
+const FALLBACK_PLATFORM_ALIASES: Record<string, string> = {
     // PlayStation variations
     'ps5': 'PlayStation 5',
     'playstation5': 'PlayStation 5',
@@ -130,12 +132,14 @@ const PLATFORM_ALIASES: Record<string, string> = {
 };
 
 /**
- * Normalize a platform name to a canonical form
+ * Normalize a platform name to a canonical form (synchronous version using fallback)
  * 
  * This function:
  * 1. Trims and lowercases the input for comparison
- * 2. Checks against known aliases
+ * 2. Checks against known fallback aliases
  * 3. Returns the canonical name if found, otherwise returns the original trimmed name
+ * 
+ * For production use with database aliases, use normalizePlatformNameWithDb()
  * 
  * @param name The platform name to normalize
  * @returns The canonical platform name
@@ -146,9 +150,9 @@ export function normalizePlatformName(name: string): string {
     const trimmed = name.trim();
     const lowercased = trimmed.toLowerCase();
     
-    // Check for exact match in aliases
-    if (PLATFORM_ALIASES[lowercased]) {
-        return PLATFORM_ALIASES[lowercased];
+    // Check for exact match in fallback aliases
+    if (FALLBACK_PLATFORM_ALIASES[lowercased]) {
+        return FALLBACK_PLATFORM_ALIASES[lowercased];
     }
     
     // Check if it's already a canonical name (case-insensitive)
@@ -156,6 +160,52 @@ export function normalizePlatformName(name: string): string {
         if (platform.name.toLowerCase() === lowercased) {
             return platform.name;
         }
+    }
+    
+    // Return the original trimmed name if no match found
+    return trimmed;
+}
+
+/**
+ * Normalize a platform name using database aliases (async version)
+ * 
+ * This function:
+ * 1. Checks against user-defined aliases in the database
+ * 2. Falls back to hardcoded aliases if no database match
+ * 3. Returns the canonical name if found, otherwise returns the original trimmed name
+ * 
+ * @param name The platform name to normalize
+ * @param ownerId The owner ID to scope the alias lookup
+ * @returns The canonical platform name
+ */
+export async function normalizePlatformNameWithDb(name: string, ownerId: number): Promise<string> {
+    if (!name) return name;
+    
+    const trimmed = name.trim();
+    const lowercased = trimmed.toLowerCase();
+    
+    // First, check user-defined aliases in the database
+    const repo = AppDataSource.getRepository(Platform);
+    const platforms = await repo.find({where: {owner: {id: ownerId}}});
+    
+    for (const platform of platforms) {
+        // Check if input matches platform name exactly (case-insensitive)
+        if (platform.name.toLowerCase() === lowercased) {
+            return platform.name;
+        }
+        
+        // Check if input matches any of the aliases
+        if (platform.aliases) {
+            const aliasList = platform.aliases.split(',').map(a => a.trim().toLowerCase());
+            if (aliasList.includes(lowercased)) {
+                return platform.name;
+            }
+        }
+    }
+    
+    // Fall back to hardcoded aliases
+    if (FALLBACK_PLATFORM_ALIASES[lowercased]) {
+        return FALLBACK_PLATFORM_ALIASES[lowercased];
     }
     
     // Return the original trimmed name if no match found
@@ -244,6 +294,7 @@ export async function ensureDefaultPlatforms(ownerId: number): Promise<void> {
                 id: uuidv4(),
                 name: defaultPlatform.name,
                 description: defaultPlatform.description,
+                aliases: defaultPlatform.aliases || null,
                 isDefault: true,
                 owner: {id: ownerId},
             });
@@ -255,8 +306,8 @@ export async function ensureDefaultPlatforms(ownerId: number): Promise<void> {
 export async function getOrCreatePlatform(name: string, ownerId: number): Promise<Platform> {
     const repo = AppDataSource.getRepository(Platform);
     
-    // Normalize the platform name to prevent duplicates (e.g., PS5 -> PlayStation 5)
-    const normalizedName = normalizePlatformName(name);
+    // Normalize the platform name using database aliases
+    const normalizedName = await normalizePlatformNameWithDb(name, ownerId);
     
     let platform = await getPlatformByName(normalizedName, ownerId);
     if (!platform) {
@@ -264,10 +315,35 @@ export async function getOrCreatePlatform(name: string, ownerId: number): Promis
             id: uuidv4(),
             name: normalizedName,
             description: null,
+            aliases: null,
             isDefault: false,
             owner: {id: ownerId},
         });
         await repo.save(platform);
     }
     return platform;
+}
+
+/**
+ * Update platform aliases
+ * @param id Platform ID
+ * @param aliases Comma-separated list of aliases
+ * @param ownerId Owner ID
+ */
+export async function updatePlatformAliases(id: string, aliases: string | null, ownerId: number): Promise<void> {
+    const repo = AppDataSource.getRepository(Platform);
+    const platform = await getPlatformById(id, ownerId);
+    if (!platform) {
+        throw new Error("Platform not found");
+    }
+    
+    await repo.update({id}, {aliases: aliases?.trim() || null});
+}
+
+/**
+ * Get all aliases for a platform as an array
+ */
+export function getAliasesArray(platform: Platform): string[] {
+    if (!platform.aliases) return [];
+    return platform.aliases.split(',').map(a => a.trim()).filter(a => a.length > 0);
 }

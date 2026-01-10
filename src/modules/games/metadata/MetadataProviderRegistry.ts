@@ -3,7 +3,7 @@
  * Manages registration and lookup of game metadata providers
  */
 
-import {MetadataProvider, MetadataProviderManifest} from './MetadataProviderInterface';
+import {MetadataProvider, MetadataProviderManifest, MetadataProviderCapabilities} from './MetadataProviderInterface';
 import {SteamMetadataProvider} from './SteamMetadataProvider';
 import {RawgMetadataProvider} from './RawgMetadataProvider';
 import {WikidataMetadataProvider} from './WikidataMetadataProvider';
@@ -46,6 +46,29 @@ class MetadataProviderRegistry {
      */
     has(id: string): boolean {
         return this.providers.has(id);
+    }
+    
+    /**
+     * Get a provider by a specific capability
+     * Returns the first provider that has the specified capability
+     * 
+     * @param capability Key of MetadataProviderCapabilities that should be true
+     */
+    getByCapability(capability: keyof MetadataProviderCapabilities): MetadataProvider | undefined {
+        for (const provider of this.providers.values()) {
+            const capabilities = provider.getCapabilities();
+            if (capabilities[capability]) {
+                return provider;
+            }
+        }
+        return undefined;
+    }
+    
+    /**
+     * Get all providers with a specific capability
+     */
+    getAllByCapability(capability: keyof MetadataProviderCapabilities): MetadataProvider[] {
+        return this.getAll().filter(p => p.getCapabilities()[capability]);
     }
     
     /**

@@ -8,11 +8,15 @@
  * 
  * Note: RAWG has a free tier that allows 20,000 requests/month
  * API key required: https://rawg.io/apidocs
+ * 
+ * Rate limiting is handled by GameSyncService using getRateLimitConfig().
  */
 
 import {
     BaseMetadataProvider,
     MetadataProviderManifest,
+    MetadataProviderCapabilities,
+    RateLimitConfig,
     GameMetadata,
     MetadataSearchResult,
 } from './MetadataProviderInterface';
@@ -113,9 +117,6 @@ interface RawgSearchResponse {
  * RAWG metadata provider implementation
  */
 export class RawgMetadataProvider extends BaseMetadataProvider {
-    private rateLimitDelay = 100; // 100ms between requests
-    private lastRequestTime = 0;
-    
     constructor() {
         super({
             id: 'rawg',
@@ -128,6 +129,40 @@ export class RawgMetadataProvider extends BaseMetadataProvider {
     }
     
     /**
+     * RAWG capabilities:
+     * - Does NOT have accurate player counts (only knows if multiplayer vs single-player)
+     * - Does NOT have store URLs
+     * - Does NOT support batch requests
+     * - Supports search
+     * - Has descriptions and cover images
+     */
+    getCapabilities(): MetadataProviderCapabilities {
+        return {
+            hasAccuratePlayerCounts: false,
+            hasStoreUrls: false,
+            supportsBatchRequests: false,
+            supportsSearch: true,
+            hasDescriptions: true,
+            hasCoverImages: true,
+        };
+    }
+    
+    /**
+     * RAWG rate limit configuration
+     * RAWG allows 20,000 requests/month (free tier)
+     */
+    getRateLimitConfig(): RateLimitConfig {
+        return {
+            requestDelayMs: 100, // 100ms between requests
+            maxBatchSize: 10,
+            batchDelayMs: 500,
+            maxGamesPerSync: 200, // Conservative limit for free tier
+            retryDelayMs: 1000,
+            maxConsecutiveErrors: 5,
+        };
+    }
+    
+    /**
      * Get API key from settings module or user-provided
      * Falls back to env var for backwards compatibility
      */
@@ -136,19 +171,8 @@ export class RawgMetadataProvider extends BaseMetadataProvider {
     }
     
     /**
-     * Rate limiting helper
-     */
-    private async rateLimit(): Promise<void> {
-        const now = Date.now();
-        const elapsed = now - this.lastRequestTime;
-        if (elapsed < this.rateLimitDelay) {
-            await new Promise(resolve => setTimeout(resolve, this.rateLimitDelay - elapsed));
-        }
-        this.lastRequestTime = Date.now();
-    }
-    
-    /**
      * Search for games by name
+     * NOTE: Rate limiting is handled by GameSyncService, not here.
      */
     async searchGames(query: string, limit = 10, apiKey?: string): Promise<MetadataSearchResult[]> {
         const key = this.getApiKey(apiKey);
@@ -156,8 +180,6 @@ export class RawgMetadataProvider extends BaseMetadataProvider {
             console.warn('RAWG API key not configured');
             return [];
         }
-        
-        await this.rateLimit();
         
         try {
             const params = new URLSearchParams({
@@ -189,6 +211,7 @@ export class RawgMetadataProvider extends BaseMetadataProvider {
     
     /**
      * Get detailed metadata for a game
+     * NOTE: Rate limiting is handled by GameSyncService, not here.
      */
     async getGameMetadata(externalId: string, apiKey?: string): Promise<GameMetadata | null> {
         const key = this.getApiKey(apiKey);
@@ -196,8 +219,6 @@ export class RawgMetadataProvider extends BaseMetadataProvider {
             console.warn('RAWG API key not configured');
             return null;
         }
-        
-        await this.rateLimit();
         
         try {
             const params = new URLSearchParams({key});
@@ -221,11 +242,12 @@ export class RawgMetadataProvider extends BaseMetadataProvider {
     
     /**
      * Get metadata for multiple games
+     * NOTE: Rate limiting is handled by GameSyncService, not here.
      */
     async getGamesMetadata(externalIds: string[], apiKey?: string): Promise<GameMetadata[]> {
         const results: GameMetadata[] = [];
         
-        // RAWG doesn't have bulk endpoint, fetch one by one with rate limiting
+        // RAWG doesn't have bulk endpoint, fetch one by one
         for (const id of externalIds) {
             const metadata = await this.getGameMetadata(id, apiKey);
             if (metadata) {

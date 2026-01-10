@@ -24,6 +24,14 @@ export class Platform {
     // Whether this is a default platform (system-provided)
     @Column("boolean", {name: "is_default", default: false})
     isDefault!: boolean;
+    
+    /**
+     * User-defined aliases for this platform, stored as comma-separated values
+     * Example: "PS5,PlayStation5,playstation 5,Sony PlayStation 5"
+     * Used by normalizePlatformName() to match input to this platform
+     */
+    @Column("text", {name: "aliases", nullable: true})
+    aliases?: string | null;
 
     @ManyToOne(() => User, {onDelete: "CASCADE"})
     @JoinColumn({name: "owner_id"})

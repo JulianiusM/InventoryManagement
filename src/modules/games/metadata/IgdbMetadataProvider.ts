@@ -13,12 +13,14 @@
  * - TWITCH_CLIENT_ID
  * - TWITCH_CLIENT_SECRET
  * 
- * Rate limiting: 4 requests/second
+ * Rate limiting: 4 requests/second (handled by GameSyncService)
  */
 
 import {
     BaseMetadataProvider,
     MetadataProviderManifest,
+    MetadataProviderCapabilities,
+    RateLimitConfig,
     GameMetadata,
     MetadataSearchResult,
 } from './MetadataProviderInterface';
@@ -27,9 +29,6 @@ import settings from '../../settings';
 
 const IGDB_API_BASE = 'https://api.igdb.com/v4';
 const TWITCH_AUTH_URL = 'https://id.twitch.tv/oauth2/token';
-
-// Rate limiting: IGDB allows 4 requests/second
-const RATE_LIMIT_MS = 300;
 
 // Short description max length
 const MAX_SHORT_DESCRIPTION_LENGTH = 250;
@@ -123,10 +122,42 @@ interface IgdbGame {
 }
 
 export class IgdbMetadataProvider extends BaseMetadataProvider {
-    private lastRequestTime = 0;
-    
     constructor() {
         super(IGDB_METADATA_MANIFEST);
+    }
+    
+    /**
+     * IGDB capabilities:
+     * - Has ACCURATE player counts (best source for multiplayer data)
+     * - Does NOT have store URLs
+     * - Supports batch requests via `where id = (1,2,3)` syntax
+     * - Supports search
+     * - Has descriptions and cover images
+     */
+    getCapabilities(): MetadataProviderCapabilities {
+        return {
+            hasAccuratePlayerCounts: true, // IGDB is the best source for player counts
+            hasStoreUrls: false,
+            supportsBatchRequests: true,
+            supportsSearch: true,
+            hasDescriptions: true,
+            hasCoverImages: true,
+        };
+    }
+    
+    /**
+     * IGDB rate limit configuration
+     * IGDB allows 4 requests/second
+     */
+    getRateLimitConfig(): RateLimitConfig {
+        return {
+            requestDelayMs: 300, // 300ms between requests (4 req/sec)
+            maxBatchSize: 50, // IGDB supports up to 500 IDs per batch
+            batchDelayMs: 500, // Small delay between batch requests
+            maxGamesPerSync: 1000, // Can handle large libraries
+            retryDelayMs: 1000, // Wait 1 second on rate limit
+            maxConsecutiveErrors: 5,
+        };
     }
     
     /**
@@ -181,19 +212,8 @@ export class IgdbMetadataProvider extends BaseMetadataProvider {
     }
     
     /**
-     * Rate limiting helper
-     */
-    private async rateLimit(): Promise<void> {
-        const now = Date.now();
-        const elapsed = now - this.lastRequestTime;
-        if (elapsed < RATE_LIMIT_MS) {
-            await new Promise(resolve => setTimeout(resolve, RATE_LIMIT_MS - elapsed));
-        }
-        this.lastRequestTime = Date.now();
-    }
-    
-    /**
      * Make IGDB API request
+     * NOTE: Rate limiting is handled by GameSyncService, not here.
      */
     private async makeRequest(endpoint: string, body: string): Promise<unknown[] | null> {
         const token = await this.getAccessToken();
@@ -201,8 +221,6 @@ export class IgdbMetadataProvider extends BaseMetadataProvider {
         
         const clientId = settings.value.twitchClientId || process.env.TWITCH_CLIENT_ID;
         if (!clientId) return null;
-        
-        await this.rateLimit();
         
         try {
             // IGDB requires the body to be trimmed - no leading/trailing whitespace

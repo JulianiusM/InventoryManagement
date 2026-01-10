@@ -1432,7 +1432,7 @@ export async function listPlatforms(userId: number) {
 /**
  * Create a new platform
  */
-export async function createPlatform(body: {name: string; description?: string}, userId: number) {
+export async function createPlatform(body: {name: string; description?: string; aliases?: string}, userId: number) {
     requireAuthenticatedUser(userId);
     
     if (!body.name || body.name.trim() === '') {
@@ -1440,10 +1440,18 @@ export async function createPlatform(body: {name: string; description?: string},
     }
     
     try {
-        return await platformService.createPlatform({
+        // First create the platform
+        const platform = await platformService.createPlatform({
             name: body.name.trim(),
             description: body.description?.trim() || null,
         }, userId);
+        
+        // Then update aliases if provided
+        if (body.aliases?.trim()) {
+            await platformService.updatePlatformAliases(platform.id, body.aliases.trim(), userId);
+        }
+        
+        return platform;
     } catch (error) {
         if (error instanceof Error && error.message.includes('already exists')) {
             throw new ExpectedError(error.message, 'error', 400);
@@ -1469,22 +1477,39 @@ export async function deletePlatform(id: string, userId: number): Promise<void> 
 }
 
 /**
- * Update a platform (non-default only)
+ * Update a platform
+ * Aliases can be updated on both default and custom platforms.
+ * Name and description can only be updated on custom platforms.
  */
-export async function updatePlatform(id: string, body: {name?: string; description?: string}, userId: number): Promise<void> {
+export async function updatePlatform(id: string, body: {name?: string; description?: string; aliases?: string}, userId: number): Promise<void> {
     requireAuthenticatedUser(userId);
     
-    if (body.name !== undefined && !body.name.trim()) {
-        throw new ExpectedError('Platform name is required', 'error', 400);
-    }
-    
     try {
-        await platformService.updatePlatform(id, {
-            name: body.name?.trim(),
-            description: body.description?.trim() || null,
-        }, userId);
+        const platform = await platformService.getPlatformById(id, userId);
+        if (!platform) {
+            throw new ExpectedError('Platform not found', 'error', 404);
+        }
+        
+        // For default platforms, only allow updating aliases
+        if (platform.isDefault) {
+            // Update aliases only
+            await platformService.updatePlatformAliases(id, body.aliases?.trim() || null, userId);
+        } else {
+            // For custom platforms, update all fields
+            if (body.name !== undefined && !body.name.trim()) {
+                throw new ExpectedError('Platform name is required', 'error', 400);
+            }
+            
+            await platformService.updatePlatform(id, {
+                name: body.name?.trim(),
+                description: body.description?.trim() || null,
+            }, userId);
+            
+            // Update aliases
+            await platformService.updatePlatformAliases(id, body.aliases?.trim() || null, userId);
+        }
     } catch (error) {
-        if (error instanceof Error) {
+        if (error instanceof Error && !(error instanceof ExpectedError)) {
             throw new ExpectedError(error.message, 'error', 400);
         }
         throw error;

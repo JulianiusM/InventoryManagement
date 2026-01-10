@@ -27,13 +27,13 @@ block content
             ul.mb-0.mt-2
                 li 
                     strong Default platforms
-                    |  are provided as a starting point and cannot be deleted
+                    |  are provided as a starting point
                 li 
                     strong Custom platforms
                     |  can be added for any device or format you use
                 li 
-                    strong Prevent duplicates
-                    |  by using consistent platform names (e.g., "PlayStation 5" instead of "PS5")
+                    strong Aliases
+                    |  help normalize platform names during sync (e.g., "PS5" → "PlayStation 5")
 
     //- Platforms list
     if platforms.length === 0
@@ -53,6 +53,7 @@ block content
                             tr
                                 th Platform Name
                                 th Description
+                                th Aliases
                                 th Type
                                 th.text-end Actions
                         tbody
@@ -63,19 +64,23 @@ block content
                                         | #{platform.name}
                                     td.text-white-50 #{platform.description || '—'}
                                     td
+                                        if platform.aliases
+                                            - const aliasCount = platform.aliases.split(',').filter(a => a.trim()).length
+                                            span.badge.text-bg-secondary(title=platform.aliases) #{aliasCount} aliases
+                                        else
+                                            span.text-white-50.small None
+                                    td
                                         if platform.isDefault
                                             span.badge.text-bg-info Default
                                         else
                                             span.badge.text-bg-secondary Custom
                                     td.text-end
+                                        button.btn.btn-sm.btn-outline-light.me-1(type="button" title="Edit" data-bs-toggle="modal" data-bs-target=`#editPlatformModal-${platform.id}`)
+                                            i.bi.bi-pencil
                                         if !platform.isDefault
-                                            button.btn.btn-sm.btn-outline-light.me-1(type="button" title="Edit" data-bs-toggle="modal" data-bs-target=`#editPlatformModal-${platform.id}`)
-                                                i.bi.bi-pencil
                                             form.d-inline(method="post" action=`/games/platforms/${platform.id}/delete`)
                                                 button.btn.btn-sm.btn-outline-danger(type="submit" title="Delete" onclick="return confirm('Delete this platform?')")
                                                     i.bi.bi-trash
-                                        else
-                                            span.text-white-50.small Protected
 
     //- Add Platform Modal
     #addPlatformModal.modal.fade(tabindex="-1")
@@ -95,33 +100,49 @@ block content
                         .col-12
                             label.form-label Description
                             input.form-control.text-bg-dark(type="text" name="description" placeholder="Optional description")
+                        .col-12
+                            label.form-label Aliases
+                            input.form-control.text-bg-dark(type="text" name="aliases" placeholder="e.g., steamdeck, sd")
+                            .form-text.text-white-50 Comma-separated alternative names for this platform (used during game sync).
                 .modal-footer.border-secondary
                     button.btn.btn-secondary(type="button" data-bs-dismiss="modal") Cancel
                     button.btn.btn-primary(type="submit" form="addPlatformForm")
                         i.bi.bi-plus-lg.me-1
                         | Add Platform
 
-    //- Edit Platform Modals (one for each non-default platform)
+    //- Edit Platform Modals (one for each platform)
     each platform in platforms
-        if !platform.isDefault
-            .modal.fade(id=`editPlatformModal-${platform.id}` tabindex="-1")
-                .modal-dialog
-                    .modal-content.text-bg-dark
-                        .modal-header.border-secondary
-                            h5.modal-title
-                                i.bi.bi-pencil.me-2
-                                | Edit Platform
-                            button.btn-close.btn-close-white(type="button" data-bs-dismiss="modal")
-                        .modal-body
-                            form.row.g-3(id=`editPlatformForm-${platform.id}` method="post" action=`/games/platforms/${platform.id}/update`)
+        .modal.fade(id=`editPlatformModal-${platform.id}` tabindex="-1")
+            .modal-dialog
+                .modal-content.text-bg-dark
+                    .modal-header.border-secondary
+                        h5.modal-title
+                            i.bi.bi-pencil.me-2
+                            | Edit Platform
+                        button.btn-close.btn-close-white(type="button" data-bs-dismiss="modal")
+                    .modal-body
+                        form.row.g-3(id=`editPlatformForm-${platform.id}` method="post" action=`/games/platforms/${platform.id}/update`)
+                            if !platform.isDefault
                                 .col-12
                                     label.form-label Platform Name *
                                     input.form-control.text-bg-dark(type="text" name="name" value=platform.name required)
                                 .col-12
                                     label.form-label Description
                                     input.form-control.text-bg-dark(type="text" name="description" value=platform.description || '')
-                        .modal-footer.border-secondary
-                            button.btn.btn-secondary(type="button" data-bs-dismiss="modal") Cancel
-                            button.btn.btn-primary(type="submit" form=`editPlatformForm-${platform.id}`)
-                                i.bi.bi-check-lg.me-1
-                                | Save Changes
+                            else
+                                .col-12
+                                    label.form-label Platform Name
+                                    input.form-control.text-bg-dark(type="text" value=platform.name disabled)
+                                    .form-text.text-white-50 Default platforms cannot be renamed.
+                                .col-12
+                                    label.form-label Description
+                                    input.form-control.text-bg-dark(type="text" value=platform.description || '' disabled)
+                            .col-12
+                                label.form-label Aliases
+                                input.form-control.text-bg-dark(type="text" name="aliases" value=platform.aliases || '' placeholder="e.g., ps5, playstation5, sony playstation 5")
+                                .form-text.text-white-50 Comma-separated alternative names. During sync, these names will normalize to "#{platform.name}".
+                    .modal-footer.border-secondary
+                        button.btn.btn-secondary(type="button" data-bs-dismiss="modal") Cancel
+                        button.btn.btn-primary(type="submit" form=`editPlatformForm-${platform.id}`)
+                            i.bi.bi-check-lg.me-1
+                            | Save Changes
