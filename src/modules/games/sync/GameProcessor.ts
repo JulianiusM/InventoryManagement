@@ -12,6 +12,7 @@
  * - Smart sync: Pre-fetches existing items to skip unnecessary processing
  */
 
+import {Platform} from "../../database/entities/platform/Platform";
 import {ExternalGame} from '../connectors/ConnectorInterface';
 import {extractEdition, normalizeGameTitle} from '../GameNameUtils';
 import {PlayerProfileValidationError} from '../../database/services/GameValidationService';
@@ -26,7 +27,7 @@ import {GameRelease} from '../../database/entities/gameRelease/GameRelease';
 import {GameType, MappingStatus, GameCopyType} from '../../../types/InventoryEnums';
 
 // Default maximum players for multiplayer games when not specified
-const DEFAULT_MULTIPLAYER_MAX_PLAYERS = 4;
+const DEFAULT_MULTIPLAYER_MAX_PLAYERS = 2;
 
 // Map provider to default platform
 const providerPlatformDefaults: Record<string, string> = {
@@ -201,14 +202,14 @@ async function createGameFromData(
     ownerId: number
 ): Promise<AutoCreateGameResult> {
     // Ensure the platform exists in the database (auto-create if missing)
-    await platformService.getOrCreatePlatform(platform, ownerId);
+    const pf = await platformService.getOrCreatePlatform(platform, ownerId);
     
     // CRITICAL: Extract edition from game name
     // e.g., "The Sims 4 Premium Edition" -> baseName: "The Sims 4", edition: "Premium Edition"
     const {baseName, edition} = extractEdition(game.name);
     
     // Log for debugging
-    console.log(`Game processing: "${game.name}" -> baseName: "${baseName}", edition: "${edition}"`);
+    //console.log(`Game processing: "${game.name}" -> baseName: "${baseName}", edition: "${edition}"`);
     
     // Determine player info with sensible defaults for multiplayer games
     const supportsOnline = game.supportsOnline ?? false;
@@ -239,13 +240,13 @@ async function createGameFromData(
     // Get or create release for this platform with the DETECTED edition
     const {release, isNew: releaseCreated} = await gameReleaseService.getOrCreateGameRelease({
         gameTitleId: title.id,
-        platform,
+        platform: pf.name,
         releaseDate: game.releaseDate || null,
         edition, // Store the DETECTED edition (e.g., "Premium Edition")
         ownerId,
     });
     
-    console.log(`  -> Title: "${title.name}" (${titleCreated ? 'NEW' : 'existing'}), Release edition: "${edition}" (${releaseCreated ? 'NEW' : 'existing'})`);
+    //console.log(`  -> Title: "${title.name}" (${titleCreated ? 'NEW' : 'existing'}), Release edition: "${edition}" (${releaseCreated ? 'NEW' : 'existing'})`);
     
     return {title, release, titleCreated, releaseCreated};
 }

@@ -23,9 +23,6 @@ router.use(requireAuth);
 // Mount sub-routers
 // Note: Order matters - more specific routes first
 
-// Title routes (includes main games list and title operations)
-router.use('/', titleRoutes);
-
 // Other entity routes
 router.use('/releases', releaseRoutes);
 router.use('/copies', copyRoutes);
@@ -34,5 +31,8 @@ router.use('/mappings', mappingRoutes);
 router.use('/platforms', platformRoutes);
 router.use('/jobs', jobRoutes);
 router.use('/loans', loanRoutes);
+
+// Title routes (includes main games list and title operations)
+router.use('/', titleRoutes);
 
 export default router;
