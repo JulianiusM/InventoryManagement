@@ -19,6 +19,8 @@ import {
     RateLimitConfig,
     GameMetadata,
     MetadataSearchResult,
+    MetadataRateLimitError,
+    MetadataApiError,
 } from './MetadataProviderInterface';
 import {stripHtml, truncateText} from '../../lib/htmlUtils';
 import settings from '../../settings';
@@ -190,8 +192,12 @@ export class RawgMetadataProvider extends BaseMetadataProvider {
             
             const response = await fetch(`${RAWG_API_BASE}/games?${params.toString()}`);
             if (!response.ok) {
-                console.error(`RAWG search failed: ${response.status}`);
-                return [];
+                if (response.status === 429) {
+                    const retryAfter = response.headers.get('Retry-After');
+                    const retryAfterMs = retryAfter ? parseInt(retryAfter, 10) * 1000 : undefined;
+                    throw new MetadataRateLimitError('rawg', 429, retryAfterMs);
+                }
+                throw new MetadataApiError('rawg', `Search failed with status ${response.status}`, response.status);
             }
             
             const data = await response.json() as RawgSearchResponse;
@@ -204,6 +210,10 @@ export class RawgMetadataProvider extends BaseMetadataProvider {
                 provider: 'rawg',
             }));
         } catch (error) {
+            // Re-throw rate limit and API errors for proper handling
+            if (error instanceof MetadataRateLimitError || error instanceof MetadataApiError) {
+                throw error;
+            }
             console.error('RAWG search error:', error);
             return [];
         }
@@ -212,6 +222,8 @@ export class RawgMetadataProvider extends BaseMetadataProvider {
     /**
      * Get detailed metadata for a game
      * NOTE: Rate limiting is handled by GameSyncService, not here.
+     * @throws MetadataRateLimitError if rate limited (429)
+     * @throws MetadataApiError for other API errors
      */
     async getGameMetadata(externalId: string, apiKey?: string): Promise<GameMetadata | null> {
         const key = this.getApiKey(apiKey);
@@ -220,24 +232,23 @@ export class RawgMetadataProvider extends BaseMetadataProvider {
             return null;
         }
         
-        try {
-            const params = new URLSearchParams({key});
-            const response = await fetch(`${RAWG_API_BASE}/games/${externalId}?${params.toString()}`);
-            
-            if (!response.ok) {
-                if (response.status === 404) {
-                    return null;
-                }
-                console.error(`RAWG getGameMetadata failed: ${response.status}`);
+        const params = new URLSearchParams({key});
+        const response = await fetch(`${RAWG_API_BASE}/games/${externalId}?${params.toString()}`);
+        
+        if (!response.ok) {
+            if (response.status === 404) {
                 return null;
             }
-            
-            const data = await response.json() as RawgGameResponse;
-            return this.mapToGameMetadata(data);
-        } catch (error) {
-            console.error('RAWG getGameMetadata error:', error);
-            return null;
+            if (response.status === 429) {
+                const retryAfter = response.headers.get('Retry-After');
+                const retryAfterMs = retryAfter ? parseInt(retryAfter, 10) * 1000 : undefined;
+                throw new MetadataRateLimitError('rawg', 429, retryAfterMs);
+            }
+            throw new MetadataApiError('rawg', `getGameMetadata failed with status ${response.status}`, response.status);
         }
+        
+        const data = await response.json() as RawgGameResponse;
+        return this.mapToGameMetadata(data);
     }
     
     /**

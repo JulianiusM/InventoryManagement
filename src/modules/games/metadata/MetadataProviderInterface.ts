@@ -276,6 +276,39 @@ export abstract class BaseMetadataProvider implements MetadataProvider {
 export type PlayerInfo = NonNullable<GameMetadata['playerInfo']>;
 
 /**
+ * Error thrown when a metadata provider hits a rate limit
+ * This allows the MetadataFetcher to detect and handle rate limits properly
+ */
+export class MetadataRateLimitError extends Error {
+    public readonly providerId: string;
+    public readonly statusCode: number;
+    public readonly retryAfterMs?: number;
+    
+    constructor(providerId: string, statusCode: number = 429, retryAfterMs?: number) {
+        super(`Rate limit exceeded for ${providerId} (${statusCode})`);
+        this.name = 'MetadataRateLimitError';
+        this.providerId = providerId;
+        this.statusCode = statusCode;
+        this.retryAfterMs = retryAfterMs;
+    }
+}
+
+/**
+ * Error thrown when a metadata API request fails
+ */
+export class MetadataApiError extends Error {
+    public readonly providerId: string;
+    public readonly statusCode?: number;
+    
+    constructor(providerId: string, message: string, statusCode?: number) {
+        super(`${providerId} API error: ${message}`);
+        this.name = 'MetadataApiError';
+        this.providerId = providerId;
+        this.statusCode = statusCode;
+    }
+}
+
+/**
  * Merge player counts from enrichment source into existing player info
  * Only overrides undefined values in existing info with values from enrichment
  */

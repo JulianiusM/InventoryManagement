@@ -105,5 +105,82 @@ describe('extractEdition', () => {
             expect(standard.edition).toBe('Standard Edition');
             expect(premium.edition).toBe('Premium Edition');
         });
+
+        test('The Sims 4 Premium Edition (without separator) has same base name', () => {
+            const standard = extractEdition('The Sims 4');
+            const premium = extractEdition('The Sims 4 Premium Edition');
+            
+            expect(normalizeGameTitle(standard.baseName)).toBe(normalizeGameTitle(premium.baseName));
+            expect(standard.edition).toBe('Standard Edition');
+            expect(premium.edition).toBe('Premium Edition');
+        });
+
+        test('The Sims™ 4 from Steam matches The Sims 4 from EA', () => {
+            const steam = extractEdition('The Sims™ 4');
+            const ea = extractEdition('The Sims 4');
+            const premium = extractEdition('The Sims 4 Premium Edition');
+            
+            // All three should have the same normalized base name
+            const steamNormalized = normalizeGameTitle(steam.baseName);
+            const eaNormalized = normalizeGameTitle(ea.baseName);
+            const premiumNormalized = normalizeGameTitle(premium.baseName);
+            
+            expect(steamNormalized).toBe(eaNormalized);
+            expect(steamNormalized).toBe(premiumNormalized);
+        });
+    });
+
+    describe('batch scenario: games synced at the same time', () => {
+        /**
+         * This test verifies the logic that ensures games with the same normalized
+         * base name should merge to the same title when synced in the same batch.
+         * 
+         * Example scenario from Playnite (EA app):
+         * - "The Sims 4" (standard edition)
+         * - "The Sims 4 Premium Edition" (premium edition)
+         * 
+         * Both should create releases under the same "The Sims 4" title.
+         */
+        test('games from same batch should have identical base names for merging', () => {
+            // Simulate a batch of games from Playnite/EA
+            const batch = [
+                'The Sims 4',
+                'The Sims 4 Premium Edition',
+                'The Sims™ 4', // From Steam via aggregator
+            ];
+
+            // Process each game as would happen in GameSyncService
+            const processed = batch.map(gameName => {
+                const {baseName, edition} = extractEdition(gameName);
+                const normalized = normalizeGameTitle(baseName);
+                return {gameName, baseName, edition, normalized};
+            });
+
+            // All normalized base names should be identical
+            const normalizedNames = new Set(processed.map(p => p.normalized));
+            expect(normalizedNames.size).toBe(1);
+            expect([...normalizedNames][0]).toBe('the sims 4');
+
+            // Editions should be correctly extracted
+            expect(processed[0].edition).toBe('Standard Edition');
+            expect(processed[1].edition).toBe('Premium Edition');
+            expect(processed[2].edition).toBe('Standard Edition');
+        });
+
+        test('different games should not merge', () => {
+            const batch = [
+                'The Sims 4',
+                'The Sims 5',
+                'Sims City',
+            ];
+
+            const normalized = batch.map(name => {
+                const {baseName} = extractEdition(name);
+                return normalizeGameTitle(baseName);
+            });
+
+            // All should be different
+            expect(new Set(normalized).size).toBe(3);
+        });
     });
 });

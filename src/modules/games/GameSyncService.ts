@@ -18,7 +18,7 @@
 import {connectorRegistry} from './connectors/ConnectorRegistry';
 import {ConnectorCredentials, ExternalGame, ImportPreprocessResult, isPushConnector} from './connectors/ConnectorInterface';
 import {metadataProviderRegistry, initializeMetadataProviders} from './metadata/MetadataProviderRegistry';
-import {GameMetadata, mergePlayerCounts, MetadataProvider, RateLimitConfig} from './metadata/MetadataProviderInterface';
+import {GameMetadata, mergePlayerCounts, MetadataProvider, RateLimitConfig, MetadataRateLimitError} from './metadata/MetadataProviderInterface';
 import {extractEdition} from './GameNameUtils';
 import settings from '../settings';
 import * as externalAccountService from '../database/services/ExternalAccountService';
@@ -306,6 +306,14 @@ class MetadataFetcher {
      * @returns true if we should stop using this provider
      */
     private handleProviderError(error: unknown, providerId: string): boolean {
+        // Check for structured rate limit error first
+        if (error instanceof MetadataRateLimitError) {
+            this.markProviderRateLimited(error.providerId);
+            console.log(`${error.providerId} rate limited (structured error), stopping and using fallback`);
+            return true;
+        }
+        
+        // Fallback: check for rate limit in error message (legacy support)
         const isRateLimit = error instanceof Error && (
             error.message.includes('429') ||
             error.message.includes('rate') ||
@@ -1404,34 +1412,103 @@ async function processMetadataEnrichmentAsync(
                 // Enrich game title with metadata
                 const enrichedGame = enrichGameWithMetadata(game, metadata);
                 
-                // Update the game title with enriched data
+                // Build update data, clamping values to ensure validation passes
+                // The key issue is that mode-specific values must be consistent with supportsX flags
                 const updateData: Record<string, unknown> = {};
                 
                 if (enrichedGame.description) {
                     updateData.description = enrichedGame.description;
                 }
+                
+                // Handle player profile updates carefully to avoid validation errors
+                // We need to consider existing values from the game title and merge with new values
+                const existingSupportsOnline = gameTitle.supportsOnline ?? false;
+                const existingSupportsLocal = gameTitle.supportsLocal ?? false;
+                const existingOverallMax = gameTitle.overallMaxPlayers ?? 1;
+                
+                // Determine new support flags
+                const newSupportsOnline = enrichedGame.supportsOnline ?? existingSupportsOnline;
+                const newSupportsLocal = enrichedGame.supportsLocal ?? existingSupportsLocal;
+                
+                // If updating min/max players, ensure consistency
                 if (enrichedGame.overallMinPlayers !== undefined) {
-                    updateData.overallMinPlayers = enrichedGame.overallMinPlayers;
+                    updateData.overallMinPlayers = Math.max(1, enrichedGame.overallMinPlayers);
                 }
+                
+                let newOverallMax = existingOverallMax;
                 if (enrichedGame.overallMaxPlayers !== undefined) {
-                    updateData.overallMaxPlayers = enrichedGame.overallMaxPlayers;
+                    newOverallMax = Math.max(enrichedGame.overallMaxPlayers, updateData.overallMinPlayers as number ?? 1);
                 }
-                if (enrichedGame.supportsOnline !== undefined) {
-                    updateData.supportsOnline = enrichedGame.supportsOnline;
-                }
-                if (enrichedGame.supportsLocal !== undefined) {
-                    updateData.supportsLocal = enrichedGame.supportsLocal;
-                }
-                if (enrichedGame.onlineMaxPlayers !== undefined) {
+                
+                // Handle online max players - must be <= overall max and only set if supportsOnline
+                if (newSupportsOnline && enrichedGame.onlineMaxPlayers !== undefined) {
+                    // If online max exceeds overall max, extend overall max
+                    if (enrichedGame.onlineMaxPlayers > newOverallMax) {
+                        newOverallMax = enrichedGame.onlineMaxPlayers;
+                    }
+                    updateData.onlineMaxPlayers = enrichedGame.onlineMaxPlayers;
+                    updateData.supportsOnline = true;
+                } else if (!newSupportsOnline && enrichedGame.onlineMaxPlayers !== undefined) {
+                    // If we have online max but don't support online, enable online support
+                    updateData.supportsOnline = true;
+                    if (enrichedGame.onlineMaxPlayers > newOverallMax) {
+                        newOverallMax = enrichedGame.onlineMaxPlayers;
+                    }
                     updateData.onlineMaxPlayers = enrichedGame.onlineMaxPlayers;
                 }
-                if (enrichedGame.localMaxPlayers !== undefined) {
+                
+                // Handle local max players - must be <= overall max and only set if supportsLocal
+                if (newSupportsLocal && enrichedGame.localMaxPlayers !== undefined) {
+                    // If local max exceeds overall max, extend overall max
+                    if (enrichedGame.localMaxPlayers > newOverallMax) {
+                        newOverallMax = enrichedGame.localMaxPlayers;
+                    }
+                    updateData.localMaxPlayers = enrichedGame.localMaxPlayers;
+                    updateData.supportsLocal = true;
+                } else if (!newSupportsLocal && enrichedGame.localMaxPlayers !== undefined) {
+                    // If we have local max but don't support local, enable local support
+                    updateData.supportsLocal = true;
+                    if (enrichedGame.localMaxPlayers > newOverallMax) {
+                        newOverallMax = enrichedGame.localMaxPlayers;
+                    }
                     updateData.localMaxPlayers = enrichedGame.localMaxPlayers;
                 }
                 
+                // Update overall max if it changed
+                if (newOverallMax !== existingOverallMax) {
+                    updateData.overallMaxPlayers = newOverallMax;
+                }
+                
+                // Also update supportsOnline/supportsLocal if they're explicitly set in metadata
+                if (enrichedGame.supportsOnline !== undefined && !updateData.supportsOnline) {
+                    updateData.supportsOnline = enrichedGame.supportsOnline;
+                    // If disabling online support, clear mode-specific values
+                    if (!enrichedGame.supportsOnline) {
+                        updateData.onlineMinPlayers = null;
+                        updateData.onlineMaxPlayers = null;
+                    }
+                }
+                if (enrichedGame.supportsLocal !== undefined && !updateData.supportsLocal) {
+                    updateData.supportsLocal = enrichedGame.supportsLocal;
+                    // If disabling local support, clear mode-specific values
+                    if (!enrichedGame.supportsLocal) {
+                        updateData.localMinPlayers = null;
+                        updateData.localMaxPlayers = null;
+                    }
+                }
+                
                 if (Object.keys(updateData).length > 0) {
-                    await gameTitleService.updateGameTitle(mapping.gameTitleId, updateData);
-                    enrichedCount++;
+                    try {
+                        await gameTitleService.updateGameTitle(mapping.gameTitleId, updateData);
+                        enrichedCount++;
+                    } catch (updateError) {
+                        // If validation still fails, skip this game but continue with others
+                        if (updateError instanceof PlayerProfileValidationError) {
+                            console.warn(`Skipping enrichment for "${game.name}" due to validation error: ${updateError.message}`);
+                        } else {
+                            throw updateError;
+                        }
+                    }
                 }
             } catch (error) {
                 // Log error but continue with other games (resilient to individual failures)

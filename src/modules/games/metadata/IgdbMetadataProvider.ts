@@ -23,6 +23,8 @@ import {
     RateLimitConfig,
     GameMetadata,
     MetadataSearchResult,
+    MetadataRateLimitError,
+    MetadataApiError,
 } from './MetadataProviderInterface';
 import {stripHtml, truncateText} from '../../lib/htmlUtils';
 import settings from '../../settings';
@@ -214,6 +216,8 @@ export class IgdbMetadataProvider extends BaseMetadataProvider {
     /**
      * Make IGDB API request
      * NOTE: Rate limiting is handled by GameSyncService, not here.
+     * @throws MetadataRateLimitError if rate limited (429)
+     * @throws MetadataApiError for other API errors
      */
     private async makeRequest(endpoint: string, body: string): Promise<unknown[] | null> {
         const token = await this.getAccessToken();
@@ -222,31 +226,34 @@ export class IgdbMetadataProvider extends BaseMetadataProvider {
         const clientId = settings.value.twitchClientId || process.env.TWITCH_CLIENT_ID;
         if (!clientId) return null;
         
-        try {
-            // IGDB requires the body to be trimmed - no leading/trailing whitespace
-            const trimmedBody = body.trim();
+        // IGDB requires the body to be trimmed - no leading/trailing whitespace
+        const trimmedBody = body.trim();
+        
+        const response = await fetch(`${IGDB_API_BASE}/${endpoint}`, {
+            method: 'POST',
+            headers: {
+                'Client-ID': clientId,
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'text/plain',
+            },
+            body: trimmedBody,
+        });
+        
+        if (!response.ok) {
+            // Parse rate limit response for retry-after header
+            const retryAfter = response.headers.get('Retry-After');
+            const retryAfterMs = retryAfter ? parseInt(retryAfter, 10) * 1000 : undefined;
             
-            const response = await fetch(`${IGDB_API_BASE}/${endpoint}`, {
-                method: 'POST',
-                headers: {
-                    'Client-ID': clientId,
-                    'Authorization': `Bearer ${token}`,
-                    'Content-Type': 'text/plain',
-                },
-                body: trimmedBody,
-            });
-            
-            if (!response.ok) {
-                const errorText = await response.text().catch(() => 'Unknown error');
-                console.error(`IGDB API error: ${response.status} - ${errorText}`);
-                return null;
+            if (response.status === 429) {
+                // Throw a specific error for rate limiting so GameSyncService can detect it
+                throw new MetadataRateLimitError('igdb', 429, retryAfterMs);
             }
             
-            return await response.json() as unknown[];
-        } catch (error) {
-            console.error('IGDB API request error:', error);
-            return null;
+            const errorText = await response.text().catch(() => 'Unknown error');
+            throw new MetadataApiError('igdb', errorText, response.status);
         }
+        
+        return await response.json() as unknown[];
     }
     
     /**
