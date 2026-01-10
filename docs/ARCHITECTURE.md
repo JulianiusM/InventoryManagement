@@ -11,6 +11,7 @@ This document describes the overall architecture, design patterns, and technical
 - [Frontend Architecture](#frontend-architecture)
 - [Authentication & Authorization](#authentication--authorization)
 - [Testing Architecture](#testing-architecture)
+- [Games Module](#games-module)
 - [Design Patterns](#design-patterns)
 
 ---
@@ -476,6 +477,75 @@ verifyResult(result, testCase.expected);
 - **E2E tests**: Test complete workflows with Playwright
 
 See [TESTING_GUIDE.md](TESTING_GUIDE.md) for comprehensive testing documentation.
+
+---
+
+## Games Module
+
+The Games module is a comprehensive system for managing video games, board games, and other game types with external provider integration.
+
+### Core Entities
+
+| Entity | Purpose |
+|--------|---------|
+| GameTitle | Core game info (name, description, player counts) |
+| GameRelease | Platform-specific release (PC, PS5, edition, region) |
+| Item (type=GAME_DIGITAL/GAME) | Game copies (digital or physical) |
+| ExternalAccount | Linked external accounts (Steam, Playnite) |
+| ConnectorDevice | Devices for push-style sync |
+| SyncJob | Sync job tracking and history |
+| Platform | Game platforms with normalization aliases |
+
+### Controller Architecture
+
+The games controller is modular for maintainability:
+
+```
+src/controller/games/
+├── gameTitleController.ts     # Title CRUD and metadata operations
+├── gameReleaseController.ts   # Release management
+├── gameCopyController.ts      # Copy/item operations and lending
+├── gameAccountController.ts   # External accounts and sync triggers
+├── gameMappingController.ts   # Mapping queue for unmatched games
+├── gamePlatformController.ts  # Platform CRUD and merging
+├── gameJobsController.ts      # Sync job listing
+├── helpers.ts                 # Shared utilities (auth, ownership checks)
+└── index.ts                   # Re-exports all functions
+```
+
+### Sync Architecture
+
+The sync pipeline is unified for all connector types:
+
+```
+Connector (fetch/push) → processGameBatch() → safeCreateGameFromData()
+                                                      │
+                              ├── extractEdition()     ← Extract edition from name
+                              ├── getOrCreateTitle()   ← Merge by normalized name
+                              └── getOrCreateRelease() ← By platform+edition
+```
+
+**Key Files:**
+- `sync/GameProcessor.ts` - Unified game processing
+- `sync/MetadataFetcher.ts` - Centralized metadata fetching with rate limiting
+- `GameSyncService.ts` - Orchestration and scheduling
+- `GameNameUtils.ts` - Edition extraction and title normalization
+
+### Connector Types
+
+| Type | Description | Example |
+|------|-------------|---------|
+| Fetch-style | Connector pulls from external API | Steam |
+| Push-style | External agent pushes via API | Playnite |
+
+### Metadata Providers
+
+Providers are selected by capability, not hardcoded references:
+
+- `hasAccuratePlayerCounts` - For accurate multiplayer info
+- `supportsSearch` - For game name lookup
+
+Providers: Steam, IGDB, RAWG, Wikidata (board games)
 
 ---
 

@@ -133,11 +133,23 @@ The sync pipeline is **modular and unified**. All connectors (fetch-style and pu
 ```
 src/modules/games/
 ├── sync/
-│   └── GameProcessor.ts       # SINGLE implementation for game processing
+│   ├── GameProcessor.ts       # SINGLE implementation for game processing
+│   └── MetadataFetcher.ts     # Centralized metadata fetching with rate limiting
 ├── GameSyncService.ts         # Orchestration and scheduling
 ├── GameNameUtils.ts           # Edition extraction and title normalization
 ├── connectors/                # External connector implementations
 └── metadata/                  # Metadata provider implementations
+
+src/controller/games/          # Modular controller structure
+├── gameTitleController.ts     # Title operations and metadata
+├── gameReleaseController.ts   # Release operations
+├── gameCopyController.ts      # Copy/item operations
+├── gameAccountController.ts   # External account and sync operations
+├── gameMappingController.ts   # Mapping queue operations
+├── gamePlatformController.ts  # Platform operations
+├── gameJobsController.ts      # Job listing operations
+├── helpers.ts                 # Shared utility functions
+└── index.ts                   # Module exports
 ```
 
 **Critical Design Rule:** BOTH fetch-style and push-style connectors use `processGameBatch()` from `GameProcessor.ts`.
@@ -217,7 +229,7 @@ Syncs are optimized to skip unnecessary processing:
 
 Metadata providers are standardized with centralized rate limiting:
 - Providers implement `getCapabilities()` and `getRateLimitConfig()`
-- `MetadataFetcher` class in `GameSyncService.ts` handles rate limiting
+- `MetadataFetcher` class in `sync/MetadataFetcher.ts` handles rate limiting
 - Two metadata runs: general info from primary provider, player counts from providers with `hasAccuratePlayerCounts` capability
 - Provider fallback uses capabilities (never hardcoded provider references)
 
