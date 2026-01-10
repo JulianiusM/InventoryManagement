@@ -15,6 +15,16 @@ block content
             i.bi.bi-exclamation-triangle.me-2
             | Release not found.
     else
+        //- Header with breadcrumb
+        nav.mb-2(aria-label="breadcrumb")
+            ol.breadcrumb.mb-0
+                li.breadcrumb-item
+                    a.text-info(href="/games") Games
+                li.breadcrumb-item
+                    if release.gameTitle
+                        a.text-info(href=`/games/titles/${release.gameTitle.id}`) #{release.gameTitle.name}
+                li.breadcrumb-item.active.text-white(aria-current="page") #{release.edition || 'Standard'} (#{release.platform})
+
         //- Header
         .d-flex.justify-content-between.align-items-start.mb-3
             div
@@ -29,8 +39,33 @@ block content
                         span.badge.text-bg-secondary #{release.region}
 
         .row.g-3
-            //- Left column: Copies
+            //- Left column: Game Info + Copies
             .col-lg-8
+                //- Inherited Title Info Card (cover + description)
+                if release.gameTitle && (release.gameTitle.coverImageUrl || release.gameTitle.description)
+                    .card.text-bg-dark.border-secondary.mb-3
+                        if release.gameTitle.coverImageUrl
+                            img.card-img-top(src=release.gameTitle.coverImageUrl alt=`${release.gameTitle.name} cover` style="max-height: 250px; object-fit: cover;")
+                        .card-body
+                            if release.gameTitle.description
+                                p.text-white-50.mb-3 #{release.gameTitle.description}
+                            .d-flex.flex-wrap.gap-2.align-items-center
+                                if release.gameTitle.supportsOnline
+                                    span.badge.text-bg-primary
+                                        i.bi.bi-globe.me-1
+                                        | Online #{release.gameTitle.onlineMinPlayers || release.gameTitle.overallMinPlayers}-#{release.gameTitle.onlineMaxPlayers || release.gameTitle.overallMaxPlayers}
+                                if release.gameTitle.supportsLocal
+                                    span.badge.text-bg-success
+                                        i.bi.bi-display.me-1
+                                        | Local #{release.gameTitle.localMinPlayers || release.gameTitle.overallMinPlayers}-#{release.gameTitle.localMaxPlayers || release.gameTitle.overallMaxPlayers}
+                                if release.gameTitle.supportsPhysical
+                                    span.badge.text-bg-warning.text-dark
+                                        i.bi.bi-dice-5.me-1
+                                        | Physical #{release.gameTitle.physicalMinPlayers || release.gameTitle.overallMinPlayers}-#{release.gameTitle.physicalMaxPlayers || release.gameTitle.overallMaxPlayers}
+                            a.btn.btn-sm.btn-outline-light.mt-2(href=`/games/titles/${release.gameTitle.id}`)
+                                i.bi.bi-arrow-left.me-1
+                                | View Title Details
+
                 .card.text-bg-dark.border-secondary.mb-3
                     .card-header.d-flex.justify-content-between.align-items-center
                         h2.h5.mb-0

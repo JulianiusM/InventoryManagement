@@ -34,26 +34,106 @@ export const KNOWN_PROVIDERS: Record<string, string> = {
 };
 
 /**
- * Store URL templates - ONLY for Steam (verified to work)
- * Other providers' URLs are unreliable (different ID formats, require slug names, etc.)
- * For non-Steam games, storeUrl should be provided directly by Playnite or resolved by metadata providers
+ * Store URL templates for PC game providers
+ * Steam URLs work reliably with AppID. Others require slugs or different ID formats.
+ * 
+ * For providers that can't use IDs directly, we provide launcher URLs instead.
  */
 export const STORE_URL_TEMPLATES: Record<string, string | null> = {
+    // Steam - uses numeric AppID (reliable)
     'steam': 'https://store.steampowered.com/app/{gameId}',
-    // All other providers return null - generated URLs are unreliable
-    // Playnite can provide storeUrl directly, or metadata providers will resolve it
+    
+    // Epic - uses slugs, not IDs. Can't generate reliable URLs from IDs alone.
+    // The Playnite agent should provide the storeUrl directly.
     'epic': null,
+    
+    // GOG - uses slugs. Can't generate reliable URLs from IDs alone.
     'gog': null,
+    
+    // EA App (formerly Origin)
     'ea': null,
     'origin': null,
+    
+    // Ubisoft Connect
     'ubisoft': null,
+    
+    // Xbox (Windows Store) - uses product IDs but format varies
     'xbox': null,
+    
+    // PlayStation - PC app doesn't have web store
     'playstation': null,
+    
+    // Amazon Games
     'amazon': null,
+    
+    // itch.io - uses slugs
     'itch': null,
+    
+    // Humble Bundle
     'humble': null,
+    
+    // Battle.net - uses game codes
     'battlenet': null,
 };
+
+/**
+ * Platform store URL templates for console games
+ * These are for games on specific platforms, not aggregators
+ */
+export const PLATFORM_STORE_TEMPLATES: Record<string, {template: string; idParam: string} | null> = {
+    // PlayStation - uses CUSA IDs but format varies by region
+    'PlayStation 5': null,
+    'PlayStation 4': null,
+    'PlayStation 3': null,
+    'PlayStation Vita': null,
+    
+    // Xbox - Microsoft Store
+    'Xbox Series X|S': null,
+    'Xbox One': null,
+    'Xbox 360': null,
+    
+    // Nintendo - uses NSUIDs but no direct linking
+    'Nintendo Switch': null,
+    'Nintendo 3DS': null,
+    'Nintendo Wii U': null,
+    
+    // PC - handled by provider, not platform
+    'PC': null,
+    
+    // Mobile
+    'Mobile': null,
+};
+
+/**
+ * Get the appropriate store URL for a game based on its provider and platform
+ * 
+ * Strategy:
+ * 1. If explicit storeUrl is provided, use it
+ * 2. For PC platform, try to generate from provider template
+ * 3. For console platforms, platform stores can't be reliably linked
+ * 
+ * @param options - Store URL generation options
+ * @returns Generated store URL or undefined
+ */
+export function getStoreUrl(options: {
+    storeUrl?: string;
+    platform?: string;
+    provider?: string;
+    gameId?: string;
+}): string | undefined {
+    // Priority 1: Explicit store URL from the source
+    if (options.storeUrl?.trim()) {
+        return options.storeUrl.trim();
+    }
+    
+    // Priority 2: For PC platform, try provider-specific template
+    if (options.platform === 'PC' && options.provider && options.gameId) {
+        return generateStoreUrl(options.provider, options.gameId);
+    }
+    
+    // Can't reliably generate URLs for console platforms
+    return undefined;
+}
 
 /**
  * Normalize provider name from Playnite plugin GUID

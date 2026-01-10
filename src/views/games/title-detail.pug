@@ -47,6 +47,12 @@ block content
         .row.g-3
             //- Left column: Details
             .col-lg-7
+                //- Cover Image (if available)
+                if title.coverImageUrl
+                    .card.text-bg-dark.border-secondary.mb-3
+                        .card-body.p-0
+                            img.img-fluid.rounded(src=title.coverImageUrl alt=`${title.name} cover` style="max-height: 400px; width: 100%; object-fit: cover;")
+
                 //- Game details card
                 .card.text-bg-dark.border-secondary.mb-3
                     .card-header.d-flex.justify-content-between.align-items-center

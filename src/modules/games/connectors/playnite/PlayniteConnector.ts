@@ -24,7 +24,7 @@ import {
 import {ConnectorCapability} from '../../../../types/InventoryEnums';
 import * as connectorDeviceService from '../../../database/services/ConnectorDeviceService';
 import {normalizePlatformName} from '../../../database/services/PlatformService';
-import {normalizeProviderName, generateStoreUrl} from './PlayniteProviders';
+import {normalizeProviderName, getStoreUrl} from './PlayniteProviders';
 import {validateImportPayload} from './PlayniteImportService';
 
 /**
@@ -147,13 +147,18 @@ export class PlayniteConnector extends BaseConnector implements PushConnector {
                 needsReviewCount++;
             }
             
-            const normalizedProvider = normalizeProviderName(game.originalProviderPluginId);
-            // Prefer storeUrl from Playnite payload (more reliable), fallback to generated URL
-            const storeUrl = game.storeUrl?.trim() || generateStoreUrl(normalizedProvider, game.originalProviderGameId);
-            
             // Normalize platform (e.g., "Macintosh" -> "PC", "PC Windows" -> "PC")
             const rawPlatform = game.platforms?.[0] || 'PC';
             const normalizedPlatform = normalizePlatformName(rawPlatform);
+            
+            const normalizedProvider = normalizeProviderName(game.originalProviderPluginId);
+            // Generate store URL based on platform and provider
+            const storeUrl = getStoreUrl({
+                storeUrl: game.storeUrl,
+                platform: normalizedPlatform,
+                provider: normalizedProvider,
+                gameId: game.originalProviderGameId,
+            });
             
             return {
                 externalGameId: entitlementKey,
