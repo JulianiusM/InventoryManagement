@@ -78,8 +78,11 @@ block content
                                         button.btn.btn-sm.btn-outline-light.me-1(type="button" title="Edit" data-bs-toggle="modal" data-bs-target=`#editPlatformModal-${platform.id}`)
                                             i.bi.bi-pencil
                                         if !platform.isDefault
+                                            button.btn.btn-sm.btn-outline-light.me-1(type="button" title="Merge" data-bs-toggle="modal" data-bs-target=`#mergePlatformModal-${platform.id}`)
+                                                i.bi.bi-arrow-left-right
                                             form.d-inline(method="post" action=`/games/platforms/${platform.id}/delete`)
                                                 button.btn.btn-sm.btn-outline-danger(type="submit" title="Delete" onclick="return confirm('Delete this platform?')")
+                                                    i.bi.bi-trash
                                                     i.bi.bi-trash
 
     //- Add Platform Modal
@@ -146,3 +149,33 @@ block content
                         button.btn.btn-primary(type="submit" form=`editPlatformForm-${platform.id}`)
                             i.bi.bi-check-lg.me-1
                             | Save Changes
+
+    //- Merge Platform Modals (one for each custom platform)
+    each platform in platforms
+        if !platform.isDefault
+            .modal.fade(id=`mergePlatformModal-${platform.id}` tabindex="-1")
+                .modal-dialog
+                    .modal-content.text-bg-dark
+                        .modal-header.border-secondary
+                            h5.modal-title
+                                i.bi.bi-arrow-left-right.me-2
+                                | Merge Platform
+                            button.btn-close.btn-close-white(type="button" data-bs-dismiss="modal")
+                        .modal-body
+                            .alert.alert-warning.mb-3
+                                i.bi.bi-exclamation-triangle.me-2
+                                | This will update all game releases using "#{platform.name}" to use the selected target platform, then delete "#{platform.name}".
+                            form.row.g-3(id=`mergePlatformForm-${platform.id}` method="post" action="/games/platforms/merge")
+                                input(type="hidden" name="sourceId" value=platform.id)
+                                .col-12
+                                    label.form-label Target Platform *
+                                    select.form-select.text-bg-dark(name="targetId" required)
+                                        option(value="") Select target platform...
+                                        each p in platforms
+                                            if p.id !== platform.id
+                                                option(value=p.id) #{p.name}#{p.isDefault ? ' (Default)' : ''}
+                        .modal-footer.border-secondary
+                            button.btn.btn-secondary(type="button" data-bs-dismiss="modal") Cancel
+                            button.btn.btn-warning(type="submit" form=`mergePlatformForm-${platform.id}` onclick="return confirm('This will permanently merge the platforms. Continue?')")
+                                i.bi.bi-arrow-left-right.me-1
+                                | Merge

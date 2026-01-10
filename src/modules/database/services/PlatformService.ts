@@ -30,116 +30,47 @@ const DEFAULT_PLATFORMS = [
 ];
 
 /**
- * Hardcoded fallback aliases for normalization when database is not accessible
- * These are used as a fallback when normalizePlatformNameWithDb() can't be used
+ * Build a runtime alias map from default platform definitions
+ * This is used only during initial default platform creation, not for normalization
  */
-const FALLBACK_PLATFORM_ALIASES: Record<string, string> = {
-    // PlayStation variations
-    'ps5': 'PlayStation 5',
-    'playstation5': 'PlayStation 5',
-    'playstation 5': 'PlayStation 5',
-    'sony playstation 5': 'PlayStation 5',
-    
-    'ps4': 'PlayStation 4',
-    'playstation4': 'PlayStation 4',
-    'playstation 4': 'PlayStation 4',
-    'sony playstation 4': 'PlayStation 4',
-    
-    'ps3': 'PlayStation 3',
-    'playstation3': 'PlayStation 3',
-    'playstation 3': 'PlayStation 3',
-    'sony playstation 3': 'PlayStation 3',
-    
-    'ps2': 'PlayStation 2',
-    'playstation2': 'PlayStation 2',
-    'playstation 2': 'PlayStation 2',
-    'sony playstation 2': 'PlayStation 2',
-    
-    'ps1': 'PlayStation',
-    'psx': 'PlayStation',
-    'playstation1': 'PlayStation',
-    'playstation 1': 'PlayStation',
-    'sony playstation': 'PlayStation',
-    
-    'psvita': 'PlayStation Vita',
-    'ps vita': 'PlayStation Vita',
-    'vita': 'PlayStation Vita',
-    
-    'psp': 'PlayStation Portable',
-    
-    // Xbox variations
-    'xbox series x': 'Xbox Series X|S',
-    'xbox series s': 'Xbox Series X|S',
-    'xbox series': 'Xbox Series X|S',
-    'xsx': 'Xbox Series X|S',
-    'xss': 'Xbox Series X|S',
-    
-    'xbone': 'Xbox One',
-    'xb1': 'Xbox One',
-    
-    'x360': 'Xbox 360',
-    'xb360': 'Xbox 360',
-    
-    'xbox original': 'Xbox',
-    'original xbox': 'Xbox',
-    
-    // Nintendo variations
-    'switch': 'Nintendo Switch',
-    'ns': 'Nintendo Switch',
-    'nx': 'Nintendo Switch',
-    
-    '3ds': 'Nintendo 3DS',
-    'new 3ds': 'Nintendo 3DS',
-    '2ds': 'Nintendo 3DS',
-    'new 2ds': 'Nintendo 3DS',
-    'n3ds': 'Nintendo 3DS',
-    
-    'nds': 'Nintendo DS',
-    'ds': 'Nintendo DS',
-    'ds lite': 'Nintendo DS',
-    'dsi': 'Nintendo DS',
-    
-    'wii u': 'Nintendo Wii U',
-    'wiiu': 'Nintendo Wii U',
-    
-    'wii': 'Nintendo Wii',
-    
-    'gamecube': 'Nintendo GameCube',
-    'gc': 'Nintendo GameCube',
-    'ngc': 'Nintendo GameCube',
-    'gcn': 'Nintendo GameCube',
-    
-    // PC variations
-    'windows': 'PC',
-    'mac': 'PC',
-    'macos': 'PC',
-    'mac os': 'PC',
-    'mac os x': 'PC',
-    'macintosh': 'PC',
-    'linux': 'PC',
-    'computer': 'PC',
-    'pc windows': 'PC',
-    'pc (windows)': 'PC',
-    'microsoft windows': 'PC',
-    'steam': 'PC',
-    'desktop': 'PC',
-    
-    // Mobile variations
-    'ios': 'Mobile',
-    'android': 'Mobile',
-    'iphone': 'Mobile',
-    'ipad': 'Mobile',
-};
+function buildDefaultAliasMap(): Record<string, string> {
+    const map: Record<string, string> = {};
+    for (const platform of DEFAULT_PLATFORMS) {
+        if (platform.aliases) {
+            const aliases = platform.aliases.split(',').map(a => a.trim().toLowerCase());
+            for (const alias of aliases) {
+                if (alias) {
+                    map[alias] = platform.name;
+                }
+            }
+        }
+        // Also add the platform name itself (lowercased)
+        map[platform.name.toLowerCase()] = platform.name;
+    }
+    return map;
+}
 
 /**
- * Normalize a platform name to a canonical form (synchronous version using fallback)
+ * Get default alias map (cached for performance)
+ * Only used by normalizePlatformName() for connectors that can't do async DB lookup
+ */
+let cachedDefaultAliasMap: Record<string, string> | null = null;
+function getDefaultAliasMap(): Record<string, string> {
+    if (!cachedDefaultAliasMap) {
+        cachedDefaultAliasMap = buildDefaultAliasMap();
+    }
+    return cachedDefaultAliasMap;
+}
+
+/**
+ * Normalize a platform name to a canonical form (synchronous version)
  * 
- * This function:
- * 1. Trims and lowercases the input for comparison
- * 2. Checks against known fallback aliases
- * 3. Returns the canonical name if found, otherwise returns the original trimmed name
+ * This function uses the default platform definitions (built at runtime from DEFAULT_PLATFORMS).
+ * For user-defined aliases in the database, use normalizePlatformNameWithDb().
  * 
- * For production use with database aliases, use normalizePlatformNameWithDb()
+ * Use cases:
+ * - Connector preprocessing before database is accessed
+ * - Quick normalization without async context
  * 
  * @param name The platform name to normalize
  * @returns The canonical platform name
@@ -149,17 +80,11 @@ export function normalizePlatformName(name: string): string {
     
     const trimmed = name.trim();
     const lowercased = trimmed.toLowerCase();
+    const aliasMap = getDefaultAliasMap();
     
-    // Check for exact match in fallback aliases
-    if (FALLBACK_PLATFORM_ALIASES[lowercased]) {
-        return FALLBACK_PLATFORM_ALIASES[lowercased];
-    }
-    
-    // Check if it's already a canonical name (case-insensitive)
-    for (const platform of DEFAULT_PLATFORMS) {
-        if (platform.name.toLowerCase() === lowercased) {
-            return platform.name;
-        }
+    // Check for match in default alias map
+    if (aliasMap[lowercased]) {
+        return aliasMap[lowercased];
     }
     
     // Return the original trimmed name if no match found
@@ -169,10 +94,8 @@ export function normalizePlatformName(name: string): string {
 /**
  * Normalize a platform name using database aliases (async version)
  * 
- * This function:
- * 1. Checks against user-defined aliases in the database
- * 2. Falls back to hardcoded aliases if no database match
- * 3. Returns the canonical name if found, otherwise returns the original trimmed name
+ * This function checks user-defined aliases in the database.
+ * If no match is found in the database, uses the default alias map.
  * 
  * @param name The platform name to normalize
  * @param ownerId The owner ID to scope the alias lookup
@@ -203,9 +126,10 @@ export async function normalizePlatformNameWithDb(name: string, ownerId: number)
         }
     }
     
-    // Fall back to hardcoded aliases
-    if (FALLBACK_PLATFORM_ALIASES[lowercased]) {
-        return FALLBACK_PLATFORM_ALIASES[lowercased];
+    // Fall back to default alias map (derived from DEFAULT_PLATFORMS)
+    const aliasMap = getDefaultAliasMap();
+    if (aliasMap[lowercased]) {
+        return aliasMap[lowercased];
     }
     
     // Return the original trimmed name if no match found
@@ -341,3 +265,70 @@ export function getAliasesArray(platform: Platform): string[] {
     if (!platform.aliases) return [];
     return platform.aliases.split(',').map(a => a.trim()).filter(a => a.length > 0);
 }
+
+/**
+ * Merge two platforms
+ * Updates all game releases using the source platform to use the target platform,
+ * then deletes the source platform
+ * 
+ * @param sourceId The platform to merge FROM (will be deleted)
+ * @param targetId The platform to merge INTO (will be kept)
+ * @param ownerId Owner ID for verification
+ * @returns Number of releases updated
+ */
+export async function mergePlatforms(sourceId: string, targetId: string, ownerId: number): Promise<number> {
+    const repo = AppDataSource.getRepository(Platform);
+    const gameReleaseRepo = AppDataSource.getRepository(GameRelease);
+    
+    // Get source and target platforms
+    const source = await getPlatformById(sourceId, ownerId);
+    const target = await getPlatformById(targetId, ownerId);
+    
+    if (!source) {
+        throw new Error('Source platform not found');
+    }
+    if (!target) {
+        throw new Error('Target platform not found');
+    }
+    
+    if (sourceId === targetId) {
+        throw new Error('Cannot merge a platform with itself');
+    }
+    
+    // Update all game releases using source platform to use target platform
+    const result = await gameReleaseRepo
+        .createQueryBuilder()
+        .update()
+        .set({platform: target.name})
+        .where('platform = :sourceName', {sourceName: source.name})
+        .andWhere('owner_id = :ownerId', {ownerId})
+        .execute();
+    
+    // Merge aliases: add source aliases (and source name) to target
+    const sourceAliases = getAliasesArray(source);
+    const targetAliases = getAliasesArray(target);
+    
+    // Add source name as an alias (since it's being merged)
+    if (!targetAliases.includes(source.name.toLowerCase())) {
+        targetAliases.push(source.name.toLowerCase());
+    }
+    
+    // Add all source aliases that aren't already in target
+    for (const alias of sourceAliases) {
+        const lowerAlias = alias.toLowerCase();
+        if (!targetAliases.some(a => a.toLowerCase() === lowerAlias)) {
+            targetAliases.push(alias);
+        }
+    }
+    
+    // Update target with merged aliases
+    await setAliases(targetId, targetAliases.join(', '));
+    
+    // Delete the source platform
+    await repo.delete({id: sourceId});
+    
+    return result.affected || 0;
+}
+
+// Import GameRelease for merge function
+import {GameRelease} from "../entities/gameRelease/GameRelease";

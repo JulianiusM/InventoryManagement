@@ -240,3 +240,94 @@ export async function getOrCreateGameTitle(data: CreateGameTitleData): Promise<{
     const title = await createGameTitle(data);
     return {title, isNew: true};
 }
+
+/**
+ * Merge a game title as a release of another title
+ * 
+ * This is useful for resolving edition duplicates (e.g., "The Sims 4" and "The Sims 4 Premium Edition").
+ * 
+ * Requirements:
+ * - Source title must have at most one release
+ * - All copies from source release are moved to the new release on target
+ * 
+ * @param sourceId The title to merge FROM (will be deleted)
+ * @param targetId The title to merge INTO
+ * @param releaseData Data for the new release (platform, edition, etc.)
+ * @returns The created release ID
+ */
+export async function mergeGameTitleAsRelease(
+    sourceId: string, 
+    targetId: string, 
+    releaseData: {
+        platform: string;
+        edition?: string;
+        region?: string;
+        releaseDate?: string;
+    }
+): Promise<string> {
+    const repo = AppDataSource.getRepository(GameTitle);
+    const gameReleaseRepo = AppDataSource.getRepository(GameRelease);
+    const gameMappingRepo = AppDataSource.getRepository(GameExternalMapping);
+    const itemRepo = AppDataSource.getRepository(Item);
+    
+    // Get source with releases
+    const source = await repo.findOne({
+        where: {id: sourceId}, 
+        relations: ['releases', 'releases.items', 'owner']
+    });
+    const target = await repo.findOne({where: {id: targetId}});
+    
+    if (!source || !target) {
+        throw new Error('Source or target game title not found');
+    }
+    
+    if (sourceId === targetId) {
+        throw new Error('Cannot merge a title with itself');
+    }
+    
+    // Check that source has at most one release
+    if (source.releases && source.releases.length > 1) {
+        throw new Error('Source title has multiple releases. Use standard merge instead, or merge releases individually.');
+    }
+    
+    // Create a new release on the target title
+    const newRelease = gameReleaseRepo.create({
+        gameTitle: {id: targetId},
+        platform: releaseData.platform,
+        edition: releaseData.edition || null,
+        region: releaseData.region || null,
+        releaseDate: releaseData.releaseDate || null,
+        owner: source.owner,
+    });
+    await gameReleaseRepo.save(newRelease);
+    
+    // Move all copies from source release(s) to the new release
+    if (source.releases) {
+        for (const oldRelease of source.releases) {
+            if (oldRelease.items) {
+                for (const item of oldRelease.items) {
+                    await itemRepo.update({id: item.id}, {gameRelease: {id: newRelease.id}});
+                }
+            }
+            
+            // Delete the old release (items already moved)
+            await gameReleaseRepo.delete({id: oldRelease.id});
+        }
+    }
+    
+    // Update mappings to point to target title with new release
+    await gameMappingRepo
+        .createQueryBuilder()
+        .update()
+        .set({
+            gameTitle: {id: targetId},
+            gameRelease: {id: newRelease.id},
+        })
+        .where('game_title_id = :sourceId', {sourceId})
+        .execute();
+    
+    // Delete the source title
+    await repo.delete({id: sourceId});
+    
+    return newRelease.id;
+}

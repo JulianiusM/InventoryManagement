@@ -47,6 +47,14 @@ router.post('/titles/merge', asyncHandler(async (req: Request, res: Response) =>
     res.redirect(`/games/titles/${req.body.targetId}`);
 }));
 
+// Merge game title as release (for edition duplicates)
+router.post('/titles/merge-as-release', asyncHandler(async (req: Request, res: Response) => {
+    const userId = req.session.user!.id;
+    const releaseId = await gamesController.mergeGameTitleAsRelease(req.body, userId);
+    req.flash('success', 'Title merged as new release');
+    res.redirect(`/games/releases/${releaseId}`);
+}));
+
 // Merge game releases
 router.post('/releases/merge', asyncHandler(async (req: Request, res: Response) => {
     const userId = req.session.user!.id;
@@ -419,6 +427,14 @@ router.post('/platforms/:id/update', asyncHandler(async (req: Request, res: Resp
     const userId = req.session.user!.id;
     await gamesController.updatePlatform(id, req.body, userId);
     req.flash('success', 'Platform updated successfully');
+    res.redirect('/games/platforms');
+}));
+
+// Merge platforms
+router.post('/platforms/merge', asyncHandler(async (req: Request, res: Response) => {
+    const userId = req.session.user!.id;
+    const releasesUpdated = await gamesController.mergePlatforms(req.body, userId);
+    req.flash('success', `Merge complete: ${releasesUpdated} release(s) updated`);
     res.redirect('/games/platforms');
 }));
 

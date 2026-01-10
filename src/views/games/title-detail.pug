@@ -223,6 +223,9 @@ block content
                             button.btn.btn-outline-light(type="button" data-bs-toggle="modal" data-bs-target="#mergeModal")
                                 i.bi.bi-arrow-left-right.me-1
                                 | Merge Into Another Title
+                            button.btn.btn-outline-light(type="button" data-bs-toggle="modal" data-bs-target="#mergeAsReleaseModal")
+                                i.bi.bi-box-arrow-in-right.me-1
+                                | Merge as Release
                             button.btn.btn-outline-info(type="button" data-bs-toggle="modal" data-bs-target="#fetchMetadataModal")
                                 i.bi.bi-cloud-download.me-1
                                 | Quick Fetch
@@ -358,6 +361,53 @@ block content
                         button.btn.btn-warning(type="submit" form="mergeForm" onclick="return confirm('This will permanently merge the titles. Continue?')")
                             i.bi.bi-arrow-left-right.me-1
                             | Merge
+    
+    //- Merge as Release Modal
+    if title
+        #mergeAsReleaseModal.modal.fade(tabindex="-1")
+            .modal-dialog.modal-lg
+                .modal-content.text-bg-dark
+                    .modal-header.border-secondary
+                        h5.modal-title
+                            i.bi.bi-box-arrow-in-right.me-2
+                            | Merge as Release
+                        button.btn-close.btn-close-white(type="button" data-bs-dismiss="modal")
+                    .modal-body
+                        .alert.alert-info.mb-3
+                            i.bi.bi-info-circle.me-2
+                            | This will merge "#{title.name}" as a new release of the selected target title. Use this to resolve edition duplicates.
+                            if releases && releases.length > 1
+                                br
+                                span.text-danger
+                                    i.bi.bi-exclamation-triangle.me-1
+                                    | Warning: This title has multiple releases. Standard merge is recommended.
+                        form#mergeAsReleaseForm.row.g-3(method="post" action="/games/titles/merge-as-release")
+                            input(type="hidden" name="sourceId" value=title.id)
+                            .col-12
+                                label.form-label Target Game Title *
+                                select.form-select.text-bg-dark(name="targetId" required)
+                                    option(value="") Select target game...
+                                    each t in allTitles
+                                        option(value=t.id) #{t.name}
+                            .col-md-6
+                                label.form-label Platform *
+                                select.form-select.text-bg-dark(name="platform" required)
+                                    each p in platforms
+                                        option(value=p.name) #{p.name}
+                            .col-md-6
+                                label.form-label Edition
+                                input.form-control.text-bg-dark(type="text" name="edition" placeholder="e.g., Premium, GOTY, Collector's" value=(title.name.includes('Edition') ? title.name : ''))
+                            .col-md-6
+                                label.form-label Region
+                                input.form-control.text-bg-dark(type="text" name="region" placeholder="e.g., US, EU, JP")
+                            .col-md-6
+                                label.form-label Release Date
+                                input.form-control.text-bg-dark(type="date" name="releaseDate")
+                    .modal-footer.border-secondary
+                        button.btn.btn-secondary(type="button" data-bs-dismiss="modal") Cancel
+                        button.btn.btn-primary(type="submit" form="mergeAsReleaseForm" onclick="return confirm('This will merge this title as a release of the target. Continue?')")
+                            i.bi.bi-box-arrow-in-right.me-1
+                            | Merge as Release
     
     //- Fetch Metadata Modal
     if title

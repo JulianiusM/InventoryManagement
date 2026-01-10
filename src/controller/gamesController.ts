@@ -1333,6 +1333,49 @@ export async function mergeGameReleases(body: MergeGameReleasesBody, userId: num
     return await gameReleaseService.mergeGameReleases(body.sourceId, body.targetId);
 }
 
+/**
+ * Merge a game title as a release of another title
+ * This is useful for resolving edition duplicates (e.g., "The Sims 4" and "The Sims 4 Premium Edition")
+ */
+export async function mergeGameTitleAsRelease(
+    body: {
+        sourceId: string;
+        targetId: string;
+        platform: string;
+        edition?: string;
+        region?: string;
+        releaseDate?: string;
+    }, 
+    userId: number
+): Promise<string> {
+    requireAuthenticatedUser(userId);
+    
+    // Verify ownership of both titles
+    const source = await gameTitleService.getGameTitleById(body.sourceId);
+    const target = await gameTitleService.getGameTitleById(body.targetId);
+    
+    if (!source) {
+        throw new ExpectedError('Source game title not found', 'error', 404);
+    }
+    if (!target) {
+        throw new ExpectedError('Target game title not found', 'error', 404);
+    }
+    
+    checkOwnership(source, userId);
+    checkOwnership(target, userId);
+    
+    if (!body.platform) {
+        throw new ExpectedError('Platform is required', 'error', 400);
+    }
+    
+    return await gameTitleService.mergeGameTitleAsRelease(body.sourceId, body.targetId, {
+        platform: body.platform,
+        edition: body.edition,
+        region: body.region,
+        releaseDate: body.releaseDate,
+    });
+}
+
 // ============ Manual Digital License Linking ============
 
 /**
@@ -1510,6 +1553,38 @@ export async function updatePlatform(id: string, body: {name?: string; descripti
         }
     } catch (error) {
         if (error instanceof Error && !(error instanceof ExpectedError)) {
+            throw new ExpectedError(error.message, 'error', 400);
+        }
+        throw error;
+    }
+}
+
+/**
+ * Merge two platforms
+ * Updates all game releases using the source platform to use the target platform
+ */
+export async function mergePlatforms(body: {sourceId: string; targetId: string}, userId: number): Promise<number> {
+    requireAuthenticatedUser(userId);
+    
+    // Verify ownership of both platforms
+    const source = await platformService.getPlatformById(body.sourceId, userId);
+    const target = await platformService.getPlatformById(body.targetId, userId);
+    
+    if (!source) {
+        throw new ExpectedError('Source platform not found', 'error', 404);
+    }
+    if (!target) {
+        throw new ExpectedError('Target platform not found', 'error', 404);
+    }
+    
+    if (source.isDefault) {
+        throw new ExpectedError('Cannot merge a default platform. Merge custom platforms instead.', 'error', 400);
+    }
+    
+    try {
+        return await platformService.mergePlatforms(body.sourceId, body.targetId, userId);
+    } catch (error) {
+        if (error instanceof Error) {
             throw new ExpectedError(error.message, 'error', 400);
         }
         throw error;

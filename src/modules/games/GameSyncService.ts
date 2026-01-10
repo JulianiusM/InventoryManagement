@@ -498,6 +498,49 @@ export async function syncExternalAccount(
 }
 
 /**
+ * Pre-fetch existing items for a list of games
+ * This is the central smart sync helper used by both fetch and push flows
+ * 
+ * @param accountId The external account ID
+ * @param games List of games to check
+ * @returns Map of externalGameId -> existing item (only for games that have copies)
+ */
+async function prefetchExistingItems(
+    accountId: string,
+    games: ExternalGame[]
+): Promise<Map<string, Awaited<ReturnType<typeof itemService.findGameItemByExternalId>>>> {
+    const existingItemsMap = new Map<string, Awaited<ReturnType<typeof itemService.findGameItemByExternalId>>>();
+    
+    for (const game of games) {
+        const existing = await itemService.findGameItemByExternalId(accountId, game.externalGameId);
+        if (existing) {
+            existingItemsMap.set(game.externalGameId, existing);
+        }
+    }
+    
+    const newCount = games.length - existingItemsMap.size;
+    console.log(`Smart sync: ${existingItemsMap.size} games already have copies, ${newCount} need full processing`);
+    
+    return existingItemsMap;
+}
+
+/**
+ * Update an existing game item with latest data (playtime, install status, store URL)
+ * Used by smart sync to skip full processing for existing games
+ */
+async function updateExistingGameItem(
+    existingItem: NonNullable<Awaited<ReturnType<typeof itemService.findGameItemByExternalId>>>,
+    game: ExternalGame
+): Promise<void> {
+    await itemService.updateItem(existingItem.id, {
+        playtimeMinutes: game.playtimeMinutes,
+        lastPlayedAt: game.lastPlayedAt,
+        isInstalled: game.isInstalled,
+        storeUrl: game.storeUrl,
+    });
+}
+
+/**
  * Process synced games with automatic game title and copy creation
  * 
  * For each game from the connector:
@@ -527,18 +570,11 @@ async function processGamesWithAutoCreate(
     // Use provider-specific platform default or 'PC' as fallback
     const platform = providerPlatformDefaults[provider.toLowerCase()] || 'PC';
     
-    // Smart sync: Pre-fetch all existing items to identify which games need full processing
-    const existingItemsMap = new Map<string, Awaited<ReturnType<typeof itemService.findGameItemByExternalId>>>();
-    for (const game of games) {
-        const existing = await itemService.findGameItemByExternalId(accountId, game.externalGameId);
-        if (existing) {
-            existingItemsMap.set(game.externalGameId, existing);
-        }
-    }
+    // Smart sync: Pre-fetch all existing items using centralized helper
+    const existingItemsMap = await prefetchExistingItems(accountId, games);
     
     // Filter games to those that need metadata enrichment (new games only)
     const newGames = games.filter(g => !existingItemsMap.has(g.externalGameId));
-    console.log(`Smart sync: ${existingItemsMap.size} games already have copies, ${newGames.length} need full processing`);
     
     // Only fetch metadata for NEW games - skip for existing games
     let metadataCache: Map<string, GameMetadata> = new Map();
@@ -565,13 +601,8 @@ async function processGamesWithAutoCreate(
                 });
                 entriesUpdated++;
                 
-                // Update existing item with latest playtime/status only (no metadata)
-                await itemService.updateItem(existingItem.id, {
-                    playtimeMinutes: game.playtimeMinutes,
-                    lastPlayedAt: game.lastPlayedAt,
-                    isInstalled: game.isInstalled,
-                    storeUrl: game.storeUrl, // Keep store URL updated
-                });
+                // Update existing item using centralized helper
+                await updateExistingGameItem(existingItem, game);
                 continue;
             }
             
@@ -807,8 +838,73 @@ async function autoCreateGameFromMetadata(
 }
 
 /**
+ * Clamp player profile values to ensure they pass validation
+ * Instead of using safe defaults, this attempts to preserve as much data as possible
+ * by correcting inconsistencies in the metadata
+ */
+function clampPlayerProfileValues(game: ExternalGame): ExternalGame {
+    // Start with a copy
+    const clamped: ExternalGame = {...game};
+    
+    // Ensure overall min is at least 1
+    if (!clamped.overallMinPlayers || clamped.overallMinPlayers < 1) {
+        clamped.overallMinPlayers = 1;
+    }
+    
+    // Ensure overall max is at least min
+    if (!clamped.overallMaxPlayers || clamped.overallMaxPlayers < clamped.overallMinPlayers) {
+        clamped.overallMaxPlayers = clamped.overallMinPlayers;
+    }
+    
+    // If supports online but mode players are inconsistent, clamp them
+    if (clamped.supportsOnline) {
+        // Online min must be >= overall min
+        if (clamped.onlineMinPlayers !== undefined && clamped.onlineMinPlayers < clamped.overallMinPlayers) {
+            clamped.onlineMinPlayers = clamped.overallMinPlayers;
+        }
+        
+        // Online max must be <= overall max
+        if (clamped.onlineMaxPlayers !== undefined && clamped.onlineMaxPlayers > clamped.overallMaxPlayers) {
+            // If online max is larger, extend overall max to accommodate
+            clamped.overallMaxPlayers = clamped.onlineMaxPlayers;
+        }
+        
+        // Online max must be >= online min
+        if (clamped.onlineMinPlayers !== undefined && clamped.onlineMaxPlayers !== undefined 
+            && clamped.onlineMaxPlayers < clamped.onlineMinPlayers) {
+            clamped.onlineMaxPlayers = clamped.onlineMinPlayers;
+        }
+    } else {
+        // Not supported, clear the mode-specific values
+        clamped.onlineMinPlayers = undefined;
+        clamped.onlineMaxPlayers = undefined;
+    }
+    
+    // Same for local multiplayer
+    if (clamped.supportsLocal) {
+        if (clamped.localMinPlayers !== undefined && clamped.localMinPlayers < clamped.overallMinPlayers) {
+            clamped.localMinPlayers = clamped.overallMinPlayers;
+        }
+        
+        if (clamped.localMaxPlayers !== undefined && clamped.localMaxPlayers > clamped.overallMaxPlayers) {
+            clamped.overallMaxPlayers = clamped.localMaxPlayers;
+        }
+        
+        if (clamped.localMinPlayers !== undefined && clamped.localMaxPlayers !== undefined 
+            && clamped.localMaxPlayers < clamped.localMinPlayers) {
+            clamped.localMaxPlayers = clamped.localMinPlayers;
+        }
+    } else {
+        clamped.localMinPlayers = undefined;
+        clamped.localMaxPlayers = undefined;
+    }
+    
+    return clamped;
+}
+
+/**
  * Safe wrapper for autoCreateGameFromMetadata that handles PlayerProfileValidationError
- * If validation fails, uses safe defaults instead of failing the entire sync
+ * If validation fails, clamps values to ensure they pass validation
  * 
  * This ensures that syncs complete even if metadata from providers has invalid values
  * (e.g., onlineMaxPlayers > overallMaxPlayers due to inconsistent metadata)
@@ -822,23 +918,32 @@ async function safeAutoCreateGameFromMetadata(
         return await autoCreateGameFromMetadata(game, platform, ownerId);
     } catch (error) {
         if (error instanceof PlayerProfileValidationError) {
-            console.warn(`PlayerProfileValidationError for "${game.name}": ${error.message}. Using safe defaults.`);
+            console.warn(`PlayerProfileValidationError for "${game.name}": ${error.message}. Attempting to clamp values.`);
             
-            // Use safe defaults that will always pass validation
-            const safeGame: ExternalGame = {
-                ...game,
-                overallMinPlayers: 1,
-                overallMaxPlayers: 1,
-                supportsOnline: false,
-                supportsLocal: false,
-                supportsPhysical: false,
-                onlineMinPlayers: undefined,
-                onlineMaxPlayers: undefined,
-                localMinPlayers: undefined,
-                localMaxPlayers: undefined,
-            };
+            // Clamp values to ensure they pass validation
+            const clampedGame = clampPlayerProfileValues(game);
             
-            return await autoCreateGameFromMetadata(safeGame, platform, ownerId);
+            try {
+                return await autoCreateGameFromMetadata(clampedGame, platform, ownerId);
+            } catch (clampError) {
+                // If clamping still fails, use absolute safe defaults as last resort
+                console.warn(`Clamping failed for "${game.name}": ${clampError instanceof Error ? clampError.message : 'Unknown'}. Using minimal defaults.`);
+                
+                const safeGame: ExternalGame = {
+                    ...game,
+                    overallMinPlayers: 1,
+                    overallMaxPlayers: 1,
+                    supportsOnline: false,
+                    supportsLocal: false,
+                    supportsPhysical: false,
+                    onlineMinPlayers: undefined,
+                    onlineMaxPlayers: undefined,
+                    localMinPlayers: undefined,
+                    localMaxPlayers: undefined,
+                };
+                
+                return await autoCreateGameFromMetadata(safeGame, platform, ownerId);
+            }
         }
         throw error;
     }
@@ -1013,16 +1118,8 @@ async function processGamesImmediately(
     // Use provider-specific platform default or 'PC' as fallback
     const platform = providerPlatformDefaults[provider.toLowerCase()] || 'PC';
     
-    // Pre-fetch all existing items for this account to reduce database queries
-    const existingItemsMap = new Map<string, Awaited<ReturnType<typeof itemService.findGameItemByExternalId>>>();
-    for (const game of games) {
-        const existing = await itemService.findGameItemByExternalId(accountId, game.externalGameId);
-        if (existing) {
-            existingItemsMap.set(game.externalGameId, existing);
-        }
-    }
-    
-    console.log(`Smart sync: ${existingItemsMap.size} games already have copies, ${games.length - existingItemsMap.size} need full processing`);
+    // Smart sync: Pre-fetch all existing items using centralized helper
+    const existingItemsMap = await prefetchExistingItems(accountId, games);
     
     for (const game of games) {
         try {
@@ -1051,13 +1148,8 @@ async function processGamesImmediately(
             // Smart sync: If this game already has a copy, just update it and skip full processing
             const existingItem = existingItemsMap.get(game.externalGameId);
             if (existingItem) {
-                // Only update mutable fields (playtime, install status, store URL)
-                await itemService.updateItem(existingItem.id, {
-                    playtimeMinutes: game.playtimeMinutes,
-                    lastPlayedAt: game.lastPlayedAt,
-                    isInstalled: game.isInstalled,
-                    storeUrl: game.storeUrl,
-                });
+                // Update existing item using centralized helper
+                await updateExistingGameItem(existingItem, game);
                 continue;
             }
             
