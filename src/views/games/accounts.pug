@@ -23,9 +23,13 @@ block content
             if accounts.length > 0
                 span.badge.text-bg-secondary.ms-2.fs-6 #{accounts.length}
         
-        button.btn.btn-primary(type="button" data-bs-toggle="modal" data-bs-target="#addAccountModal")
-            i.bi.bi-plus-lg.me-1
-            | Link Account
+        .btn-group
+            a.btn.btn-outline-light(href="/games/jobs")
+                i.bi.bi-clock-history.me-1
+                | View Jobs
+            button.btn.btn-primary(type="button" data-bs-toggle="modal" data-bs-target="#addAccountModal")
+                i.bi.bi-plus-lg.me-1
+                | Link Account
 
     //- Info card
     .card.text-bg-dark.border-secondary.mb-3

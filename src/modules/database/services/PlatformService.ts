@@ -5,28 +5,53 @@ import {v4 as uuidv4} from "uuid";
 /**
  * Default platforms with their default aliases
  * Aliases are stored in the database for user customization
+ * Includes manufacturer name variations for common platforms
  */
 const DEFAULT_PLATFORMS = [
-    {name: "PC", description: "Windows/Mac/Linux", aliases: "windows,mac,macos,mac os,mac os x,macintosh,linux,computer,pc windows,pc (windows),microsoft windows,steam,desktop"},
-    {name: "PlayStation 5", description: "Sony PlayStation 5", aliases: "ps5,playstation5,playstation 5,sony playstation 5"},
-    {name: "PlayStation 4", description: "Sony PlayStation 4", aliases: "ps4,playstation4,playstation 4,sony playstation 4"},
-    {name: "PlayStation 3", description: "Sony PlayStation 3", aliases: "ps3,playstation3,playstation 3,sony playstation 3"},
-    {name: "PlayStation 2", description: "Sony PlayStation 2", aliases: "ps2,playstation2,playstation 2,sony playstation 2"},
-    {name: "PlayStation", description: "Sony PlayStation (PS1)", aliases: "ps1,psx,playstation1,playstation 1,sony playstation"},
-    {name: "PlayStation Vita", description: "Sony PlayStation Vita", aliases: "psvita,ps vita,vita"},
-    {name: "PlayStation Portable", description: "Sony PlayStation Portable (PSP)", aliases: "psp"},
-    {name: "Xbox Series X|S", description: "Microsoft Xbox Series X|S", aliases: "xbox series x,xbox series s,xbox series,xsx,xss"},
-    {name: "Xbox One", description: "Microsoft Xbox One", aliases: "xbone,xb1"},
-    {name: "Xbox 360", description: "Microsoft Xbox 360", aliases: "x360,xb360"},
-    {name: "Xbox", description: "Microsoft Xbox (Original)", aliases: "xbox original,original xbox"},
-    {name: "Nintendo Switch", description: "Nintendo Switch/Switch Lite/Switch OLED", aliases: "switch,ns,nx"},
-    {name: "Nintendo 3DS", description: "Nintendo 3DS/2DS", aliases: "3ds,new 3ds,2ds,new 2ds,n3ds"},
-    {name: "Nintendo DS", description: "Nintendo DS/DS Lite/DSi", aliases: "nds,ds,ds lite,dsi"},
+    // PC - covers Windows, Mac, Linux, and common variations
+    {name: "PC", description: "Windows/Mac/Linux", aliases: "windows,mac,macos,mac os,mac os x,macintosh,linux,ubuntu,computer,pc windows,pc (windows),microsoft windows,steam,desktop,win,win32,win64,ibm pc,personal computer"},
+    
+    // PlayStation family - Sony
+    {name: "PlayStation 5", description: "Sony PlayStation 5", aliases: "ps5,playstation5,playstation 5,sony playstation 5,sony ps5"},
+    {name: "PlayStation 4", description: "Sony PlayStation 4", aliases: "ps4,playstation4,playstation 4,sony playstation 4,sony ps4,ps4 pro"},
+    {name: "PlayStation 3", description: "Sony PlayStation 3", aliases: "ps3,playstation3,playstation 3,sony playstation 3,sony ps3"},
+    {name: "PlayStation 2", description: "Sony PlayStation 2", aliases: "ps2,playstation2,playstation 2,sony playstation 2,sony ps2"},
+    {name: "PlayStation", description: "Sony PlayStation (PS1)", aliases: "ps1,psx,playstation1,playstation 1,sony playstation,ps one,psone"},
+    {name: "PlayStation Vita", description: "Sony PlayStation Vita", aliases: "psvita,ps vita,vita,sony vita,playstation vita"},
+    {name: "PlayStation Portable", description: "Sony PlayStation Portable (PSP)", aliases: "psp,sony psp"},
+    
+    // Xbox family - Microsoft
+    {name: "Xbox Series X|S", description: "Microsoft Xbox Series X|S", aliases: "xbox series x,xbox series s,xbox series,xsx,xss,microsoft xbox series x,microsoft xbox series s,xbox series x|s"},
+    {name: "Xbox One", description: "Microsoft Xbox One", aliases: "xbone,xb1,xbox one,microsoft xbox one,xbox one x,xbox one s"},
+    {name: "Xbox 360", description: "Microsoft Xbox 360", aliases: "x360,xb360,microsoft xbox 360"},
+    {name: "Xbox", description: "Microsoft Xbox (Original)", aliases: "xbox original,original xbox,microsoft xbox"},
+    
+    // Nintendo family
+    {name: "Nintendo Switch", description: "Nintendo Switch/Switch Lite/Switch OLED", aliases: "switch,ns,nx,nintendo switch lite,switch lite,switch oled,nintendo switch oled"},
+    {name: "Nintendo 3DS", description: "Nintendo 3DS/2DS", aliases: "3ds,new 3ds,2ds,new 2ds,n3ds,new nintendo 3ds,nintendo 2ds"},
+    {name: "Nintendo DS", description: "Nintendo DS/DS Lite/DSi", aliases: "nds,ds,ds lite,dsi,nintendo ds lite,nintendo dsi"},
     {name: "Nintendo Wii U", description: "Nintendo Wii U", aliases: "wii u,wiiu"},
     {name: "Nintendo Wii", description: "Nintendo Wii", aliases: "wii"},
-    {name: "Nintendo GameCube", description: "Nintendo GameCube", aliases: "gamecube,gc,ngc,gcn"},
-    {name: "Mobile", description: "iOS/Android", aliases: "ios,android,iphone,ipad"},
-    {name: "Physical Only", description: "Board games, card games, etc.", aliases: ""},
+    {name: "Nintendo GameCube", description: "Nintendo GameCube", aliases: "gamecube,gc,ngc,gcn,nintendo gc"},
+    {name: "Game Boy Advance", description: "Nintendo Game Boy Advance", aliases: "gba,game boy advance,nintendo gba,gameboy advance"},
+    {name: "Game Boy", description: "Nintendo Game Boy/Game Boy Color", aliases: "gb,gbc,game boy color,gameboy,gameboy color,nintendo game boy"},
+    {name: "Nintendo 64", description: "Nintendo 64", aliases: "n64,ultra 64"},
+    {name: "Super Nintendo", description: "Super Nintendo Entertainment System", aliases: "snes,super nes,super famicom,sfc,super nintendo entertainment system"},
+    {name: "Nintendo Entertainment System", description: "Nintendo Entertainment System (NES)", aliases: "nes,famicom,nintendo,fc"},
+    
+    // Sega family
+    {name: "Sega Genesis", description: "Sega Genesis/Mega Drive", aliases: "genesis,mega drive,megadrive,sega mega drive,md"},
+    {name: "Sega Dreamcast", description: "Sega Dreamcast", aliases: "dreamcast,dc"},
+    {name: "Sega Saturn", description: "Sega Saturn", aliases: "saturn"},
+    
+    // Atari
+    {name: "Atari 2600", description: "Atari 2600", aliases: "atari,atari vcs,vcs"},
+    
+    // Mobile
+    {name: "Mobile", description: "iOS/Android", aliases: "ios,android,iphone,ipad,mobile phone,smartphone,tablet"},
+    
+    // Physical games
+    {name: "Physical Only", description: "Board games, card games, etc.", aliases: "tabletop,board game,card game"},
 ];
 
 /**

@@ -167,95 +167,157 @@ class MetadataFetcher {
         const metadataCache = new Map<string, GameMetadata>();
         
         // Run 1: General metadata from primary provider (matching game source)
-        await this.fetchGeneralMetadata(games, provider, metadataCache);
+        // With fallback to RAWG if primary fails
+        await this.fetchGeneralMetadataWithFallback(games, provider, metadataCache);
         
         // Run 2: Player counts from provider with accurate player count capability
-        await this.fetchPlayerCounts(games, metadataCache);
+        // With fallback to RAWG if IGDB fails
+        await this.fetchPlayerCountsWithFallback(games, metadataCache);
         
         console.log(`Total metadata fetched: ${metadataCache.size}/${games.length} games`);
         return metadataCache;
     }
     
     /**
-     * Run 1: Fetch general metadata from the primary provider
+     * Run 1: Fetch general metadata from the primary provider with fallback
      */
-    private async fetchGeneralMetadata(
+    private async fetchGeneralMetadataWithFallback(
         games: ExternalGame[],
         provider: string,
         metadataCache: Map<string, GameMetadata>
     ): Promise<void> {
+        // Try primary provider first
         const primaryProvider = metadataProviderRegistry.getById(provider);
-        if (!primaryProvider || this.isProviderRateLimited(provider)) {
-            return;
+        if (primaryProvider && !this.isProviderRateLimited(provider)) {
+            await this.fetchGeneralMetadataFromProvider(games, primaryProvider, metadataCache);
         }
         
-        const config = primaryProvider.getRateLimitConfig();
+        // If we didn't get all games, try fallback (RAWG)
+        const gamesStillNeeding = games.filter(g => !metadataCache.has(g.externalGameId));
+        if (gamesStillNeeding.length > 0) {
+            const fallbackProvider = metadataProviderRegistry.getById('rawg');
+            if (fallbackProvider && !this.isProviderRateLimited('rawg')) {
+                console.log(`Falling back to RAWG for ${gamesStillNeeding.length} games without metadata`);
+                await this.fetchGeneralMetadataFromProviderByName(gamesStillNeeding, fallbackProvider, metadataCache);
+            }
+        }
+    }
+    
+    /**
+     * Fetch general metadata from a specific provider
+     */
+    private async fetchGeneralMetadataFromProvider(
+        games: ExternalGame[],
+        provider: MetadataProvider,
+        metadataCache: Map<string, GameMetadata>
+    ): Promise<void> {
+        const providerId = provider.getManifest().id;
+        const config = provider.getRateLimitConfig();
         const externalIds = games.map(g => g.externalGameId).slice(0, config.maxGamesPerSync);
         
-        console.log(`Fetching general metadata from ${provider} for ${externalIds.length} games`);
+        console.log(`Fetching general metadata from ${providerId} for ${externalIds.length} games`);
         
         try {
-            // Apply rate limiting and fetch
             for (let i = 0; i < externalIds.length; i += config.maxBatchSize) {
                 const batch = externalIds.slice(i, i + config.maxBatchSize);
                 
                 for (const id of batch) {
-                    await this.applyRateLimit(primaryProvider);
+                    await this.applyRateLimit(provider);
                     
                     try {
-                        const meta = await primaryProvider.getGameMetadata(id);
+                        const meta = await provider.getGameMetadata(id);
                         if (meta) {
                             metadataCache.set(id, meta);
-                            this.resetErrors(provider);
+                            this.resetErrors(providerId);
                         }
                     } catch (error) {
-                        // Check for rate limit (429)
-                        const isRateLimit = error instanceof Error && (
-                            error.message.includes('429') ||
-                            error.message.includes('rate') ||
-                            error.message.includes('Too Many')
-                        );
-                        
-                        if (isRateLimit) {
-                            this.markProviderRateLimited(provider);
-                            return; // Stop immediately, fallback to alternatives
-                        }
-                        
-                        if (this.trackError(provider)) {
-                            console.log(`${provider}: Too many consecutive errors, stopping`);
-                            return;
+                        if (this.handleProviderError(error, providerId)) {
+                            return; // Stop if rate limited or too many errors
                         }
                     }
                 }
                 
-                // Delay between batches
                 if (i + config.maxBatchSize < externalIds.length) {
                     await new Promise(resolve => setTimeout(resolve, config.batchDelayMs));
                 }
             }
             
-            console.log(`General metadata: ${metadataCache.size}/${externalIds.length} games`);
+            console.log(`General metadata from ${providerId}: ${metadataCache.size}/${externalIds.length} games`);
         } catch (error) {
-            console.warn(`Primary provider ${provider} failed:`, error);
+            console.warn(`Provider ${providerId} failed:`, error);
         }
     }
     
     /**
-     * Run 2: Fetch player counts from provider with accurate player count capability
+     * Fetch general metadata from a provider by searching by game name
+     * Used for fallback providers that don't have the same IDs
      */
-    private async fetchPlayerCounts(
+    private async fetchGeneralMetadataFromProviderByName(
+        games: ExternalGame[],
+        provider: MetadataProvider,
+        metadataCache: Map<string, GameMetadata>
+    ): Promise<void> {
+        const providerId = provider.getManifest().id;
+        const config = provider.getRateLimitConfig();
+        
+        console.log(`Searching ${providerId} by name for ${games.length} games`);
+        
+        for (const game of games.slice(0, config.maxGamesPerSync)) {
+            await this.applyRateLimit(provider);
+            
+            try {
+                const searchResults = await provider.searchGames(game.name, 1);
+                if (searchResults.length > 0) {
+                    const meta = await provider.getGameMetadata(searchResults[0].externalId);
+                    if (meta) {
+                        // Map to the original game's externalGameId
+                        metadataCache.set(game.externalGameId, {
+                            ...meta,
+                            externalId: game.externalGameId,
+                        });
+                        this.resetErrors(providerId);
+                    }
+                }
+            } catch (error) {
+                if (this.handleProviderError(error, providerId)) {
+                    return;
+                }
+            }
+        }
+    }
+    
+    /**
+     * Handle provider error (rate limit or consecutive errors)
+     * @returns true if we should stop using this provider
+     */
+    private handleProviderError(error: unknown, providerId: string): boolean {
+        const isRateLimit = error instanceof Error && (
+            error.message.includes('429') ||
+            error.message.includes('rate') ||
+            error.message.includes('Too Many')
+        );
+        
+        if (isRateLimit) {
+            this.markProviderRateLimited(providerId);
+            console.log(`${providerId} rate limited, stopping and using fallback`);
+            return true;
+        }
+        
+        if (this.trackError(providerId)) {
+            console.log(`${providerId}: Too many consecutive errors, stopping`);
+            return true;
+        }
+        
+        return false;
+    }
+    
+    /**
+     * Run 2: Fetch player counts with fallback chain (IGDB → RAWG)
+     */
+    private async fetchPlayerCountsWithFallback(
         games: ExternalGame[],
         metadataCache: Map<string, GameMetadata>
     ): Promise<void> {
-        // Find provider with accurate player counts (IGDB is preferred)
-        const playerCountProvider = metadataProviderRegistry.getByCapability('hasAccuratePlayerCounts');
-        if (!playerCountProvider || this.isProviderRateLimited(playerCountProvider.getManifest().id)) {
-            return;
-        }
-        
-        const providerId = playerCountProvider.getManifest().id;
-        const config = playerCountProvider.getRateLimitConfig();
-        
         // Filter to games that need player count enrichment
         const gamesNeedingPlayerCounts = games.filter(game => {
             const cachedMeta = metadataCache.get(game.externalGameId);
@@ -269,66 +331,111 @@ class MetadataFetcher {
             return;
         }
         
-        console.log(`Fetching player counts from ${providerId} for ${gamesNeedingPlayerCounts.length} games`);
+        // Try IGDB first (most accurate player counts)
+        let gamesRemaining = await this.fetchPlayerCountsFromProvider(
+            gamesNeedingPlayerCounts,
+            metadataCache,
+            'igdb'
+        );
+        
+        // If some games still need player counts, try RAWG
+        if (gamesRemaining.length > 0) {
+            await this.fetchPlayerCountsFromProvider(gamesRemaining, metadataCache, 'rawg');
+        }
+    }
+    
+    /**
+     * Fetch player counts from a specific provider
+     * @returns Games that still need player counts (provider failed or didn't have data)
+     */
+    private async fetchPlayerCountsFromProvider(
+        games: ExternalGame[],
+        metadataCache: Map<string, GameMetadata>,
+        providerId: string
+    ): Promise<ExternalGame[]> {
+        const provider = metadataProviderRegistry.getById(providerId);
+        if (!provider || this.isProviderRateLimited(providerId)) {
+            return games;
+        }
+        
+        const config = provider.getRateLimitConfig();
+        const gamesProcessed: ExternalGame[] = [];
+        
+        console.log(`Fetching player counts from ${providerId} for ${games.length} games`);
         
         let queriesCompleted = 0;
-        const timeoutMs = settings.value.igdbQueryTimeoutMs || 300000; // 5 minutes default
+        const timeoutMs = settings.value.igdbQueryTimeoutMs || 300000;
         const startTime = Date.now();
         
-        for (const game of gamesNeedingPlayerCounts) {
-            // Check time limit
+        for (const game of games) {
             if (Date.now() - startTime >= timeoutMs) {
                 console.log(`${providerId} time limit reached, completed ${queriesCompleted} queries`);
                 break;
             }
             
-            await this.applyRateLimit(playerCountProvider);
+            await this.applyRateLimit(provider);
             
             try {
-                // Search by game name to find the game in IGDB
-                const searchResults = await playerCountProvider.searchGames(game.name, 1);
+                const searchResults = await provider.searchGames(game.name, 1);
                 if (searchResults.length > 0) {
-                    const playerMeta = await playerCountProvider.getGameMetadata(searchResults[0].externalId);
+                    const playerMeta = await provider.getGameMetadata(searchResults[0].externalId);
                     if (playerMeta?.playerInfo) {
                         const existingMeta = metadataCache.get(game.externalGameId);
                         if (existingMeta) {
-                            // Merge player counts into existing metadata
                             metadataCache.set(game.externalGameId, {
                                 ...existingMeta,
                                 playerInfo: mergePlayerCounts(existingMeta.playerInfo, playerMeta.playerInfo),
                             });
                         } else {
-                            // No existing metadata, use player count provider's data
                             metadataCache.set(game.externalGameId, {
                                 ...playerMeta,
                                 externalId: game.externalGameId,
                             });
                         }
+                        gamesProcessed.push(game);
                     }
                 }
                 queriesCompleted++;
                 this.resetErrors(providerId);
             } catch (error) {
-                const isRateLimit = error instanceof Error && (
-                    error.message.includes('429') ||
-                    error.message.includes('rate') ||
-                    error.message.includes('Too Many')
-                );
-                
-                if (isRateLimit) {
-                    this.markProviderRateLimited(providerId);
-                    console.log(`${providerId} rate limited, stopping player count enrichment`);
-                    break;
-                }
-                
-                if (this.trackError(providerId)) {
-                    console.log(`${providerId}: Too many consecutive errors, stopping`);
+                if (this.handleProviderError(error, providerId)) {
                     break;
                 }
             }
         }
         
-        console.log(`Player count enrichment: ${queriesCompleted} queries completed`);
+        console.log(`Player count enrichment from ${providerId}: ${queriesCompleted} queries, ${gamesProcessed.length} enriched`);
+        
+        // Return games that weren't successfully processed
+        return games.filter(g => !gamesProcessed.includes(g));
+    }
+    
+    /**
+     * @deprecated Use fetchGeneralMetadataWithFallback instead
+     * Run 1: Fetch general metadata from the primary provider
+     */
+    private async fetchGeneralMetadata(
+        games: ExternalGame[],
+        provider: string,
+        metadataCache: Map<string, GameMetadata>
+    ): Promise<void> {
+        const primaryProvider = metadataProviderRegistry.getById(provider);
+        if (!primaryProvider || this.isProviderRateLimited(provider)) {
+            return;
+        }
+        
+        await this.fetchGeneralMetadataFromProvider(games, primaryProvider, metadataCache);
+    }
+    
+    /**
+     * @deprecated Use fetchPlayerCountsWithFallback instead
+     * Run 2: Fetch player counts from provider with accurate player count capability
+     */
+    private async fetchPlayerCounts(
+        games: ExternalGame[],
+        metadataCache: Map<string, GameMetadata>
+    ): Promise<void> {
+        await this.fetchPlayerCountsWithFallback(games, metadataCache);
     }
 }
 
@@ -1260,6 +1367,7 @@ async function processMetadataEnrichmentAsync(
         const metadataCache = await metadataFetcher.fetchMetadataForGames(games, provider);
         
         let enrichedCount = 0;
+        let skippedCount = 0;
         
         // Enrich games that have metadata
         for (const game of games) {
@@ -1274,7 +1382,18 @@ async function processMetadataEnrichmentAsync(
                     ownerId
                 );
                 
-                if (!mapping?.gameTitleId) continue;
+                if (!mapping?.gameTitleId) {
+                    skippedCount++;
+                    continue;
+                }
+                
+                // Check if the game title still exists (may have been merged/deleted)
+                const gameTitle = await gameTitleService.getGameTitleById(mapping.gameTitleId);
+                if (!gameTitle) {
+                    console.log(`Skipping enrichment for "${game.name}" - game title no longer exists (may have been merged or deleted)`);
+                    skippedCount++;
+                    continue;
+                }
                 
                 // Enrich game title with metadata
                 const enrichedGame = enrichGameWithMetadata(game, metadata);
@@ -1309,12 +1428,12 @@ async function processMetadataEnrichmentAsync(
                     enrichedCount++;
                 }
             } catch (error) {
-                // Log error but continue with other games
+                // Log error but continue with other games (resilient to individual failures)
                 console.error(`Failed to enrich game "${game.name}":`, error);
             }
         }
         
-        console.log(`Background metadata enrichment completed: ${enrichedCount}/${games.length} games enriched (job ${jobId})`);
+        console.log(`Background metadata enrichment completed: ${enrichedCount}/${games.length} games enriched, ${skippedCount} skipped (job ${jobId})`);
         
         // Mark job as completed
         await syncJobService.completeSyncJob(jobId, {

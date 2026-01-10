@@ -6,6 +6,8 @@ import {setCurrentNavLocation} from '../core/navigation';
 import {post} from '../core/http';
 import {showInlineAlert} from '../shared/alerts';
 
+declare const $: any;
+
 /**
  * Get copy ID from URL
  */
@@ -61,11 +63,39 @@ function initBarcodeForm(): void {
 }
 
 /**
+ * Initialize Select2 for dropdowns
+ */
+function initSelect2(): void {
+    if (typeof $ === 'undefined' || !$.fn.select2) {
+        console.warn('Select2 not available');
+        return;
+    }
+    
+    // Location dropdown in move modal
+    $('select[name="locationId"]').select2({
+        theme: 'bootstrap-5',
+        placeholder: 'Select a location...',
+        allowClear: true,
+        dropdownParent: $('#moveCopyModal'),
+        width: '100%',
+    });
+    
+    // External account dropdown in link account modal
+    $('select[name="externalAccountId"]').select2({
+        theme: 'bootstrap-5',
+        placeholder: 'Select an account...',
+        dropdownParent: $('#linkAccountModal'),
+        width: '100%',
+    });
+}
+
+/**
  * Initialize game copy detail page
  */
 export function init(): void {
     setCurrentNavLocation();
     initBarcodeForm();
+    initSelect2();
 }
 
 // Expose to global scope

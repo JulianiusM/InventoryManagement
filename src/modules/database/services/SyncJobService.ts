@@ -89,3 +89,37 @@ export async function getPendingJobs(): Promise<SyncJob[]> {
         order: {createdAt: 'ASC'},
     });
 }
+
+/**
+ * Get all sync jobs for a user (across all their accounts)
+ * For the Jobs Overview page
+ */
+export async function getAllJobsForUser(ownerId: number, options?: {
+    status?: SyncStatus;
+    limit?: number;
+    offset?: number;
+}): Promise<{jobs: SyncJob[]; total: number}> {
+    const repo = AppDataSource.getRepository(SyncJob);
+    
+    const queryBuilder = repo.createQueryBuilder('job')
+        .leftJoinAndSelect('job.externalAccount', 'account')
+        .where('account.owner_id = :ownerId', {ownerId})
+        .orderBy('job.createdAt', 'DESC');
+    
+    if (options?.status) {
+        queryBuilder.andWhere('job.status = :status', {status: options.status});
+    }
+    
+    const total = await queryBuilder.getCount();
+    
+    if (options?.limit) {
+        queryBuilder.take(options.limit);
+    }
+    if (options?.offset) {
+        queryBuilder.skip(options.offset);
+    }
+    
+    const jobs = await queryBuilder.getMany();
+    
+    return {jobs, total};
+}

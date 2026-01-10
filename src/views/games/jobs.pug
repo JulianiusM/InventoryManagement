@@ -1,0 +1,135 @@
+extends ../layout
+
+block meta
+    title Sync Jobs | Inventory Management
+
+block content
+    - const jobs = (data && data.jobs) ? data.jobs : []
+    - const total = (data && data.total) ? data.total : 0
+    - const page = (data && data.page) ? data.page : 1
+    - const totalPages = (data && data.totalPages) ? data.totalPages : 1
+    - const statusFilter = (data && data.statusFilter) ? data.statusFilter : ''
+
+    #liveAlerts
+
+    .d-flex.justify-content-between.align-items-center.mb-3.flex-wrap.gap-2
+        h1.h3.mb-0.text-white
+            i.bi.bi-clock-history.me-2
+            | Sync Jobs
+            if total > 0
+                span.badge.text-bg-secondary.ms-2.fs-6 #{total}
+        
+        a.btn.btn-outline-light(href="/games/accounts")
+            i.bi.bi-arrow-left.me-1
+            | Back to Accounts
+
+    //- Filter bar
+    .card.text-bg-dark.border-secondary.mb-3
+        .card-body
+            form.row.g-2(method="get" action="/games/jobs")
+                .col-auto
+                    label.visually-hidden(for="statusFilter") Status
+                    select.form-select.text-bg-dark(name="status" id="statusFilter" onchange="this.form.submit()")
+                        option(value="" selected=(statusFilter === '')) All Statuses
+                        option(value="pending" selected=(statusFilter === 'pending')) Pending
+                        option(value="in_progress" selected=(statusFilter === 'in_progress')) In Progress
+                        option(value="completed" selected=(statusFilter === 'completed')) Completed
+                        option(value="failed" selected=(statusFilter === 'failed')) Failed
+                .col-auto
+                    if statusFilter
+                        a.btn.btn-outline-secondary(href="/games/jobs")
+                            i.bi.bi-x-lg.me-1
+                            | Clear Filter
+
+    //- Jobs list
+    if jobs.length === 0
+        .card.text-bg-dark.border-secondary
+            .card-body.text-center.py-5
+                i.bi.bi-clock-history.display-1.text-white-50.mb-3.d-block
+                p.text-white-50.mb-3 No sync jobs found.
+                a.btn.btn-outline-light(href="/games/accounts")
+                    | Go to Accounts
+    else
+        .card.text-bg-dark.border-secondary
+            .card-body
+                .table-responsive
+                    table.table.table-dark.table-hover.align-middle.mb-0
+                        thead
+                            tr
+                                th Status
+                                th Account
+                                th Started
+                                th Completed
+                                th Entries
+                                th Error
+                        tbody
+                            each job in jobs
+                                tr
+                                    td
+                                        case job.status
+                                            when 'pending'
+                                                span.badge.text-bg-secondary
+                                                    i.bi.bi-hourglass-top.me-1
+                                                    | Pending
+                                            when 'in_progress'
+                                                span.badge.text-bg-primary
+                                                    .spinner-border.spinner-border-sm.me-1
+                                                    | In Progress
+                                            when 'completed'
+                                                span.badge.text-bg-success
+                                                    i.bi.bi-check-circle.me-1
+                                                    | Completed
+                                            when 'failed'
+                                                span.badge.text-bg-danger
+                                                    i.bi.bi-x-circle.me-1
+                                                    | Failed
+                                            default
+                                                span.badge.text-bg-secondary #{job.status}
+                                    td
+                                        if job.externalAccount
+                                            a.text-white(href=`/games/accounts`)
+                                                i.bi.bi-cloud.me-1
+                                                | #{job.externalAccount.displayName || job.externalAccount.provider}
+                                        else
+                                            span.text-white-50 —
+                                    td
+                                        if job.startedAt
+                                            span(title=job.startedAt) #{new Date(job.startedAt).toLocaleString()}
+                                        else
+                                            span.text-white-50 Not started
+                                    td
+                                        if job.completedAt
+                                            span(title=job.completedAt) #{new Date(job.completedAt).toLocaleString()}
+                                        else
+                                            span.text-white-50 —
+                                    td
+                                        if job.entriesProcessed !== null && job.entriesProcessed !== undefined
+                                            | #{job.entriesProcessed} processed
+                                            if job.entriesAdded
+                                                br
+                                                small.text-white-50 +#{job.entriesAdded} added
+                                            if job.entriesUpdated
+                                                br
+                                                small.text-white-50 ~#{job.entriesUpdated} updated
+                                        else
+                                            span.text-white-50 —
+                                    td
+                                        if job.errorMessage
+                                            span.text-danger(title=job.errorMessage)
+                                                | #{job.errorMessage.substring(0, 50)}#{job.errorMessage.length > 50 ? '...' : ''}
+                                        else
+                                            span.text-white-50 —
+
+        //- Pagination
+        if totalPages > 1
+            nav.mt-3
+                ul.pagination.justify-content-center
+                    li.page-item(class=(page <= 1 ? 'disabled' : ''))
+                        a.page-link.text-bg-dark(href=`/games/jobs?page=${page - 1}${statusFilter ? '&status=' + statusFilter : ''}`) Previous
+                    
+                    - for (let p = 1; p <= totalPages; p++)
+                        li.page-item(class=(p === page ? 'active' : ''))
+                            a.page-link.text-bg-dark(href=`/games/jobs?page=${p}${statusFilter ? '&status=' + statusFilter : ''}`) #{p}
+                    
+                    li.page-item(class=(page >= totalPages ? 'disabled' : ''))
+                        a.page-link.text-bg-dark(href=`/games/jobs?page=${page + 1}${statusFilter ? '&status=' + statusFilter : ''}`) Next

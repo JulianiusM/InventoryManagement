@@ -395,6 +395,18 @@ router.post('/accounts/:id/unschedule', asyncHandler(async (req: Request, res: R
     res.redirect('/games/accounts');
 }));
 
+// ============ Jobs Overview ============
+
+// List all sync jobs
+router.get('/jobs', asyncHandler(async (req: Request, res: Response) => {
+    const userId = req.session.user!.id;
+    const status = (req.query.status as string) || '';
+    const page = req.query.page ? parseInt(req.query.page as string) : 1;
+    
+    const data = await gamesController.listJobs(userId, {status, page});
+    renderer.renderWithData(res, 'games/jobs', data);
+}));
+
 // ============ Platforms ============
 
 // List platforms

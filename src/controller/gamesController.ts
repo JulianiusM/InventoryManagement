@@ -18,6 +18,7 @@ import * as partyService from '../modules/database/services/PartyService';
 import * as gameSyncService from '../modules/games/GameSyncService';
 import * as platformService from '../modules/database/services/PlatformService';
 import * as connectorDeviceService from '../modules/database/services/ConnectorDeviceService';
+import * as syncJobService from '../modules/database/services/SyncJobService';
 import {connectorRegistry, initializeConnectors} from '../modules/games/connectors/ConnectorRegistry';
 import {metadataProviderRegistry} from '../modules/games/metadata/MetadataProviderRegistry';
 import {mergePlayerCounts, type GameMetadata, type MetadataSearchResult} from '../modules/games/metadata/MetadataProviderInterface';
@@ -33,7 +34,8 @@ import {
     ItemCondition,
     ItemType,
     LoanDirection,
-    MappingStatus
+    MappingStatus,
+    SyncStatus
 } from '../types/InventoryEnums';
 import {
     CreateGameTitleBody,
@@ -1663,4 +1665,43 @@ return {
     deviceId: device.id,
     accountId: device.externalAccountId,
 };
+}
+
+// ============ Jobs Overview ============
+
+/**
+ * List all sync jobs for the jobs overview page
+ */
+export async function listJobs(ownerId: number, options?: {
+    status?: string;
+    page?: number;
+    limit?: number;
+}) {
+    requireAuthenticatedUser(ownerId);
+    
+    const page = options?.page || 1;
+    const limit = options?.limit || 50;
+    const offset = (page - 1) * limit;
+    
+    // Parse status filter
+    let statusFilter: SyncStatus | undefined;
+    if (options?.status && Object.values(SyncStatus).includes(options.status as SyncStatus)) {
+        statusFilter = options.status as SyncStatus;
+    }
+    
+    const {jobs, total} = await syncJobService.getAllJobsForUser(ownerId, {
+        status: statusFilter,
+        limit,
+        offset,
+    });
+    
+    const totalPages = Math.ceil(total / limit);
+    
+    return {
+        jobs,
+        total,
+        page,
+        totalPages,
+        statusFilter: options?.status || '',
+    };
 }
