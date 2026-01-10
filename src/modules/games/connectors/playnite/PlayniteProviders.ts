@@ -163,7 +163,7 @@ export const PROVIDER_LINK_PATTERNS: Record<string, string[]> = {
     'itch': ['itch', 'itch.io'],
     'humble': ['humble', 'humblebundle.com'],
     'battlenet': ['battle.net', 'blizzard', 'battlenet', 'shop.battle.net'],
-    'nintendo': ['nintendo', 'nintendo.com', 'eshop'],
+    'nintendo': ['nintendo', 'nintendo.com', 'eshop', 'my nintendo store', 'nintendo store', 'my nintendo'],
     'rockstar': ['rockstar', 'rockstargames.com', 'socialclub.rockstargames.com'],
     'bethesda': ['bethesda', 'bethesda.net'],
     'indiegala': ['indiegala'],
@@ -205,28 +205,33 @@ export const PLATFORM_STORE_PATTERNS: Record<string, Record<string, string[]>> =
  * Used to validate "Website" or "Official Website" links
  * Includes language-specific patterns (de, fr, es, it, pt, jp, etc.)
  */
-export const KNOWN_STORE_URL_PATTERNS: string[] = [
-    // Steam
+export const KNOWN_STORE_URL_PATTERNS: Record<string, string[]> = {
+    steam: [
     'store.steampowered.com',
-    // Epic
+        ],
+    epic: [
     'store.epicgames.com',
     'epicgames.com/store',
     'launcher.store.epicgames.com',
-    // GOG (multi-language)
+        ],
+    gog: [
     'gog.com/game',
     'gog.com/en/game',
     'gog.com/de/game',
     'gog.com/fr/game',
-    // EA / Origin
+        ],
+    ea: [
     'ea.com/games',
     'ea.com/de-de/games',
     'ea.com/fr-fr/games',
     'origin.com/store',
-    // Ubisoft (multi-language)
+        ],
+    ubisoft: [
     'ubisoft.com/game',
     'store.ubi.com',
     'store.ubisoft.com',
-    // Xbox/Microsoft (multi-language)
+        ],
+    xbox: [
     'microsoft.com/store',
     'microsoft.com/en-us/store',
     'microsoft.com/de-de/store',
@@ -234,11 +239,16 @@ export const KNOWN_STORE_URL_PATTERNS: string[] = [
     'xbox.com/games',
     'xbox.com/en-us/games',
     'xbox.com/de-de/games',
-    // PlayStation (multi-language)
+        ],
+    playstation: [
     'store.playstation.com',
-    // Nintendo (multi-language/regional)
+        ],
+    nintendo: [
     'nintendo.com/store',
     'nintendo.com/games',
+    'nintendo.com/us/store',
+    'nintendo.com/en-gb/Games',
+    'nintendo.com/de-de/Spiele',
     'nintendo.co.uk/Games',
     'nintendo.de/Spiele',
     'nintendo.fr/Jeux',
@@ -246,19 +256,28 @@ export const KNOWN_STORE_URL_PATTERNS: string[] = [
     'nintendo.it/Giochi',
     'nintendo.co.jp',
     'ec.nintendo.com',
-    // Itch.io
+        ],
+    itch: [
     'itch.io',
-    // Humble
+        ],
+    humble: [
     'humblebundle.com/store',
-    // Battle.net
+        ],
+    battlenet: [
     'battle.net/shop',
     'shop.battle.net',
-    // Rockstar
+        ],
+    rockstar: [
     'rockstargames.com/games',
     'socialclub.rockstargames.com',
-    // IndieGala
+        ],
+    indiegala: [
     'indiegala.com/store',
-];
+        ],
+};
+
+const websitePatterns = ['website', 'official', 'store', 'buy', 'purchase', 'shop'];
+const unifiedProviders = Object.values(KNOWN_STORE_URL_PATTERNS).flat() ?? []
 
 /**
  * Link structure from Playnite's raw.links array
@@ -375,56 +394,83 @@ export function extractStoreUrlFromLinks(
             }
         }
     }
-    
-    // Pass 3: If we have originalProviderName, try to match the link by name directly
-    // Only match if provider name is specific enough (3+ chars) to avoid false positives
-    if (originalProviderName && originalProviderName.length >= 3) {
-        const providerNameLower = originalProviderName.toLowerCase();
+
+    if(KNOWN_STORE_URL_PATTERNS[provider]) {
+
+        // Pass 3: If we have originalProviderName, try to match the link by name directly
+        // Only match if provider name is specific enough (3+ chars) to avoid false positives
+        if (originalProviderName && originalProviderName.length >= 3) {
+            const providerNameLower = originalProviderName.toLowerCase();
+            for (const link of links) {
+                const linkNameLower = link.name.toLowerCase();
+                // Use word boundary matching for partial matches to avoid false positives
+                // Direct equality is always safe
+                let isMatch = linkNameLower === providerNameLower;
+
+                // Only do partial matching for longer names (4+ chars) to be safe
+                if (!isMatch && providerNameLower.length >= 4) {
+                    // Check if link name contains provider name as a word
+                    const wordBoundaryRegex = new RegExp(`\\b${escapeRegex(providerNameLower)}\\b`, 'i');
+                    isMatch = wordBoundaryRegex.test(linkNameLower);
+                }
+
+                if (isMatch) {
+                    // Verify it's actually a store URL (not a random website)
+                    const linkUrlLower = link.url.toLowerCase();
+                    if (KNOWN_STORE_URL_PATTERNS[provider].some(storePattern => linkUrlLower.includes(storePattern))) {
+                        return link.url;
+                    }
+                }
+            }
+        }
+
+        // Pass 4: Check "Website" or "Official Website" links that point to known stores
+        // This is a fallback for cases where the link name doesn't match but the URL is valid
+        let websiteLink: string | undefined = undefined;
         for (const link of links) {
             const linkNameLower = link.name.toLowerCase();
-            // Use word boundary matching for partial matches to avoid false positives
-            // Direct equality is always safe
-            let isMatch = linkNameLower === providerNameLower;
-            
-            // Only do partial matching for longer names (4+ chars) to be safe
-            if (!isMatch && providerNameLower.length >= 4) {
-                // Check if link name contains provider name as a word
-                const wordBoundaryRegex = new RegExp(`\\b${escapeRegex(providerNameLower)}\\b`, 'i');
-                isMatch = wordBoundaryRegex.test(linkNameLower);
-            }
-            
-            if (isMatch) {
-                // Verify it's actually a store URL (not a random website)
+
+            // Only check links that look like website/store links
+            if (websitePatterns.some(p => linkNameLower.includes(p))) {
                 const linkUrlLower = link.url.toLowerCase();
-                if (KNOWN_STORE_URL_PATTERNS.some(storePattern => linkUrlLower.includes(storePattern))) {
+                websiteLink = link.url;
+
+                // Verify the URL actually points to a known store
+                if (KNOWN_STORE_URL_PATTERNS[provider].some(storePattern => linkUrlLower.includes(storePattern))) {
                     return link.url;
                 }
             }
         }
-    }
-    
-    // Pass 4: Check "Website" or "Official Website" links that point to known stores
-    // This is a fallback for cases where the link name doesn't match but the URL is valid
-    const websitePatterns = ['website', 'official', 'store', 'buy', 'purchase', 'shop'];
-    for (const link of links) {
-        const linkNameLower = link.name.toLowerCase();
-        
-        // Only check links that look like website/store links
-        if (websitePatterns.some(p => linkNameLower.includes(p))) {
+
+        // Pass 5: Last resort - check all links for known store patterns
+        // Sometimes store links have generic names like "Link" or "Homepage"
+        for (const link of links) {
             const linkUrlLower = link.url.toLowerCase();
-            
-            // Verify the URL actually points to a known store
-            if (KNOWN_STORE_URL_PATTERNS.some(storePattern => linkUrlLower.includes(storePattern))) {
+            if (KNOWN_STORE_URL_PATTERNS[provider].some(storePattern => linkUrlLower.includes(storePattern))) {
+                return link.url;
+            }
+        }
+
+        // Fall back to website if no store is available
+        if (websiteLink) {
+            return websiteLink;
+        }
+    } else {
+        // check if there is an official website first
+        for (const link of links) {
+            const linkNameLower = link.name.toLowerCase();
+
+            // Only check links that look like website/store links
+            if (websitePatterns.some(p => linkNameLower.includes(p))) {
                 return link.url;
             }
         }
     }
-    
-    // Pass 5: Last resort - check all links for known store patterns
-    // Sometimes store links have generic names like "Link" or "Homepage"
-    for (const link of links) {
+
+    // Last try: get any store url
+    for(const link of links) {
         const linkUrlLower = link.url.toLowerCase();
-        if (KNOWN_STORE_URL_PATTERNS.some(storePattern => linkUrlLower.includes(storePattern))) {
+        if(unifiedProviders.some(storePattern => linkUrlLower.includes(storePattern))) {
             return link.url;
         }
     }
