@@ -426,16 +426,14 @@ export function extractStoreUrlFromLinks(
 
         // Pass 4: Check "Website" or "Official Website" links that point to known stores
         // This is a fallback for cases where the link name doesn't match but the URL is valid
-        let websiteLink: string | undefined = undefined;
         for (const link of links) {
             const linkNameLower = link.name.toLowerCase();
 
             // Only check links that look like website/store links
             if (websitePatterns.some(p => linkNameLower.includes(p))) {
                 const linkUrlLower = link.url.toLowerCase();
-                websiteLink = link.url;
 
-                // Verify the URL actually points to a known store
+                // ONLY return if the URL actually points to a known store for this provider
                 if (KNOWN_STORE_URL_PATTERNS[provider].some(storePattern => linkUrlLower.includes(storePattern))) {
                     return link.url;
                 }
@@ -450,24 +448,9 @@ export function extractStoreUrlFromLinks(
                 return link.url;
             }
         }
-
-        // Fall back to website if no store is available
-        if (websiteLink) {
-            return websiteLink;
-        }
-    } else {
-        // check if there is an official website first
-        for (const link of links) {
-            const linkNameLower = link.name.toLowerCase();
-
-            // Only check links that look like website/store links
-            if (websitePatterns.some(p => linkNameLower.includes(p))) {
-                return link.url;
-            }
-        }
     }
-
-    // Last try: get any store url
+    
+    // Last try: get any store url from known store patterns (for unknown providers)
     for(const link of links) {
         const linkUrlLower = link.url.toLowerCase();
         if(unifiedProviders.some(storePattern => linkUrlLower.includes(storePattern))) {

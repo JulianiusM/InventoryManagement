@@ -32,6 +32,7 @@ import * as gameTitleService from '../database/services/GameTitleService';
 import * as itemService from '../database/services/ItemService';
 import * as syncJobService from '../database/services/SyncJobService';
 import * as connectorDeviceService from '../database/services/ConnectorDeviceService';
+import {normalizeDescription} from '../lib/htmlUtils';
 import {PlayerProfileValidationError} from '../database/services/GameValidationService';
 import {
     SyncStatus
@@ -259,8 +260,9 @@ function enrichGameWithMetadata(
     const enriched: ExternalGame = {...game};
     
     // Only override if not already set by connector
+    // Apply normalizeDescription to ensure clean descriptions regardless of source
     if (enriched.description === undefined && metadata.description) {
-        enriched.description = metadata.description;
+        enriched.description = normalizeDescription(metadata.description);
     }
     
     if (enriched.releaseDate === undefined && metadata.releaseDate) {

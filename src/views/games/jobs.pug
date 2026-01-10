@@ -19,9 +19,9 @@ block content
             if total > 0
                 span.badge.text-bg-secondary.ms-2.fs-6 #{total}
         
-        a.btn.btn-outline-light(href="/games/accounts")
+        a.btn.btn-outline-light(href="/games")
             i.bi.bi-arrow-left.me-1
-            | Back to Accounts
+            | Back to Games
 
     //- Filter bar
     .card.text-bg-dark.border-secondary.mb-3
@@ -47,8 +47,8 @@ block content
             .card-body.text-center.py-5
                 i.bi.bi-clock-history.display-1.text-white-50.mb-3.d-block
                 p.text-white-50.mb-3 No sync jobs found.
-                a.btn.btn-outline-light(href="/games/accounts")
-                    | Go to Accounts
+                a.btn.btn-outline-light(href="/games")
+                    | Go to Games
     else
         .card.text-bg-dark.border-secondary
             .card-body
@@ -57,6 +57,7 @@ block content
                         thead
                             tr
                                 th Status
+                                th Type
                                 th Account
                                 th Started
                                 th Completed
@@ -85,6 +86,22 @@ block content
                                                     | Failed
                                             default
                                                 span.badge.text-bg-secondary #{job.status}
+                                    td
+                                        case job.jobType
+                                            when 'account_sync'
+                                                span.badge.text-bg-info
+                                                    i.bi.bi-cloud-arrow-down.me-1
+                                                    | Account Sync
+                                            when 'metadata_resync'
+                                                span.badge.text-bg-primary
+                                                    i.bi.bi-cloud-download.me-1
+                                                    | Metadata Resync
+                                            when 'push_import'
+                                                span.badge.text-bg-secondary
+                                                    i.bi.bi-cloud-upload.me-1
+                                                    | Push Import
+                                            default
+                                                span.badge.text-bg-secondary #{job.jobType || 'Account Sync'}
                                     td
                                         if job.externalAccount
                                             a.text-white(href=`/games/accounts`)

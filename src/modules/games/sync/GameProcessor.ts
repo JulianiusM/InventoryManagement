@@ -15,6 +15,7 @@
 import {Platform} from "../../database/entities/platform/Platform";
 import {ExternalGame} from '../connectors/ConnectorInterface';
 import {extractEdition, normalizeGameTitle} from '../GameNameUtils';
+import {normalizeDescription} from '../../lib/htmlUtils';
 import {PlayerProfileValidationError} from '../../database/services/GameValidationService';
 import * as gameTitleService from '../../database/services/GameTitleService';
 import * as gameReleaseService from '../../database/services/GameReleaseService';
@@ -216,12 +217,15 @@ async function createGameFromData(
     const supportsLocal = game.supportsLocal ?? false;
     const hasMultiplayer = hasMultiplayerSupport(game);
     
+    // Normalize description in the shared pipeline (handles HTML, length, etc.)
+    const normalizedDescription = normalizeDescription(game.description);
+    
     // Get or create game title (merges with existing titles with same normalized name)
     // The title uses the BASE NAME (without edition)
     const {title, isNew: titleCreated} = await gameTitleService.getOrCreateGameTitle({
         name: baseName, // Use base name WITHOUT edition
         type: GameType.VIDEO_GAME,
-        description: game.description || null,
+        description: normalizedDescription || null,
         coverImageUrl: game.coverImageUrl || null,
         overallMinPlayers: game.overallMinPlayers ?? 1,
         overallMaxPlayers: game.overallMaxPlayers ?? (hasMultiplayer ? DEFAULT_MULTIPLAYER_MAX_PLAYERS : 1),

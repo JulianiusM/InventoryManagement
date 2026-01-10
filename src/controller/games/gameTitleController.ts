@@ -6,6 +6,7 @@
 import * as gameTitleService from '../../modules/database/services/GameTitleService';
 import * as gameReleaseService from '../../modules/database/services/GameReleaseService';
 import * as platformService from '../../modules/database/services/PlatformService';
+import * as syncJobService from '../../modules/database/services/SyncJobService';
 import {metadataProviderRegistry} from '../../modules/games/metadata/MetadataProviderRegistry';
 import {mergePlayerCounts, type GameMetadata, type MetadataSearchResult} from '../../modules/games/metadata/MetadataProviderInterface';
 import {validatePlayerProfile, PlayerProfileValidationError} from '../../modules/database/services/GameValidationService';
@@ -671,34 +672,52 @@ export async function applyMetadataOption(
 }
 
 /**
- * Resync metadata for all game titles (runs in background)
+ * Resync metadata for all game titles (runs in background with job tracking)
  * Updates games with missing descriptions, cover images, or player info
  */
 export async function resyncAllMetadataAsync(userId: number): Promise<void> {
     requireAuthenticatedUser(userId);
     
+    // Create a job to track this operation
+    const job = await syncJobService.createMetadataResyncJob(userId);
+    await syncJobService.startSyncJob(job.id);
+    
     const titles = await gameTitleService.getAllGameTitles(userId);
     
-    console.log(`Starting metadata resync for ${titles.length} games for user ${userId}`);
+    console.log(`Starting metadata resync (job ${job.id}) for ${titles.length} games for user ${userId}`);
     
     let updated = 0;
     let failed = 0;
     
-    for (const title of titles) {
-        try {
-            const result = await fetchMetadataForTitle(title.id, userId);
-            if (result.updated) {
-                updated++;
-                console.log(`Updated metadata for: ${title.name}`);
+    try {
+        for (const title of titles) {
+            try {
+                const result = await fetchMetadataForTitle(title.id, userId);
+                if (result.updated) {
+                    updated++;
+                    console.log(`Updated metadata for: ${title.name}`);
+                }
+            } catch (error) {
+                failed++;
+                console.warn(`Failed to fetch metadata for ${title.name}:`, error);
             }
-        } catch (error) {
-            failed++;
-            console.warn(`Failed to fetch metadata for ${title.name}:`, error);
+            
+            // Rate limit: wait 500ms between games to avoid API bans
+            await new Promise(resolve => setTimeout(resolve, 500));
         }
         
-        // Rate limit: wait 500ms between games to avoid API bans
-        await new Promise(resolve => setTimeout(resolve, 500));
+        // Mark job as completed
+        await syncJobService.completeSyncJob(job.id, {
+            entriesProcessed: titles.length,
+            entriesAdded: 0,
+            entriesUpdated: updated,
+        });
+        
+        console.log(`Metadata resync (job ${job.id}) complete: ${updated} updated, ${failed} failed out of ${titles.length} games`);
+    } catch (error) {
+        // Mark job as failed
+        const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+        await syncJobService.failSyncJob(job.id, errorMessage);
+        console.error(`Metadata resync (job ${job.id}) failed:`, error);
     }
-    
-    console.log(`Metadata resync complete: ${updated} updated, ${failed} failed out of ${titles.length} games`);
 }

@@ -335,12 +335,40 @@ export class RawgMetadataProvider extends BaseMetadataProvider {
     
     /**
      * Extract store URL from RAWG stores array
-     * Priority: Steam > Epic > GOG > any other with URL
+     * Prefers the appropriate platform store first, then falls back to priority order
+     * 
+     * @param stores RAWG stores array
+     * @param targetPlatform Optional platform to prefer (e.g., "PC", "PlayStation 5")
      */
-    private extractStoreUrl(stores?: RawgGameResponse['stores']): string | undefined {
+    private extractStoreUrl(stores?: RawgGameResponse['stores'], targetPlatform?: string): string | undefined {
         if (!stores || stores.length === 0) return undefined;
         
-        // Priority order for stores
+        // Normalize target platform for matching
+        const normalizedPlatform = targetPlatform?.toLowerCase() || '';
+        
+        // Map platforms to preferred store slugs
+        const platformToStore: Record<string, string[]> = {
+            'pc': ['steam', 'epic-games-store', 'gog'],
+            'playstation': ['playstation-store'],
+            'ps5': ['playstation-store'],
+            'ps4': ['playstation-store'],
+            'ps3': ['playstation-store'],
+            'xbox': ['xbox-store', 'xbox360'],
+            'nintendo': ['nintendo'],
+            'switch': ['nintendo'],
+        };
+        
+        // First, try platform-specific stores
+        for (const [platform, storeSlugs] of Object.entries(platformToStore)) {
+            if (normalizedPlatform.includes(platform)) {
+                for (const slug of storeSlugs) {
+                    const store = stores.find(s => s.store.slug === slug && s.url);
+                    if (store?.url) return store.url;
+                }
+            }
+        }
+        
+        // Fallback to generic priority order (useful when no platform specified)
         const priorityOrder = ['steam', 'epic-games-store', 'gog', 'playstation-store', 'xbox-store', 'nintendo'];
         
         // Find store by priority
