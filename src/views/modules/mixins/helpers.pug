@@ -5,3 +5,8 @@
 //- @param {number|string} val - The value to format
 //- @return {string} - Formatted currency string (e.g., "123.45")
 - const fmtMoney = (val) => Number(val ?? 0).toFixed(2)
+
+//- Validate store URL is a proper HTTPS URL (security: only allow secure connections)
+//- @param {string} url - The URL to validate
+//- @return {boolean} - True if URL is a valid HTTPS URL
+- const isValidStoreUrl = (url) => { if (!url || typeof url !== 'string') return false; try { const parsed = new URL(url); return parsed.protocol === 'https:'; } catch { return false; } }

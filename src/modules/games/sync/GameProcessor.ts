@@ -200,8 +200,8 @@ async function createGameFromData(
     platform: string,
     ownerId: number
 ): Promise<AutoCreateGameResult> {
-    // Ensure the platform exists in the database (auto-create if missing)
-    await platformService.getOrCreatePlatform(platform, ownerId);
+    // Ensure the platform exists in the database and get the normalized name
+    const normalizedPlatform = await platformService.getOrCreatePlatform(platform, ownerId);
     
     // CRITICAL: Extract edition from game name
     // e.g., "The Sims 4 Premium Edition" -> baseName: "The Sims 4", edition: "Premium Edition"
@@ -237,9 +237,10 @@ async function createGameFromData(
     });
     
     // Get or create release for this platform with the DETECTED edition
+    // Use the NORMALIZED platform name to avoid duplicate releases with different platform name variations
     const {release, isNew: releaseCreated} = await gameReleaseService.getOrCreateGameRelease({
         gameTitleId: title.id,
-        platform,
+        platform: normalizedPlatform.name, // Use normalized platform name
         releaseDate: game.releaseDate || null,
         edition, // Store the DETECTED edition (e.g., "Premium Edition")
         ownerId,
