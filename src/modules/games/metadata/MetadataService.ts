@@ -20,8 +20,11 @@ import {GameTitle} from '../../database/entities/gameTitle/GameTitle';
 import {GameType} from '../../../types/InventoryEnums';
 import {ExternalGame} from '../connectors/ConnectorInterface';
 
-// Minimum description length to consider as valid (not placeholder)
-export const MIN_VALID_DESCRIPTION_LENGTH = 50;
+// Import shared constant to maintain DRY principle
+import {MIN_VALID_DESCRIPTION_LENGTH} from '../../../controller/games/helpers';
+
+// Re-export for convenience
+export {MIN_VALID_DESCRIPTION_LENGTH};
 
 /**
  * Result of a metadata fetch operation
@@ -42,17 +45,17 @@ export interface MetadataFetchResult {
  * 2. If multiplayer but missing player counts, enrich from providers with hasAccuratePlayerCounts
  * 3. Apply fallback for unknown player counts on multiplayer games
  * 
+ * Note: Store URL extraction from metadata providers uses the provider's default logic.
+ * For platform-aware and transparent aggregator store URL extraction, use connectors
+ * (e.g., Playnite's extractStoreUrlFromLinks) which have access to the raw payload.
+ * 
  * @param title The game title to fetch metadata for
  * @param searchQuery Optional search query (defaults to title name)
- * @param targetPlatform Optional platform for platform-aware store URL extraction
- * @param originalProviderName Optional provider name for transparent aggregator pattern
  * @returns Metadata fetch result with GameMetadata if found
  */
 export async function fetchMetadata(
     title: GameTitle,
-    searchQuery?: string,
-    targetPlatform?: string,
-    originalProviderName?: string
+    searchQuery?: string
 ): Promise<MetadataFetchResult> {
     // Get providers based on game type
     const providers = metadataProviderRegistry.getByGameType(title.type);
