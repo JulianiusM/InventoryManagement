@@ -122,8 +122,9 @@ export function getStoreUrl(options: {
     gameId?: string;
 }): string | undefined {
     // Priority 1: Explicit store URL from the source
-    if (options.storeUrl?.trim()) {
-        return options.storeUrl.trim();
+    const trimmedUrl = options.storeUrl?.trim();
+    if (trimmedUrl) {
+        return trimmedUrl;
     }
     
     // Priority 2: For PC platform, try provider-specific template
