@@ -24,7 +24,6 @@ import * as gameMappingService from '../../database/services/GameExternalMapping
 import {GameTitle} from '../../database/entities/gameTitle/GameTitle';
 import {GameRelease} from '../../database/entities/gameRelease/GameRelease';
 import {GameType, MappingStatus, GameCopyType} from '../../../types/InventoryEnums';
-import {validateStoreUrl} from '../../lib/util';
 
 // Default maximum players for multiplayer games when not specified
 const DEFAULT_MULTIPLAYER_MAX_PLAYERS = 4;
@@ -102,8 +101,7 @@ export async function updateExistingGameItem(
         playtimeMinutes: game.playtimeMinutes,
         lastPlayedAt: game.lastPlayedAt,
         isInstalled: game.isInstalled,
-        // Validate store URL before storing - only allow valid HTTPS URLs
-        storeUrl: validateStoreUrl(game.storeUrl),
+        storeUrl: game.storeUrl,
     });
 }
 
@@ -202,8 +200,8 @@ async function createGameFromData(
     platform: string,
     ownerId: number
 ): Promise<AutoCreateGameResult> {
-    // Ensure the platform exists in the database and get the normalized name
-    const normalizedPlatform = await platformService.getOrCreatePlatform(platform, ownerId);
+    // Ensure the platform exists in the database (auto-create if missing)
+    await platformService.getOrCreatePlatform(platform, ownerId);
     
     // CRITICAL: Extract edition from game name
     // e.g., "The Sims 4 Premium Edition" -> baseName: "The Sims 4", edition: "Premium Edition"
@@ -239,10 +237,9 @@ async function createGameFromData(
     });
     
     // Get or create release for this platform with the DETECTED edition
-    // Use the NORMALIZED platform name to avoid duplicate releases with different platform name variations
     const {release, isNew: releaseCreated} = await gameReleaseService.getOrCreateGameRelease({
         gameTitleId: title.id,
-        platform: normalizedPlatform.name, // Use normalized platform name
+        platform,
         releaseDate: game.releaseDate || null,
         edition, // Store the DETECTED edition (e.g., "Premium Edition")
         ownerId,
@@ -449,8 +446,7 @@ export async function processGameBatch(
                     originalProviderName: game.originalProviderName,
                     originalProviderGameId: game.originalProviderGameId,
                     originalProviderNormalizedId: game.originalProviderNormalizedId,
-                    // Validate store URL before storing - only allow valid HTTPS URLs
-                    storeUrl: validateStoreUrl(game.storeUrl) ?? undefined,
+                    storeUrl: game.storeUrl,
                     needsReview: !game.originalProviderGameId && isAggregator,
                 });
                 copiesCreated++;

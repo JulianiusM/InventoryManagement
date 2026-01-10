@@ -13,6 +13,8 @@ block content
     - const conditions = ['new', 'like_new', 'good', 'fair', 'poor']
     - const platformLabels = {pc: 'PC', ps5: 'PS5', ps4: 'PS4', xbox_series: 'Xbox Series', xbox_one: 'Xbox One', switch: 'Switch', mobile: 'Mobile', physical_only: 'Physical Only', other: 'Other'}
     - const providerLabels = {steam: 'Steam', epic: 'Epic Games', gog: 'GOG', xbox: 'Xbox', playstation: 'PlayStation', nintendo: 'Nintendo', origin: 'Origin', ubisoft: 'Ubisoft', other: 'Other'}
+    //- Validate store URL is a proper HTTPS URL (security: only allow secure connections)
+    - function isValidStoreUrl(url) { if (!url || typeof url !== 'string') return false; try { const parsed = new URL(url); return parsed.protocol === 'https:'; } catch { return false; } }
 
     #liveAlerts
 
