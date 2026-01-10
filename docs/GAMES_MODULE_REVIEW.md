@@ -174,7 +174,7 @@ Recommended improvements:
 ## 4. Action Items Summary
 
 ### High Priority
-- [x] Ensure all connectors provide store URLs when available (implemented platform-aware store URL generation)
+- [x] Ensure all connectors provide store URLs when available (implemented via `extractStoreUrlFromLinks()` - extracts from Playnite's raw.links array)
 - [ ] Add visual feedback for async operations (loading spinners)
 - [ ] Improve search with advanced filters
 
@@ -195,7 +195,9 @@ Recommended improvements:
 - [x] Show inherited title info on release detail page
 - [x] Show inherited title/release info on copy detail page
 - [x] Add breadcrumb navigation for hierarchical browsing
-- [x] Platform-aware store URL generation with provider fallback
+- [x] Extract store URLs from Playnite's raw.links array (transparent aggregator pattern)
+- [x] Extract extended metadata from Playnite raw data (description, genres, developers, publishers, releaseDate)
+- [x] Remove unreliable URL generation - only use URLs from actual data sources
 
 ---
 

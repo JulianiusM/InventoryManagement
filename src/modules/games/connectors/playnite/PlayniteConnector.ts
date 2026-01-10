@@ -24,7 +24,7 @@ import {
 import {ConnectorCapability} from '../../../../types/InventoryEnums';
 import * as connectorDeviceService from '../../../database/services/ConnectorDeviceService';
 import {normalizePlatformName} from '../../../database/services/PlatformService';
-import {normalizeProviderName, getStoreUrl} from './PlayniteProviders';
+import {normalizeProviderName, extractStoreUrlFromLinks, extractMetadataFromRaw, PlayniteRawData} from './PlayniteProviders';
 import {validateImportPayload} from './PlayniteImportService';
 
 /**
@@ -152,13 +152,16 @@ export class PlayniteConnector extends BaseConnector implements PushConnector {
             const normalizedPlatform = normalizePlatformName(rawPlatform);
             
             const normalizedProvider = normalizeProviderName(game.originalProviderPluginId);
-            // Generate store URL based on platform and provider
-            const storeUrl = getStoreUrl({
-                storeUrl: game.storeUrl,
-                platform: normalizedPlatform,
-                provider: normalizedProvider,
-                gameId: game.originalProviderGameId,
-            });
+            
+            // Cast raw to PlayniteRawData for type safety
+            const rawData = game.raw as PlayniteRawData | undefined;
+            
+            // Extract store URL from raw.links array by matching the provider
+            // This is more reliable than generating URLs from templates
+            const storeUrl = extractStoreUrlFromLinks(rawData?.links, normalizedProvider);
+            
+            // Extract additional metadata from raw data
+            const metadata = extractMetadataFromRaw(rawData);
             
             return {
                 externalGameId: entitlementKey,
@@ -169,6 +172,14 @@ export class PlayniteConnector extends BaseConnector implements PushConnector {
                 platform: normalizedPlatform,
                 rawPayload: game.raw,
                 storeUrl,
+                
+                // Extended metadata from Playnite raw data
+                description: metadata.description,
+                genres: metadata.genres,
+                releaseDate: metadata.releaseDate,
+                developer: metadata.developer,
+                publisher: metadata.publisher,
+                coverImageUrl: metadata.coverImageUrl,
                 
                 // Aggregator origin fields
                 originalProviderPluginId: game.originalProviderPluginId,

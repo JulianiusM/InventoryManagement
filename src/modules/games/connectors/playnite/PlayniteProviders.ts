@@ -34,106 +34,135 @@ export const KNOWN_PROVIDERS: Record<string, string> = {
 };
 
 /**
- * Store URL templates for PC game providers
- * Steam URLs work reliably with AppID. Others require slugs or different ID formats.
- * 
- * For providers that can't use IDs directly, we provide launcher URLs instead.
+ * Mapping of normalized provider names to store link name patterns
+ * Used to match links from Playnite's raw.links array
  */
-export const STORE_URL_TEMPLATES: Record<string, string | null> = {
-    // Steam - uses numeric AppID (reliable)
-    'steam': 'https://store.steampowered.com/app/{gameId}',
-    
-    // Epic - uses slugs, not IDs. Can't generate reliable URLs from IDs alone.
-    // The Playnite agent should provide the storeUrl directly.
-    'epic': null,
-    
-    // GOG - uses slugs. Can't generate reliable URLs from IDs alone.
-    'gog': null,
-    
-    // EA App (formerly Origin)
-    'ea': null,
-    'origin': null,
-    
-    // Ubisoft Connect
-    'ubisoft': null,
-    
-    // Xbox (Windows Store) - uses product IDs but format varies
-    'xbox': null,
-    
-    // PlayStation - PC app doesn't have web store
-    'playstation': null,
-    
-    // Amazon Games
-    'amazon': null,
-    
-    // itch.io - uses slugs
-    'itch': null,
-    
-    // Humble Bundle
-    'humble': null,
-    
-    // Battle.net - uses game codes
-    'battlenet': null,
+export const PROVIDER_LINK_PATTERNS: Record<string, string[]> = {
+    'steam': ['steam', 'store.steampowered.com'],
+    'epic': ['epic', 'epicgames.com', 'epic games'],
+    'gog': ['gog', 'gog.com'],
+    'ea': ['ea', 'ea.com', 'origin'],
+    'origin': ['origin', 'ea.com'],
+    'ubisoft': ['ubisoft', 'ubisoft.com', 'ubi.com'],
+    'xbox': ['xbox', 'microsoft', 'microsoft.com'],
+    'playstation': ['playstation', 'playstation.com', 'psn'],
+    'amazon': ['amazon', 'amazon.com'],
+    'itch': ['itch', 'itch.io'],
+    'humble': ['humble', 'humblebundle.com'],
+    'battlenet': ['battle.net', 'blizzard', 'battlenet'],
 };
 
 /**
- * Platform store URL templates for console games
- * These are for games on specific platforms, not aggregators
+ * Link structure from Playnite's raw.links array
  */
-export const PLATFORM_STORE_TEMPLATES: Record<string, {template: string; idParam: string} | null> = {
-    // PlayStation - uses CUSA IDs but format varies by region
-    'PlayStation 5': null,
-    'PlayStation 4': null,
-    'PlayStation 3': null,
-    'PlayStation Vita': null,
-    
-    // Xbox - Microsoft Store
-    'Xbox Series X|S': null,
-    'Xbox One': null,
-    'Xbox 360': null,
-    
-    // Nintendo - uses NSUIDs but no direct linking
-    'Nintendo Switch': null,
-    'Nintendo 3DS': null,
-    'Nintendo Wii U': null,
-    
-    // PC - handled by provider, not platform
-    'PC': null,
-    
-    // Mobile
-    'Mobile': null,
-};
+export interface PlayniteLink {
+    name: string;
+    url: string;
+}
 
 /**
- * Get the appropriate store URL for a game based on its provider and platform
- * 
- * Strategy:
- * 1. If explicit storeUrl is provided, use it
- * 2. For PC platform, try to generate from provider template
- * 3. For console platforms, platform stores can't be reliably linked
- * 
- * @param options - Store URL generation options
- * @returns Generated store URL or undefined
+ * Extended raw data from Playnite
  */
-export function getStoreUrl(options: {
-    storeUrl?: string;
-    platform?: string;
-    provider?: string;
-    gameId?: string;
-}): string | undefined {
-    // Priority 1: Explicit store URL from the source
-    const trimmedUrl = options.storeUrl?.trim();
-    if (trimmedUrl) {
-        return trimmedUrl;
+export interface PlayniteRawData {
+    added?: string;
+    releaseDate?: string;
+    playCount?: number;
+    genres?: string[];
+    tags?: string[];
+    developers?: string[];
+    publishers?: string[];
+    description?: string;
+    coverImage?: string;
+    backgroundImage?: string;
+    icon?: string;
+    links?: PlayniteLink[];
+    features?: string[];
+    categories?: string[];
+    series?: string;
+    ageRatings?: string[];
+    regions?: string[];
+    communityScore?: number;
+    criticScore?: number;
+    userScore?: number;
+    sortingName?: string;
+    version?: string;
+    completionStatus?: string;
+    notes?: string;
+    favorite?: boolean;
+    manual?: string;
+    modified?: string;
+    recentActivity?: string;
+}
+
+/**
+ * Extract store URL from Playnite's raw.links array based on provider
+ * 
+ * The links array contains named URLs like:
+ * - { name: "Steam", url: "https://store.steampowered.com/app/123" }
+ * - { name: "GOG", url: "https://www.gog.com/game/some-game" }
+ * 
+ * This function matches the normalized provider to find the appropriate store link.
+ * 
+ * @param links - Array of links from Playnite raw data
+ * @param normalizedProvider - The normalized provider name (e.g., 'steam', 'epic')
+ * @returns The store URL if found, undefined otherwise
+ */
+export function extractStoreUrlFromLinks(
+    links: PlayniteLink[] | undefined,
+    normalizedProvider: string
+): string | undefined {
+    if (!links || links.length === 0) {
+        return undefined;
     }
     
-    // Priority 2: For PC platform, try provider-specific template
-    if (options.platform === 'PC' && options.provider && options.gameId) {
-        return generateStoreUrl(options.provider, options.gameId);
+    const patterns = PROVIDER_LINK_PATTERNS[normalizedProvider];
+    if (!patterns) {
+        return undefined;
     }
     
-    // Can't reliably generate URLs for console platforms
+    // Find a link that matches the provider patterns
+    for (const link of links) {
+        const linkNameLower = link.name.toLowerCase();
+        const linkUrlLower = link.url.toLowerCase();
+        
+        for (const pattern of patterns) {
+            if (linkNameLower.includes(pattern) || linkUrlLower.includes(pattern)) {
+                return link.url;
+            }
+        }
+    }
+    
     return undefined;
+}
+
+/**
+ * Extract extended metadata from Playnite's raw data
+ * 
+ * @param raw - The raw object from Playnite payload
+ * @returns Extracted metadata fields
+ */
+export function extractMetadataFromRaw(raw: PlayniteRawData | undefined): {
+    description?: string;
+    genres?: string[];
+    releaseDate?: string;
+    developer?: string;
+    publisher?: string;
+    coverImageUrl?: string;
+} {
+    if (!raw) {
+        return {};
+    }
+    
+    return {
+        description: raw.description || undefined,
+        genres: raw.genres?.length ? raw.genres : undefined,
+        releaseDate: raw.releaseDate || undefined,
+        developer: raw.developers?.[0] || undefined,
+        publisher: raw.publishers?.[0] || undefined,
+        // Note: coverImage from Playnite is a local path, not a URL
+        // We don't use it here - metadata providers should fill this
+        coverImageUrl: undefined,
+    };
 }
 
 /**
@@ -142,20 +171,4 @@ export function getStoreUrl(options: {
 export function normalizeProviderName(pluginId: string): string {
     const lowerPluginId = pluginId.toLowerCase();
     return KNOWN_PROVIDERS[lowerPluginId] || 'unknown';
-}
-
-/**
- * Generate store URL for a game based on its original provider
- */
-export function generateStoreUrl(normalizedProvider: string, originalGameId: string | undefined): string | undefined {
-    if (!originalGameId) {
-        return undefined;
-    }
-    
-    const template = STORE_URL_TEMPLATES[normalizedProvider];
-    if (!template) {
-        return undefined;
-    }
-    
-    return template.replace('{gameId}', originalGameId);
 }

@@ -39,7 +39,7 @@ jest.mock('../../src/modules/database/dataSource', () => ({
 }));
 
 import {validateImportPayload} from '../../src/modules/games/connectors/playnite/PlayniteImportService';
-import {normalizeProviderName, generateStoreUrl} from '../../src/modules/games/connectors/playnite/PlayniteProviders';
+import {normalizeProviderName, extractStoreUrlFromLinks} from '../../src/modules/games/connectors/playnite/PlayniteProviders';
 
 describe('Playnite Import Service', () => {
     beforeEach(() => {
@@ -112,31 +112,50 @@ describe('Playnite Providers', () => {
         });
     });
 
-    describe('generateStoreUrl', () => {
-        test('generates Steam store URL', () => {
-            expect(generateStoreUrl('steam', '123456')).toBe('https://store.steampowered.com/app/123456');
+    describe('extractStoreUrlFromLinks', () => {
+        test('extracts Steam store URL from links array', () => {
+            const links = [
+                {name: 'Steam', url: 'https://store.steampowered.com/app/123456'},
+                {name: 'Website', url: 'https://example.com'},
+            ];
+            expect(extractStoreUrlFromLinks(links, 'steam')).toBe('https://store.steampowered.com/app/123456');
         });
 
-        test('returns undefined for Epic (unreliable URL format)', () => {
-            // Epic URLs require slug names, not IDs - use storeUrl from Playnite or metadata providers
-            expect(generateStoreUrl('epic', 'my-game')).toBeUndefined();
+        test('extracts Epic store URL from links array', () => {
+            const links = [
+                {name: 'Epic Games', url: 'https://store.epicgames.com/game/my-game'},
+                {name: 'Website', url: 'https://example.com'},
+            ];
+            expect(extractStoreUrlFromLinks(links, 'epic')).toBe('https://store.epicgames.com/game/my-game');
         });
 
-        test('returns undefined for GOG (unreliable URL format)', () => {
-            // GOG URLs require slug names, not IDs - use storeUrl from Playnite or metadata providers
-            expect(generateStoreUrl('gog', 'hades')).toBeUndefined();
+        test('extracts GOG store URL from links array', () => {
+            const links = [
+                {name: 'GOG', url: 'https://www.gog.com/game/hades'},
+            ];
+            expect(extractStoreUrlFromLinks(links, 'gog')).toBe('https://www.gog.com/game/hades');
         });
 
-        test('returns undefined for EA (no public store URL)', () => {
-            expect(generateStoreUrl('ea', '12345')).toBeUndefined();
+        test('returns undefined when no matching link found', () => {
+            const links = [
+                {name: 'Website', url: 'https://example.com'},
+            ];
+            expect(extractStoreUrlFromLinks(links, 'steam')).toBeUndefined();
         });
 
         test('returns undefined for unknown provider', () => {
-            expect(generateStoreUrl('unknown', '12345')).toBeUndefined();
+            const links = [
+                {name: 'Steam', url: 'https://store.steampowered.com/app/123456'},
+            ];
+            expect(extractStoreUrlFromLinks(links, 'unknown')).toBeUndefined();
         });
 
-        test('returns undefined when gameId is undefined', () => {
-            expect(generateStoreUrl('steam', undefined)).toBeUndefined();
+        test('returns undefined when links is undefined', () => {
+            expect(extractStoreUrlFromLinks(undefined, 'steam')).toBeUndefined();
+        });
+
+        test('returns undefined when links array is empty', () => {
+            expect(extractStoreUrlFromLinks([], 'steam')).toBeUndefined();
         });
     });
 });
