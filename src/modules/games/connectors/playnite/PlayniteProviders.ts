@@ -426,14 +426,16 @@ export function extractStoreUrlFromLinks(
 
         // Pass 4: Check "Website" or "Official Website" links that point to known stores
         // This is a fallback for cases where the link name doesn't match but the URL is valid
+        let websiteLink: string | undefined = undefined;
         for (const link of links) {
             const linkNameLower = link.name.toLowerCase();
 
             // Only check links that look like website/store links
             if (websitePatterns.some(p => linkNameLower.includes(p))) {
                 const linkUrlLower = link.url.toLowerCase();
+                websiteLink = link.url;
 
-                // ONLY return if the URL actually points to a known store for this provider
+                // Verify the URL actually points to a known store
                 if (KNOWN_STORE_URL_PATTERNS[provider].some(storePattern => linkUrlLower.includes(storePattern))) {
                     return link.url;
                 }
@@ -448,22 +450,27 @@ export function extractStoreUrlFromLinks(
                 return link.url;
             }
         }
+
+        // Fall back to website if no store is available
+        if (websiteLink) {
+            return websiteLink;
+        }
+    } else {
+        // check if there is an official website first
+        for (const link of links) {
+            const linkNameLower = link.name.toLowerCase();
+
+            // Only check links that look like website/store links
+            if (websitePatterns.some(p => linkNameLower.includes(p))) {
+                return link.url;
+            }
+        }
     }
-    
-    // Last try: get any store url from known store patterns (for unknown providers)
+
+    // Last try: get any store url
     for(const link of links) {
         const linkUrlLower = link.url.toLowerCase();
         if(unifiedProviders.some(storePattern => linkUrlLower.includes(storePattern))) {
-            return link.url;
-        }
-    }
-    
-    // Final fallback: return any Website/Official Website link
-    // It's better to point to the official website than have no link at all
-    // since the website will probably have further URLs to the shops we didn't find
-    for (const link of links) {
-        const linkNameLower = link.name.toLowerCase();
-        if (websitePatterns.some(p => linkNameLower.includes(p))) {
             return link.url;
         }
     }
