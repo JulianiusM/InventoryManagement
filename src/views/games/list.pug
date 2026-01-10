@@ -272,26 +272,6 @@ block content
                         i.bi.bi-plus-lg.me-1
                         | Create Game
 
+
 block scripts
-    script.
-        // Bulk selection functionality
-        function updateBulkSelection() {
-            const checkboxes = document.querySelectorAll('.bulk-select:checked');
-            const count = checkboxes.length;
-            const bar = document.getElementById('bulkActionsBar');
-            const countSpan = document.getElementById('selectedCount');
-            
-            if (count > 0) {
-                bar.classList.remove('d-none');
-                countSpan.textContent = count;
-            } else {
-                bar.classList.add('d-none');
-            }
-        }
-        
-        function toggleAllCheckboxes(checked) {
-            document.querySelectorAll('.bulk-select').forEach(cb => {
-                cb.checked = checked;
-            });
-            updateBulkSelection();
-        }
+    script(type="module" src="/js/games/list.gen.js")

@@ -149,3 +149,51 @@ export async function mergeGameReleases(sourceId: string, targetId: string): Pro
     
     return itemsToMove.length;
 }
+
+/**
+ * Find a release for a game title by platform and edition
+ * @param gameTitleId The game title to search within
+ * @param platform The platform (normalized)
+ * @param edition The edition (e.g., 'Standard Edition', 'Deluxe Edition')
+ * @returns The matching release if found, null otherwise
+ */
+export async function findReleaseByPlatformAndEdition(
+    gameTitleId: string,
+    platform: string,
+    edition: string
+): Promise<GameRelease | null> {
+    const repo = AppDataSource.getRepository(GameRelease);
+    
+    return await repo.findOne({
+        where: {
+            gameTitle: {id: gameTitleId},
+            platform,
+            edition,
+        },
+        relations: ['gameTitle', 'items'],
+    });
+}
+
+/**
+ * Get or create game release
+ * If a release with matching platform and edition exists, return it.
+ * Otherwise create a new release.
+ * 
+ * @param data Release creation data
+ * @returns Existing or new game release
+ */
+export async function getOrCreateGameRelease(data: CreateGameReleaseData): Promise<{release: GameRelease; isNew: boolean}> {
+    const platform = data.platform || 'PC';
+    const edition = data.edition || 'Standard Edition';
+    
+    // Try to find existing release by platform and edition
+    const existing = await findReleaseByPlatformAndEdition(data.gameTitleId, platform, edition);
+    
+    if (existing) {
+        return {release: existing, isNew: false};
+    }
+    
+    // Create new release
+    const release = await createGameRelease({...data, platform, edition});
+    return {release, isNew: true};
+}

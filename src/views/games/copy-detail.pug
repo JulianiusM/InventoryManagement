@@ -13,6 +13,8 @@ block content
     - const conditions = ['new', 'like_new', 'good', 'fair', 'poor']
     - const platformLabels = {pc: 'PC', ps5: 'PS5', ps4: 'PS4', xbox_series: 'Xbox Series', xbox_one: 'Xbox One', switch: 'Switch', mobile: 'Mobile', physical_only: 'Physical Only', other: 'Other'}
     - const providerLabels = {steam: 'Steam', epic: 'Epic Games', gog: 'GOG', xbox: 'Xbox', playstation: 'PlayStation', nintendo: 'Nintendo', origin: 'Origin', ubisoft: 'Ubisoft', other: 'Other'}
+    //- Validate store URL is a proper HTTPS URL (security: only allow secure connections)
+    - function isValidStoreUrl(url) { if (!url || typeof url !== 'string') return false; try { const parsed = new URL(url); return parsed.protocol === 'https:'; } catch { return false; } }
 
     #liveAlerts
 
@@ -49,10 +51,13 @@ block content
             .col-lg-7
                 //- Copy details
                 .card.text-bg-dark.border-secondary.mb-3
-                    .card-header
+                    .card-header.d-flex.justify-content-between.align-items-center
                         h2.h5.mb-0
                             i.bi.bi-info-circle.me-2
                             | Copy Details
+                        button.btn.btn-sm.btn-outline-light(type="button" data-bs-toggle="modal" data-bs-target="#editCopyModal")
+                            i.bi.bi-pencil.me-1
+                            | Edit
                     .card-body
                         dl.row.mb-0
                             dt.col-sm-4
@@ -83,6 +88,28 @@ block content
                                         span.text-white-50 (#{copy.externalAccount.provider})
                                     else
                                         | —
+                                
+                                //- Show original provider for aggregator-imported copies (e.g., Playnite)
+                                if copy.aggregatorProviderId
+                                    dt.col-sm-4
+                                        i.bi.bi-arrow-right-circle.me-1
+                                        | Original Source
+                                    dd.col-sm-8
+                                        span.badge.text-bg-secondary.me-1 #{copy.originalProviderName || 'Unknown'}
+                                        if copy.originalProviderGameId
+                                            span.text-white-50.small (#{copy.originalProviderGameId})
+                                        if copy.needsReview
+                                            span.badge.text-bg-warning.ms-1 Needs Review
+                                
+                                //- Show store link if available and validated
+                                if copy.storeUrl && isValidStoreUrl(copy.storeUrl)
+                                    dt.col-sm-4
+                                        i.bi.bi-shop.me-1
+                                        | Store Link
+                                    dd.col-sm-8
+                                        a.text-info(href=copy.storeUrl target="_blank" rel="noopener noreferrer")
+                                            | View on Store
+                                            i.bi.bi-box-arrow-up-right.ms-1
                                 
                                 if copy.playtimeMinutes
                                     dt.col-sm-4
@@ -269,36 +296,44 @@ block content
                                 i.bi.bi-trash.me-1
                                 | Delete Copy
 
+    //- Edit Copy Modal
+    if copy
+        #editCopyModal.modal.fade(tabindex="-1")
+            .modal-dialog
+                .modal-content.text-bg-dark
+                    .modal-header.border-secondary
+                        h5.modal-title
+                            i.bi.bi-pencil.me-2
+                            | Edit Copy
+                        button.btn-close.btn-close-white(type="button" data-bs-dismiss="modal")
+                    .modal-body
+                        form#editCopyForm.row.g-3(method="post" action=`/games/copies/${copy.id}/update`)
+                            if copy.gameCopyType === 'physical_copy'
+                                .col-12
+                                    label.form-label Condition
+                                    select.form-select.text-bg-dark(name="condition")
+                                        option(value="" selected=(!copy.condition)) Not specified
+                                        each c in conditions
+                                            option(value=c selected=(copy.condition === c)) #{c.charAt(0).toUpperCase() + c.slice(1).replace('_', ' ')}
+                                .col-12
+                                    .form-check
+                                        input.form-check-input(type="checkbox" name="lendable" value="true" id="editLendable" checked=copy.lendable)
+                                        label.form-check-label(for="editLendable")
+                                            i.bi.bi-hand-index.me-1
+                                            | Allow lending
+                            if copy.gameCopyType === 'digital_license'
+                                .col-12
+                                    label.form-label(for="editStoreUrl") Store Link
+                                    input#editStoreUrl.form-control.text-bg-dark(type="url" name="storeUrl" placeholder="https://store.example.com/game" value=(copy.storeUrl || ''))
+                                    .form-text.text-white-50 URL to the game's store page (HTTPS only)
+                            .col-12
+                                label.form-label(for="editNotes") Notes
+                                textarea#editNotes.form-control.text-bg-dark(name="notes" rows="3" placeholder="Optional notes") #{copy.notes || ''}
+                    .modal-footer.border-secondary
+                        button.btn.btn-secondary(type="button" data-bs-dismiss="modal") Cancel
+                        button.btn.btn-primary(type="submit" form="editCopyForm")
+                            i.bi.bi-check-lg.me-1
+                            | Save Changes
+
 block scripts
-    script.
-        // Barcode mapping
-        document.addEventListener('DOMContentLoaded', function() {
-            const form = document.getElementById('barcodeForm');
-            const input = document.getElementById('barcodeInput');
-            const msg = document.getElementById('barcodeMsg');
-            
-            if (form && input) {
-                form.addEventListener('submit', async function(e) {
-                    e.preventDefault();
-                    const code = input.value.trim();
-                    if (!code) return;
-                    
-                    try {
-                        const res = await fetch('/api/games/copies/!{copy.id}/barcode', {
-                            method: 'POST',
-                            headers: {'Content-Type': 'application/json'},
-                            body: JSON.stringify({code, symbology: 'UNKNOWN'})
-                        });
-                        const data = await res.json();
-                        msg.innerHTML = data.status === 'success' 
-                            ? '<div class="alert alert-success">' + data.message + '</div>'
-                            : '<div class="alert alert-danger">' + data.message + '</div>';
-                        if (data.status === 'success') {
-                            setTimeout(() => location.reload(), 1000);
-                        }
-                    } catch (err) {
-                        msg.innerHTML = '<div class="alert alert-danger">Error mapping barcode</div>';
-                    }
-                });
-            }
-        });
+    script(type="module" src="/js/games/copy-detail.gen.js")

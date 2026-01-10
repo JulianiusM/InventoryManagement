@@ -374,34 +374,6 @@ block content
                             i.bi.bi-check-lg.me-1
                             | Save Changes
 
+
 block scripts
-    script(type="module" src="/js/stub.gen.js")
-    script.
-        // Toggle between physical and digital fields
-        document.getElementById('copyTypeSelect')?.addEventListener('change', function() {
-            const isDigital = this.value === 'digital_license';
-            document.getElementById('physicalFields')?.classList.toggle('d-none', isDigital);
-            document.getElementById('digitalFields')?.classList.toggle('d-none', !isDigital);
-        });
-        
-        // Initialize Select2 for merge dropdown
-        $(document).ready(function() {
-            $('select[name="targetId"]').select2({
-                theme: 'bootstrap-5',
-                placeholder: 'Search releases...',
-                allowClear: true,
-                dropdownParent: $('#mergeReleaseModal')
-            });
-            $('select[name="locationId"]').select2({
-                theme: 'bootstrap-5',
-                placeholder: 'Select location...',
-                allowClear: true,
-                dropdownParent: $('#addCopyModal')
-            });
-            $('select[name="externalAccountId"]').select2({
-                theme: 'bootstrap-5',
-                placeholder: 'Select account...',
-                allowClear: true,
-                dropdownParent: $('#addCopyModal')
-            });
-        });
+    script(type="module" src="/js/games/release-detail.gen.js")

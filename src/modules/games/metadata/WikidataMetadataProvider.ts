@@ -9,12 +9,14 @@
  * 4. Prioritize exact matches (Carcassonne matches Carcassonne first, then expansions)
  * 
  * No API key required - uses public Wikidata APIs
- * Rate limiting: Wikidata asks for reasonable usage
+ * Rate limiting: Handled by GameSyncService using getRateLimitConfig()
  */
 
 import {
     BaseMetadataProvider,
     MetadataProviderManifest,
+    MetadataProviderCapabilities,
+    RateLimitConfig,
     GameMetadata,
     MetadataSearchResult,
 } from './MetadataProviderInterface';
@@ -23,10 +25,6 @@ import {truncateText} from '../../lib/htmlUtils';
 // Use REST API for search (new API, better than actions API)
 const WIKIDATA_REST_API = 'https://www.wikidata.org/w/rest.php/wikibase';
 const WIKIDATA_SPARQL_ENDPOINT = 'https://query.wikidata.org/sparql';
-
-// Rate limiting - be respectful to Wikidata
-const RATE_LIMIT_MS = 1000;
-let lastRequestTime = 0;
 
 // Short description max length (2-4 lines)
 const MAX_SHORT_DESCRIPTION_LENGTH = 250;
@@ -123,22 +121,46 @@ export class WikidataMetadataProvider extends BaseMetadataProvider {
     constructor() {
         super(WIKIDATA_METADATA_MANIFEST);
     }
-
+    
     /**
-     * Rate limiting helper
+     * Wikidata capabilities:
+     * - Has accurate player counts for board games
+     * - Does NOT have store URLs
+     * - Does NOT support batch requests
+     * - Supports search
+     * - Has descriptions but NOT cover images reliably
      */
-    private async rateLimit(): Promise<void> {
-        const now = Date.now();
-        const elapsed = now - lastRequestTime;
-        if (elapsed < RATE_LIMIT_MS) {
-            await new Promise(resolve => setTimeout(resolve, RATE_LIMIT_MS - elapsed));
-        }
-        lastRequestTime = Date.now();
+    getCapabilities(): MetadataProviderCapabilities {
+        return {
+            hasAccuratePlayerCounts: true, // Wikidata has accurate player counts for board games
+            hasStoreUrls: false,
+            supportsBatchRequests: false,
+            supportsSearch: true,
+            hasDescriptions: true,
+            hasCoverImages: false, // Wikidata doesn't reliably have cover images
+        };
+    }
+    
+    /**
+     * Wikidata rate limit configuration
+     * Wikidata asks for reasonable usage - be respectful
+     */
+    getRateLimitConfig(): RateLimitConfig {
+        return {
+            requestDelayMs: 1000, // 1 second between requests (respectful usage)
+            maxBatchSize: 5,
+            batchDelayMs: 2000,
+            maxGamesPerSync: 100, // Conservative for SPARQL queries
+            retryDelayMs: 5000, // Wait longer before retry
+            maxConsecutiveErrors: 3,
+        };
     }
 
     /**
      * Search for board games on Wikidata using the REST API
      * Uses broad search then local filtering/ranking for better results
+     * 
+     * NOTE: Rate limiting is handled by GameSyncService, not here.
      * 
      * Approach:
      * 1. Fetch all matching items from Wikidata (not type-filtered)
@@ -150,7 +172,7 @@ export class WikidataMetadataProvider extends BaseMetadataProvider {
             return [];
         }
 
-        await this.rateLimit();
+        // NOTE: Rate limiting is handled by GameSyncService, not here.
 
         // Use REST API for search - broader than type-filtered SPARQL
         // This gets ALL matching items, then we filter locally
@@ -345,7 +367,7 @@ export class WikidataMetadataProvider extends BaseMetadataProvider {
             return null;
         }
 
-        await this.rateLimit();
+        // NOTE: Rate limiting is handled by GameSyncService, not here.
 
         // SPARQL query to get board game details
         const sparqlQuery = `

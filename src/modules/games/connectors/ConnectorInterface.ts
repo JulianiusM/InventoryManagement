@@ -38,6 +38,43 @@ export interface ExternalGame {
     releaseDate?: string;
     developer?: string;
     publisher?: string;
+    
+    // Store/Shop links for deep linking to the original store page
+    storeUrl?: string;  // Direct URL to the game on the store (e.g., Steam store page)
+    
+    // Aggregator origin fields (for transparent aggregator pattern)
+    // When a connector acts as an aggregator (e.g., Playnite), it can expose the original provider
+    originalProviderPluginId?: string;  // Original provider's plugin ID (e.g., Playnite plugin GUID)
+    originalProviderName?: string;      // Human-readable provider name (e.g., "Steam", "Epic")
+    originalProviderGameId?: string;    // Game ID on the original provider
+    originalProviderNormalizedId?: string; // Normalized provider ID (e.g., "steam", "epic", "gog")
+}
+
+/**
+ * Sync style for connectors
+ * - fetch: Connector actively pulls data from external service (e.g., Steam API)
+ * - push: Connector receives data pushed from external agent (e.g., Playnite extension)
+ */
+export type ConnectorSyncStyle = 'fetch' | 'push';
+
+/**
+ * Credential field definition for dynamic UI generation
+ */
+export interface CredentialField {
+    /** Field identifier (used as form field name) */
+    name: string;
+    /** Human-readable label for the field */
+    label: string;
+    /** Field type for rendering */
+    type: 'text' | 'password' | 'url';
+    /** Whether this field is required */
+    required: boolean;
+    /** Placeholder text */
+    placeholder?: string;
+    /** Help text shown below the field */
+    helpText?: string;
+    /** Maps to: externalUserId, tokenRef, or custom field stored in account metadata */
+    mapsTo: 'externalUserId' | 'tokenRef';
 }
 
 /**
@@ -50,7 +87,19 @@ export interface ConnectorManifest {
     provider: string; // Changed from enum to string for user-defined providers
     capabilities: ConnectorCapability[];
     version: string;
-    configSchema?: object; // JSON Schema for connector configuration
+    /** 
+     * Sync style: 'fetch' for pull-based connectors (default), 'push' for agent-based connectors 
+     */
+    syncStyle?: ConnectorSyncStyle;
+    /**
+     * Credential fields required from user - generates dynamic UI
+     * If not specified, shows default externalUserId + tokenRef fields
+     */
+    credentialFields?: CredentialField[];
+    /** Whether this connector acts as an aggregator (imports from multiple sources) */
+    isAggregator?: boolean;
+    /** Whether this connector supports devices (for push-style connectors) */
+    supportsDevices?: boolean;
 }
 
 /**
@@ -61,6 +110,11 @@ export interface SyncResult {
     games: ExternalGame[];
     error?: string;
     timestamp: Date;
+    
+    // Connector tracing information
+    connectorId?: string;    // ID of the connector that produced this result
+    connectorName?: string;  // Human-readable name of the connector
+    isAggregator?: boolean;  // Whether the connector is an aggregator
 }
 
 /**
@@ -72,6 +126,10 @@ export interface ConnectorCredentials {
     externalUserId: string;
     /** Token/credential reference for authentication (e.g., API key) - optional for some providers */
     tokenRef?: string;
+    /** Device ID for push-style connectors */
+    deviceId?: string;
+    /** Device token for push-style connector authentication */
+    deviceToken?: string;
 }
 
 /**
@@ -101,6 +159,46 @@ export interface GameConnector {
      * @returns true if credentials are valid
      */
     validateCredentials(credentials: ConnectorCredentials): Promise<boolean>;
+}
+
+/**
+ * Import preprocessing result from push connector
+ * Contains validated games in the unified ExternalGame format
+ */
+export interface ImportPreprocessResult {
+    success: boolean;
+    games: ExternalGame[];
+    error?: string;
+    /** List of entitlement keys to use for soft-removal tracking */
+    entitlementKeys: string[];
+    /** Warnings generated during preprocessing */
+    warnings: Array<{code: string; count: number}>;
+    /** Number of games that need manual review */
+    needsReviewCount: number;
+}
+
+/**
+ * Extended interface for push-style connectors that support devices
+ */
+export interface PushConnector extends GameConnector {
+    
+    /**
+     * Preprocess a pushed import payload into unified ExternalGame format
+     * This is the connector-specific validation and transformation step.
+     * The result is then fed into the unified sync pipeline.
+     * 
+     * @param payload - The raw import data from the external agent
+     * @returns Preprocessed games in unified format with tracking info
+     */
+    preprocessImport(payload: unknown): Promise<ImportPreprocessResult>;
+}
+
+/**
+ * Type guard to check if a connector is a push-style connector
+ */
+export function isPushConnector(connector: GameConnector): connector is PushConnector {
+    return connector.getManifest().syncStyle === 'push' && 
+           connector.getManifest().supportsDevices === true;
 }
 
 /**

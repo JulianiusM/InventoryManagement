@@ -205,7 +205,7 @@ describe('SteamMetadataProvider', () => {
             expect(results[1].name).toBe('Counter-Strike 2');
         });
 
-        test('skips failed fetches', async () => {
+        test('skips failed fetches after retries', async () => {
             const mockApp1 = {
                 '570': {
                     success: true,
@@ -223,14 +223,24 @@ describe('SteamMetadataProvider', () => {
                 ok: true,
                 json: async () => mockApp1,
             });
-            mockFetch.mockResolvedValueOnce({
-                ok: false,
-            });
+            // Mock all retry attempts for the failed game
+            mockFetch.mockResolvedValueOnce({ ok: false });
+            mockFetch.mockResolvedValueOnce({ ok: false });
+            mockFetch.mockResolvedValueOnce({ ok: false });
 
-            const results = await provider.getGamesMetadata(['570', '999']);
+            // Use fake timers to speed up the test
+            jest.useFakeTimers();
+            const resultsPromise = provider.getGamesMetadata(['570', '999']);
+            
+            // Fast-forward through all delays
+            await jest.advanceTimersByTimeAsync(20000);
+            
+            const results = await resultsPromise;
+            
+            jest.useRealTimers();
             
             expect(results).toHaveLength(1);
             expect(results[0].name).toBe('Dota 2');
-        });
+        }, 30000);
     });
 });

@@ -315,22 +315,6 @@ block content
                                 | Delete
 
 block scripts
+
+block scripts
     script(type="module" src="/js/items/detail.gen.js")
-    script.
-        // Delete confirmation
-        document.addEventListener('DOMContentLoaded', function() {
-            const deleteBtn = document.getElementById('deleteItemBtn');
-            const deleteModal = new bootstrap.Modal(document.getElementById('deleteModal'));
-            const deleteForm = document.getElementById('deleteForm');
-            const deleteItemName = document.getElementById('deleteItemName');
-            
-            if (deleteBtn) {
-                deleteBtn.addEventListener('click', function() {
-                    const itemId = this.dataset.itemId;
-                    const itemName = this.dataset.itemName;
-                    deleteItemName.textContent = itemName;
-                    deleteForm.action = '/items/' + itemId + '/delete';
-                    deleteModal.show();
-                });
-            }
-        });

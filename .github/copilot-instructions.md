@@ -121,4 +121,153 @@ for (const data of surveyCreationData) {
 
 For detailed E2E testing patterns and examples, see [TESTING.md](../TESTING.md) and [tests/e2e/README.md](../tests/e2e/README.md).
 
+## Games Module Architecture
+
+The Games module supports managing game titles, releases, and copies with external provider integration.
+
+### Sync Architecture (CRITICAL)
+
+The sync pipeline is **modular and unified**. All connectors (fetch-style and push-style) use the SAME processing logic.
+
+**Key File Structure:**
+```
+src/modules/games/
+├── sync/
+│   └── GameProcessor.ts       # SINGLE implementation for game processing
+├── GameSyncService.ts         # Orchestration and scheduling
+├── GameNameUtils.ts           # Edition extraction and title normalization
+├── connectors/                # External connector implementations
+└── metadata/                  # Metadata provider implementations
+```
+
+**Critical Design Rule:** BOTH fetch-style and push-style connectors use `processGameBatch()` from `GameProcessor.ts`.
+- NO duplicate processing implementations
+- Edition extraction is ALWAYS performed in `createGameFromData()`
+- DRY principle enforced across all sync flows
+
+**Processing Flow:**
+```
+Connector (fetch/push) → processGameBatch() → safeCreateGameFromData()
+                                                      │
+                              ├── extractEdition(game.name)   ← ALWAYS runs
+                              ├── getOrCreateGameTitle()      ← Uses baseName
+                              └── getOrCreateGameRelease()    ← Uses edition
+```
+
+### Connectors
+
+Connectors sync game libraries from external providers like Steam or Playnite.
+
+**Architecture:**
+```
+src/modules/games/connectors/
+├── ConnectorInterface.ts      # Generic interfaces
+├── ConnectorRegistry.ts       # Connector registration
+├── SteamConnector.ts          # Steam (fetch-style)
+└── playnite/                  # Playnite (push-style aggregator)
+    ├── PlayniteConnector.ts
+    ├── PlayniteImportService.ts
+    └── PlayniteProviders.ts
+```
+
+**Connector Types:**
+- **Fetch-style** (`syncStyle: 'fetch'`): Connector pulls data from external API (e.g., Steam)
+- **Push-style** (`syncStyle: 'push'`): External agent pushes data via unified API (e.g., Playnite)
+
+**Aggregator Pattern:**
+Aggregators like Playnite import games from multiple sources while preserving original provider info:
+- `aggregatorProviderId`: The aggregator (e.g., "playnite")
+- `originalProviderName`: The actual source (e.g., "Steam", "Epic")
+- `originalProviderGameId`: The game ID on the original provider
+
+**Push Import Flow:**
+```
+Device Token → requirePushConnectorAuth → processPushImport()
+                                              │
+                    ├── connector.preprocessImport()   ← Connector-specific validation
+                    ├── processGameBatch()             ← UNIFIED sync pipeline
+                    └── softRemoveUnseenEntries()      ← Shared soft-removal
+```
+
+### Platform Normalization
+
+Platforms are normalized to prevent duplicates (e.g., "PS5" → "PlayStation 5"):
+- `normalizePlatformName()` in `PlatformService.ts` (sync fallback)
+- `normalizePlatformNameWithDb()` in `PlatformService.ts` (async, uses database aliases)
+- User-defined aliases stored in Platform entity `aliases` column (comma-separated)
+- Unknown platforms are auto-created
+
+### Game Title Merging
+
+Game titles with different editions merge to the same title with different releases:
+- `extractEdition()` in `GameNameUtils.ts` extracts edition from game name
+- `normalizeGameTitle()` handles trademark symbols (™®©), punctuation variants
+- `getOrCreateGameTitle()` finds existing titles by normalized name
+- Example: "The Sims 4", "The Sims™ 4", "The Sims 4 Premium Edition" → same title
+
+### Smart Sync
+
+Syncs are optimized to skip unnecessary processing:
+- Pre-fetch existing items before processing
+- Games with existing copies only update playtime/status (skip metadata)
+- Metadata enrichment only for NEW games
+- Reduces API calls and sync duration
+
+### Metadata Provider Architecture
+
+Metadata providers are standardized with centralized rate limiting:
+- Providers implement `getCapabilities()` and `getRateLimitConfig()`
+- `MetadataFetcher` class in `GameSyncService.ts` handles rate limiting
+- Two metadata runs: general info from primary provider, player counts from providers with `hasAccuratePlayerCounts` capability
+- Provider fallback uses capabilities (never hardcoded provider references)
+
+### Plugin Isolation Rules (CRITICAL)
+
+**Connectors and Metadata Providers are treated as external plugins.**
+
+#### Rule 1: No direct references to connectors/providers from app code
+- The app (GameSyncService, controllers, etc.) must ONLY use generic interfaces
+- **NEVER** reference a specific connector or provider by name/ID outside their respective folder
+- Use `ConnectorRegistry` and `MetadataProviderRegistry` for all lookups
+- Use capabilities (`getCapabilities()`) to select providers, not hardcoded IDs
+
+**Forbidden in app code:**
+```typescript
+// BAD - hardcoded provider reference
+const igdb = metadataProviderRegistry.getById('igdb');
+
+// GOOD - use capability-based lookup
+const providers = metadataProviderRegistry.getAllByCapability('hasAccuratePlayerCounts');
+```
+
+#### Rule 2: No app internal references from connectors/providers
+- Connectors and providers should ONLY call external APIs (Steam API, IGDB, etc.)
+- **NEVER** import or call app internals (database services, controllers, other modules)
+- They receive data via method parameters and return results via defined interfaces
+- They are stateless external adapters
+
+**Forbidden in connector/provider code:**
+```typescript
+// BAD - importing app internals
+import * as gameTitleService from '../../database/services/GameTitleService';
+
+// GOOD - return data via interface, let app handle persistence
+return { games: [...], success: true };
+```
+
+#### Rule 3: Folder isolation
+- All Playnite-specific code: `src/modules/games/connectors/playnite/`
+- All Steam connector code: `src/modules/games/connectors/SteamConnector.ts`
+- All metadata providers: `src/modules/games/metadata/*.ts`
+- These folders could be moved to separate packages without breaking the app
+
+### Key Entities
+- **GameTitle**: A game's core info (name, description, player counts)
+- **GameRelease**: Platform-specific release (PC, PS5, etc. with edition/region)
+- **Item** (with `type=GAME_DIGITAL` or `GAME_PHYSICAL`): Game copies
+- **ExternalAccount**: Linked external accounts (Steam, Playnite, etc.)
+- **ConnectorDevice**: Devices for push-style connectors
+- **SyncJob**: Tracks sync history (pending, in_progress, completed, failed)
+- **Platform**: Game platforms with user-defined aliases for normalization
+
 ## Additional Resources

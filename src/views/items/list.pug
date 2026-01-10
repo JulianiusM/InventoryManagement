@@ -250,38 +250,7 @@ block content
                         i.bi.bi-plus-lg.me-1
                         | Create Item
 
+
 block scripts
     script(src="/js/enhanced-search.js")
-    script.
-        // Enhanced search with query preservation
-        document.addEventListener('DOMContentLoaded', function() {
-            const searchInput = document.getElementById('itemSearch');
-            const clearBtn = document.querySelector('[data-search-clear]');
-            
-            // Clear button handler
-            if (clearBtn) {
-                clearBtn.addEventListener('click', function() {
-                    searchInput.value = '';
-                    searchInput.focus();
-                });
-            }
-            
-            // Initialize Select2 for location dropdown in modal
-            if (typeof $ !== 'undefined' && $.fn.select2) {
-                $('.select2-location').select2({
-                    theme: 'bootstrap-5',
-                    dropdownParent: $('#addItemModal'),
-                    placeholder: 'Select a location',
-                    allowClear: true,
-                    width: '100%'
-                });
-                
-                // Initialize Select2 for filter location dropdown
-                $('.select2-filter-location').select2({
-                    theme: 'bootstrap-5',
-                    placeholder: 'All locations',
-                    allowClear: true,
-                    width: '100%'
-                });
-            }
-        });
+    script(type="module" src="/js/items/list.gen.js")

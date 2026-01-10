@@ -66,3 +66,60 @@ export async function failSyncJob(id: string, errorMessage: string): Promise<voi
         errorMessage: errorMessage,
     });
 }
+
+/**
+ * Get all in-progress sync jobs (for recovery on app restart)
+ */
+export async function getInProgressJobs(): Promise<SyncJob[]> {
+    const repo = AppDataSource.getRepository(SyncJob);
+    return await repo.find({
+        where: {status: SyncStatus.IN_PROGRESS},
+        relations: ['externalAccount'],
+    });
+}
+
+/**
+ * Get pending sync jobs (for resume functionality)
+ */
+export async function getPendingJobs(): Promise<SyncJob[]> {
+    const repo = AppDataSource.getRepository(SyncJob);
+    return await repo.find({
+        where: {status: SyncStatus.PENDING},
+        relations: ['externalAccount'],
+        order: {createdAt: 'ASC'},
+    });
+}
+
+/**
+ * Get all sync jobs for a user (across all their accounts)
+ * For the Jobs Overview page
+ */
+export async function getAllJobsForUser(ownerId: number, options?: {
+    status?: SyncStatus;
+    limit?: number;
+    offset?: number;
+}): Promise<{jobs: SyncJob[]; total: number}> {
+    const repo = AppDataSource.getRepository(SyncJob);
+    
+    const queryBuilder = repo.createQueryBuilder('job')
+        .leftJoinAndSelect('job.externalAccount', 'account')
+        .where('account.owner_id = :ownerId', {ownerId})
+        .orderBy('job.createdAt', 'DESC');
+    
+    if (options?.status) {
+        queryBuilder.andWhere('job.status = :status', {status: options.status});
+    }
+    
+    const total = await queryBuilder.getCount();
+    
+    if (options?.limit) {
+        queryBuilder.take(options.limit);
+    }
+    if (options?.offset) {
+        queryBuilder.skip(options.offset);
+    }
+    
+    const jobs = await queryBuilder.getMany();
+    
+    return {jobs, total};
+}

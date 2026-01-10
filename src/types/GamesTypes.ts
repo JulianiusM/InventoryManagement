@@ -97,3 +97,24 @@ export interface LinkDigitalCopyToAccountBody {
 export interface ScheduleSyncBody {
     intervalMinutes: number;
 }
+
+/**
+ * Device info for push-style connectors
+ */
+export interface ConnectorDevice {
+    id: string;
+    name: string;
+    createdAt: Date;
+    lastSeenAt?: Date | null;
+    lastImportAt?: Date | null;
+    status: 'active' | 'revoked';
+}
+
+/**
+ * Device registration result
+ */
+export interface DeviceRegistrationResult {
+    deviceId: string;
+    deviceName: string;
+    token: string; // Only returned on registration, not stored
+}

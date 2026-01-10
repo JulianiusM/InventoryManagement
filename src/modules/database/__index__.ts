@@ -1,5 +1,6 @@
 // ⚠️ AUTO-GENERATED FILE — do not edit manually.
 import { Barcode } from "./entities/barcode/Barcode";
+import { ConnectorDevice } from "./entities/connectorDevice/ConnectorDevice";
 import { ExternalAccount } from "./entities/externalAccount/ExternalAccount";
 import { ExternalLibraryEntry } from "./entities/externalLibraryEntry/ExternalLibraryEntry";
 import { GameExternalMapping } from "./entities/gameExternalMapping/GameExternalMapping";
@@ -15,7 +16,7 @@ import { Session } from "./entities/session/Session";
 import { SyncJob } from "./entities/syncJob/SyncJob";
 import { User } from "./entities/user/User";
 
-export const entities = [Barcode, ExternalAccount, ExternalLibraryEntry, GameExternalMapping, GameRelease, GameTitle, Item, ItemMovement, Loan, Location, Party, Platform, Session, SyncJob, User];
+export const entities = [Barcode, ConnectorDevice, ExternalAccount, ExternalLibraryEntry, GameExternalMapping, GameRelease, GameTitle, Item, ItemMovement, Loan, Location, Party, Platform, Session, SyncJob, User];
 
 export const migrations = [];
 

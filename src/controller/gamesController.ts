@@ -17,6 +17,8 @@ import * as locationService from '../modules/database/services/LocationService';
 import * as partyService from '../modules/database/services/PartyService';
 import * as gameSyncService from '../modules/games/GameSyncService';
 import * as platformService from '../modules/database/services/PlatformService';
+import * as connectorDeviceService from '../modules/database/services/ConnectorDeviceService';
+import * as syncJobService from '../modules/database/services/SyncJobService';
 import {connectorRegistry, initializeConnectors} from '../modules/games/connectors/ConnectorRegistry';
 import {metadataProviderRegistry} from '../modules/games/metadata/MetadataProviderRegistry';
 import {mergePlayerCounts, type GameMetadata, type MetadataSearchResult} from '../modules/games/metadata/MetadataProviderInterface';
@@ -32,7 +34,8 @@ import {
     ItemCondition,
     ItemType,
     LoanDirection,
-    MappingStatus
+    MappingStatus,
+    SyncStatus
 } from '../types/InventoryEnums';
 import {
     CreateGameTitleBody,
@@ -45,7 +48,7 @@ import {
     MergeGameTitlesBody,
     MergeGameReleasesBody,
     LinkDigitalCopyToAccountBody,
-    ScheduleSyncBody
+    ScheduleSyncBody, DeviceRegistrationResult, ConnectorDevice
 } from '../types/GamesTypes';
 
 // Ensure connectors are initialized
@@ -324,22 +327,25 @@ export async function fetchMetadataForTitle(
                               foundMetadata.playerInfo?.localMaxPlayers !== undefined;
     
     if (hasMultiplayer && !hasSpecificCounts) {
-        const igdbProvider = metadataProviderRegistry.getById('igdb');
-        if (igdbProvider) {
+        // Use capability-based lookup for player count enrichment
+        const playerCountProviders = metadataProviderRegistry.getAllByCapability('hasAccuratePlayerCounts');
+        for (const provider of playerCountProviders) {
             try {
-                console.log(`Enriching "${title.name}" with player counts from IGDB`);
-                const igdbResults = await igdbProvider.searchGames(query, 1);
-                if (igdbResults.length > 0) {
-                    const igdbMeta = await igdbProvider.getGameMetadata(igdbResults[0].externalId);
-                    if (igdbMeta?.playerInfo) {
-                        // Merge IGDB player counts into metadata using utility
-                        foundMetadata.playerInfo = mergePlayerCounts(foundMetadata.playerInfo, igdbMeta.playerInfo);
-                        primaryProviderName += ' + IGDB';
+                const providerName = provider.getManifest().name;
+                console.log(`Enriching "${title.name}" with player counts from ${providerName}`);
+                const results = await provider.searchGames(query, 1);
+                if (results.length > 0) {
+                    const playerMeta = await provider.getGameMetadata(results[0].externalId);
+                    if (playerMeta?.playerInfo) {
+                        // Merge player counts into metadata using utility
+                        foundMetadata.playerInfo = mergePlayerCounts(foundMetadata.playerInfo, playerMeta.playerInfo);
+                        primaryProviderName += ` + ${providerName}`;
+                        break; // Stop after first successful enrichment
                     }
                 }
             } catch (error) {
-                console.warn('IGDB enrichment failed:', error);
-                // Continue with original metadata
+                console.warn(`${provider.getManifest().name} enrichment failed:`, error);
+                // Continue with next provider
             }
         }
     }
@@ -537,25 +543,28 @@ export async function applyMetadataOption(
         return {updated: false, message: `No metadata found for ID ${externalId}`};
     }
     
-    // Enrich with IGDB if needed
+    // Enrich with player count providers if needed
     const hasMultiplayer = foundMetadata.playerInfo?.supportsOnline || foundMetadata.playerInfo?.supportsLocal;
     const hasSpecificCounts = foundMetadata.playerInfo?.onlineMaxPlayers !== undefined || 
                               foundMetadata.playerInfo?.localMaxPlayers !== undefined;
     
     if (hasMultiplayer && !hasSpecificCounts) {
-        const igdbProvider = metadataProviderRegistry.getById('igdb');
-        if (igdbProvider) {
+        // Use capability-based lookup for player count enrichment
+        const playerCountProviders = metadataProviderRegistry.getAllByCapability('hasAccuratePlayerCounts');
+        for (const provider of playerCountProviders) {
             try {
-                const igdbResults = await igdbProvider.searchGames(foundMetadata.name, 1);
-                if (igdbResults.length > 0) {
-                    const igdbMeta = await igdbProvider.getGameMetadata(igdbResults[0].externalId);
-                    if (igdbMeta?.playerInfo) {
-                        foundMetadata.playerInfo = mergePlayerCounts(foundMetadata.playerInfo, igdbMeta.playerInfo);
-                        primaryProviderName += ' + IGDB';
+                const results = await provider.searchGames(foundMetadata.name, 1);
+                if (results.length > 0) {
+                    const playerMeta = await provider.getGameMetadata(results[0].externalId);
+                    if (playerMeta?.playerInfo) {
+                        foundMetadata.playerInfo = mergePlayerCounts(foundMetadata.playerInfo, playerMeta.playerInfo);
+                        primaryProviderName += ` + ${provider.getManifest().name}`;
+                        break; // Stop after first successful enrichment
                     }
                 }
             } catch (error) {
-                console.warn('IGDB enrichment failed:', error);
+                console.warn(`${provider.getManifest().name} enrichment failed:`, error);
+                // Continue with next provider
             }
         }
     }
@@ -901,6 +910,67 @@ export async function moveGameCopy(
     await itemService.updateItemLocation(id, body.locationId || null);
 }
 
+/**
+ * Update a game copy's editable fields
+ */
+export async function updateGameCopy(
+    id: string,
+    body: {
+        condition?: string | null;
+        lendable?: boolean;
+        notes?: string | null;
+        storeUrl?: string | null;
+    },
+    userId: number
+): Promise<void> {
+    requireAuthenticatedUser(userId);
+    const copy = await itemService.getItemById(id);
+    if (!copy) {
+        throw new ExpectedError('Game copy not found', 'error', 404);
+    }
+    checkOwnership(copy, userId);
+    
+    // Only physical copies have condition and lendable settings
+    const updateData: Record<string, unknown> = {};
+    
+    if (body.notes !== undefined) {
+        const trimmed = typeof body.notes === 'string' ? body.notes.trim() : null;
+        updateData.notes = trimmed || null;
+    }
+    
+    if (copy.gameCopyType === GameCopyType.PHYSICAL_COPY) {
+        if (body.condition !== undefined) {
+            updateData.condition = body.condition || null;
+        }
+        if (body.lendable !== undefined) {
+            updateData.lendable = body.lendable;
+        }
+    }
+    
+    // Digital licenses can have store URL
+    if (copy.gameCopyType === GameCopyType.DIGITAL_LICENSE) {
+        if (body.storeUrl !== undefined) {
+            const trimmed = typeof body.storeUrl === 'string' ? body.storeUrl.trim() : null;
+            // Validate URL if provided - only allow HTTPS for security
+            if (trimmed) {
+                try {
+                    const url = new URL(trimmed);
+                    if (url.protocol !== 'https:') {
+                        throw new Error('Only HTTPS URLs are allowed');
+                    }
+                    updateData.storeUrl = trimmed;
+                } catch {
+                    // Invalid URL or not HTTPS, skip
+                }
+            } else {
+                updateData.storeUrl = null;
+            }
+        }
+    }
+    
+    await itemService.updateItem(id, updateData);
+}
+
 export async function deleteGameCopy(id: string, userId: number): Promise<void> {
     requireAuthenticatedUser(userId);
     const copy = await itemService.getItemById(id);
@@ -1007,6 +1077,7 @@ export async function listExternalAccounts(ownerId: number) {
     requireAuthenticatedUser(ownerId);
     const accounts = await externalAccountService.getAllExternalAccounts(ownerId);
     const connectors = connectorRegistry.getAllManifests();
+    
     return {accounts, connectors};
 }
 
@@ -1270,6 +1341,49 @@ export async function mergeGameReleases(body: MergeGameReleasesBody, userId: num
     return await gameReleaseService.mergeGameReleases(body.sourceId, body.targetId);
 }
 
+/**
+ * Merge a game title as a release of another title
+ * This is useful for resolving edition duplicates (e.g., "The Sims 4" and "The Sims 4 Premium Edition")
+ */
+export async function mergeGameTitleAsRelease(
+    body: {
+        sourceId: string;
+        targetId: string;
+        platform: string;
+        edition?: string;
+        region?: string;
+        releaseDate?: string;
+    }, 
+    userId: number
+): Promise<string> {
+    requireAuthenticatedUser(userId);
+    
+    // Verify ownership of both titles
+    const source = await gameTitleService.getGameTitleById(body.sourceId);
+    const target = await gameTitleService.getGameTitleById(body.targetId);
+    
+    if (!source) {
+        throw new ExpectedError('Source game title not found', 'error', 404);
+    }
+    if (!target) {
+        throw new ExpectedError('Target game title not found', 'error', 404);
+    }
+    
+    checkOwnership(source, userId);
+    checkOwnership(target, userId);
+    
+    if (!body.platform) {
+        throw new ExpectedError('Platform is required', 'error', 400);
+    }
+    
+    return await gameTitleService.mergeGameTitleAsRelease(body.sourceId, body.targetId, {
+        platform: body.platform,
+        edition: body.edition,
+        region: body.region,
+        releaseDate: body.releaseDate,
+    });
+}
+
 // ============ Manual Digital License Linking ============
 
 /**
@@ -1369,7 +1483,7 @@ export async function listPlatforms(userId: number) {
 /**
  * Create a new platform
  */
-export async function createPlatform(body: {name: string; description?: string}, userId: number) {
+export async function createPlatform(body: {name: string; description?: string; aliases?: string}, userId: number) {
     requireAuthenticatedUser(userId);
     
     if (!body.name || body.name.trim() === '') {
@@ -1377,10 +1491,18 @@ export async function createPlatform(body: {name: string; description?: string},
     }
     
     try {
-        return await platformService.createPlatform({
+        // First create the platform
+        const platform = await platformService.createPlatform({
             name: body.name.trim(),
             description: body.description?.trim() || null,
         }, userId);
+        
+        // Then set aliases if provided
+        if (body.aliases?.trim()) {
+            await platformService.setAliases(platform.id, body.aliases.trim());
+        }
+        
+        return platform;
     } catch (error) {
         if (error instanceof Error && error.message.includes('already exists')) {
             throw new ExpectedError(error.message, 'error', 400);
@@ -1406,24 +1528,186 @@ export async function deletePlatform(id: string, userId: number): Promise<void> 
 }
 
 /**
- * Update a platform (non-default only)
+ * Update platform
+ * Aliases can be updated on both default and custom platforms.
+ * Name and description can only be updated on custom platforms.
  */
-export async function updatePlatform(id: string, body: {name?: string; description?: string}, userId: number): Promise<void> {
+export async function updatePlatform(id: string, body: {name?: string; description?: string; aliases?: string}, userId: number): Promise<void> {
     requireAuthenticatedUser(userId);
     
-    if (body.name !== undefined && !body.name.trim()) {
-        throw new ExpectedError('Platform name is required', 'error', 400);
+    try {
+        const platform = await platformService.getPlatformById(id, userId);
+        if (!platform) {
+            throw new ExpectedError('Platform not found', 'error', 404);
+        }
+        
+        // For default platforms, only allow updating aliases
+        if (platform.isDefault) {
+            // Update aliases only
+            await platformService.setAliases(id, body.aliases || null);
+        } else {
+            // For custom platforms, update all fields including aliases
+            if (body.name !== undefined && !body.name.trim()) {
+                throw new ExpectedError('Platform name is required', 'error', 400);
+            }
+            
+            await platformService.updatePlatform(id, {
+                name: body.name?.trim(),
+                description: body.description?.trim() || null,
+            }, userId);
+            
+            // Update aliases
+            await platformService.setAliases(id, body.aliases || null);
+        }
+    } catch (error) {
+        if (error instanceof Error && !(error instanceof ExpectedError)) {
+            throw new ExpectedError(error.message, 'error', 400);
+        }
+        throw error;
+    }
+}
+
+/**
+ * Merge two platforms
+ * Updates all game releases using the source platform to use the target platform
+ */
+export async function mergePlatforms(body: {sourceId: string; targetId: string}, userId: number): Promise<number> {
+    requireAuthenticatedUser(userId);
+    
+    // Verify ownership of both platforms
+    const source = await platformService.getPlatformById(body.sourceId, userId);
+    const target = await platformService.getPlatformById(body.targetId, userId);
+    
+    if (!source) {
+        throw new ExpectedError('Source platform not found', 'error', 404);
+    }
+    if (!target) {
+        throw new ExpectedError('Target platform not found', 'error', 404);
+    }
+    
+    if (source.isDefault) {
+        throw new ExpectedError('Cannot merge a default platform. Merge custom platforms instead.', 'error', 400);
     }
     
     try {
-        await platformService.updatePlatform(id, {
-            name: body.name?.trim(),
-            description: body.description?.trim() || null,
-        }, userId);
+        return await platformService.mergePlatforms(body.sourceId, body.targetId, userId);
     } catch (error) {
         if (error instanceof Error) {
             throw new ExpectedError(error.message, 'error', 400);
         }
         throw error;
     }
+}
+
+/**
+ * Register a new device for an account
+ */
+export async function registerDevice(accountId: string, deviceName: string): Promise<DeviceRegistrationResult> {
+    if (!deviceName || deviceName.trim() === '') {
+    throw new ExpectedError('Device name is required');
+}
+
+const result = await connectorDeviceService.createDevice(accountId, deviceName.trim());
+
+return {
+    deviceId: result.deviceId,
+    deviceName: deviceName.trim(),
+    token: result.token,
+};
+}
+
+/**
+ * List all devices for an account
+ */
+export async function listDevices(accountId: string): Promise<ConnectorDevice[]> {
+    const devices = await connectorDeviceService.getDevicesByAccountId(accountId);
+
+    return devices.map(device => ({
+        id: device.id,
+        name: device.name,
+        createdAt: device.createdAt,
+        lastSeenAt: device.lastSeenAt || null,
+        lastImportAt: device.lastImportAt || null,
+        status: device.revokedAt ? 'revoked' as const : 'active' as const,
+    }));
+}
+
+/**
+ * Revoke a device (soft delete)
+ */
+export async function revokeDevice(accountId: string, deviceId: string): Promise<void> {
+    const device = await connectorDeviceService.getDeviceById(deviceId);
+    if (!device || device.externalAccountId !== accountId) {
+    throw new ExpectedError('Device not found', "error", 404);
+}
+await connectorDeviceService.revokeDevice(deviceId);
+}
+
+/**
+ * Delete a device permanently
+ */
+export async function deleteDevice(accountId: string, deviceId: string): Promise<void> {
+    const device = await connectorDeviceService.getDeviceById(deviceId);
+    if (!device || device.externalAccountId !== accountId) {
+    throw new ExpectedError('Device not found', "error", 404);
+}
+await connectorDeviceService.deleteDevice(deviceId);
+}
+
+/**
+ * Verify a device token
+ */
+export async function verifyDeviceToken(token: string): Promise<{deviceId: string; accountId: string} | null> {
+    if (!token) {
+    return null;
+}
+
+const device = await connectorDeviceService.verifyDeviceToken(token);
+if (!device) {
+    return null;
+}
+
+return {
+    deviceId: device.id,
+    accountId: device.externalAccountId,
+};
+}
+
+// ============ Jobs Overview ============
+
+/**
+ * List all sync jobs for the jobs overview page
+ */
+export async function listJobs(ownerId: number, options?: {
+    status?: string;
+    page?: number;
+    limit?: number;
+}) {
+    requireAuthenticatedUser(ownerId);
+    
+    const page = options?.page || 1;
+    const limit = options?.limit || 50;
+    const offset = (page - 1) * limit;
+    
+    // Parse status filter
+    let statusFilter: SyncStatus | undefined;
+    if (options?.status && Object.values(SyncStatus).includes(options.status as SyncStatus)) {
+        statusFilter = options.status as SyncStatus;
+    }
+    
+    const {jobs, total} = await syncJobService.getAllJobsForUser(ownerId, {
+        status: statusFilter,
+        limit,
+        offset,
+    });
+    
+    const totalPages = Math.ceil(total / limit);
+    
+    return {
+        jobs,
+        total,
+        page,
+        totalPages,
+        statusFilter: options?.status || '',
+    };
 }

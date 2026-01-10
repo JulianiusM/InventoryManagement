@@ -6,6 +6,8 @@ import {setCurrentNavLocation} from '../core/navigation';
 import {post} from '../core/http';
 import {showInlineAlert} from '../shared/alerts';
 
+declare const bootstrap: any;
+
 /**
  * Initialize barcode mapping form
  */
@@ -55,7 +57,7 @@ function initBarcodeDelete(): void {
     const deleteButtons = document.querySelectorAll('.barcode-delete');
     
     deleteButtons.forEach(button => {
-        button.addEventListener('click', async function() {
+        button.addEventListener('click', async function(this: HTMLElement) {
             const barcodeId = this.getAttribute('data-barcode-id');
             if (!barcodeId) return;
             
@@ -90,12 +92,35 @@ function initBarcodeDelete(): void {
 }
 
 /**
+ * Initialize delete item confirmation
+ */
+function initDeleteConfirmation(): void {
+    const deleteBtn = document.getElementById('deleteItemBtn');
+    const deleteModalEl = document.getElementById('deleteModal');
+    const deleteForm = document.getElementById('deleteForm') as HTMLFormElement | null;
+    const deleteItemName = document.getElementById('deleteItemName');
+    
+    if (deleteBtn && deleteModalEl && deleteForm && deleteItemName) {
+        const deleteModal = new bootstrap.Modal(deleteModalEl);
+        
+        deleteBtn.addEventListener('click', function(this: HTMLElement) {
+            const itemId = this.dataset.itemId;
+            const itemName = this.dataset.itemName;
+            deleteItemName.textContent = itemName || '';
+            deleteForm.action = '/items/' + itemId + '/delete';
+            deleteModal.show();
+        });
+    }
+}
+
+/**
  * Initialize item detail page
  */
 export function init(): void {
     setCurrentNavLocation();
     initBarcodeForm();
     initBarcodeDelete();
+    initDeleteConfirmation();
 }
 
 // Expose to global scope

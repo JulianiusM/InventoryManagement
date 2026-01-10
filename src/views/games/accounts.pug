@@ -8,6 +8,11 @@ block content
     - const connectors = (data && data.connectors) ? data.connectors : []
     //- Generate provider list from registered connectors
     - const connectorProviders = connectors.map(c => c.provider)
+    //- Serialize connector data for TypeScript module
+    - const safeConnectorData = JSON.stringify(connectors.map(c => ({id: c.id, name: c.name, description: c.description, provider: c.provider, syncStyle: c.syncStyle, isAggregator: c.isAggregator, supportsDevices: c.supportsDevices, credentialFields: c.credentialFields})))
+
+    //- Hidden element containing connector data for TypeScript module
+    script#connectorData(type="application/json") !{safeConnectorData}
 
     #liveAlerts
 
@@ -18,9 +23,13 @@ block content
             if accounts.length > 0
                 span.badge.text-bg-secondary.ms-2.fs-6 #{accounts.length}
         
-        button.btn.btn-primary(type="button" data-bs-toggle="modal" data-bs-target="#addAccountModal")
-            i.bi.bi-plus-lg.me-1
-            | Link Account
+        .btn-group
+            a.btn.btn-outline-light(href="/games/jobs")
+                i.bi.bi-clock-history.me-1
+                | View Jobs
+            button.btn.btn-primary(type="button" data-bs-toggle="modal" data-bs-target="#addAccountModal")
+                i.bi.bi-plus-lg.me-1
+                | Link Account
 
     //- Info card
     .card.text-bg-dark.border-secondary.mb-3
@@ -53,9 +62,15 @@ block content
     else
         //- Check which providers have connectors (case-insensitive match)
         - const connectorProviderNames = connectors.map(c => c.provider.toLowerCase())
+        - const connectorMap = {}
+        each conn in connectors
+            - connectorMap[conn.provider.toLowerCase()] = conn
         .row.g-3
             each account in accounts
                 - const hasConnector = connectorProviderNames.includes(account.provider.toLowerCase())
+                - const connector = connectorMap[account.provider.toLowerCase()]
+                - const isPushStyle = connector && connector.syncStyle === 'push'
+                - const supportsDevices = connector && connector.supportsDevices
                 .col-md-6.col-lg-4
                     .card.text-bg-dark.border-secondary.h-100
                         .card-body
@@ -64,14 +79,28 @@ block content
                                     h5.mb-1.text-white
                                         i.bi.bi-cloud.me-2
                                         | #{account.accountName}
-                                    span.badge.text-bg-info #{account.provider}
-                                    if !hasConnector
-                                        span.badge.text-bg-warning.ms-1 Manual
+                                    .d-flex.flex-wrap.gap-1.align-items-center
+                                        span.badge.text-bg-info #{account.provider}
+                                        if !hasConnector
+                                            span.badge.text-bg-warning Manual
+                                        if isPushStyle
+                                            span.badge.text-bg-secondary Push
+                                        if connector && connector.isAggregator
+                                            span.badge.text-bg-primary Aggregator
                                 .dropdown
                                     button.btn.btn-sm.btn-outline-secondary.dropdown-toggle(type="button" data-bs-toggle="dropdown")
                                         i.bi.bi-three-dots-vertical
                                     ul.dropdown-menu.dropdown-menu-dark.dropdown-menu-end
-                                        if hasConnector
+                                        li
+                                            button.dropdown-item.edit-account-btn(type="button" data-account-id=account.id data-account-name=account.accountName data-external-user-id=account.externalUserId data-provider=account.provider)
+                                                i.bi.bi-pencil.me-2
+                                                | Edit Account
+                                        if supportsDevices
+                                            li
+                                                button.dropdown-item.manage-devices-btn(type="button" data-account-id=account.id data-account-name=account.accountName)
+                                                    i.bi.bi-device-hdd.me-2
+                                                    | Manage Devices
+                                        if hasConnector && !isPushStyle
                                             li
                                                 form(method="post" action=`/games/accounts/${account.id}/sync`)
                                                     button.dropdown-item(type="submit")
@@ -86,8 +115,8 @@ block content
                                                     button.dropdown-item(type="submit")
                                                         i.bi.bi-clock-history.me-2
                                                         | Cancel Schedule
-                                            li
-                                                hr.dropdown-divider
+                                        li
+                                            hr.dropdown-divider
                                         li
                                             form(method="post" action=`/games/accounts/${account.id}/delete`)
                                                 button.dropdown-item.text-danger(type="submit" onclick="return confirm('Remove this account?')")
@@ -98,6 +127,9 @@ block content
                                 if !hasConnector
                                     i.bi.bi-info-circle.me-1
                                     | Manual account (no connector) - use to track games without auto-sync
+                                else if isPushStyle
+                                    i.bi.bi-device-hdd.me-1
+                                    | Push-style connector - data is synced from the external agent
                                 else if account.lastSyncedAt
                                     i.bi.bi-clock.me-1
                                     | Last synced: #{new Date(account.lastSyncedAt).toLocaleString()}
@@ -106,13 +138,13 @@ block content
                                     | Never synced
                             
                             //- Sync status container (updated via JavaScript)
-                            if hasConnector
+                            if hasConnector && !isPushStyle
                                 .sync-status-container.mt-2(data-account-id=account.id)
                                     .sync-status.text-white-50.small
                                         //- Status will be populated by JavaScript
 
                         .card-footer.bg-transparent.border-secondary
-                            if hasConnector
+                            if hasConnector && !isPushStyle
                                 .d-flex.gap-2
                                     form.flex-grow-1(method="post" action=`/games/accounts/${account.id}/sync`)
                                         button.btn.btn-sm.btn-outline-primary.w-100.sync-btn(type="submit" data-account-id=account.id)
@@ -121,6 +153,10 @@ block content
                                     button.btn.btn-sm.btn-outline-secondary.check-status-btn(type="button" data-account-id=account.id)
                                         i.bi.bi-arrow-clockwise.me-1
                                         | Check Status
+                            else if supportsDevices
+                                button.btn.btn-sm.btn-outline-primary.w-100.manage-devices-btn(type="button" data-account-id=account.id data-account-name=account.accountName)
+                                    i.bi.bi-device-hdd.me-1
+                                    | Manage Devices
                             else
                                 .text-center.text-white-50.small
                                     i.bi.bi-hand-index.me-1
@@ -166,11 +202,87 @@ block content
                         .col-md-6.col-lg-4
                             .card.text-bg-dark.border-secondary
                                 .card-body.py-2
-                                    h6.mb-1 #{conn.name}
+                                    .d-flex.justify-content-between.align-items-start
+                                        div
+                                            h6.mb-1 #{conn.name}
+                                            if conn.syncStyle === 'push'
+                                                span.badge.text-bg-secondary.small.me-1 Push
+                                            else
+                                                span.badge.text-bg-primary.small.me-1 Fetch
+                                            if conn.isAggregator
+                                                span.badge.text-bg-info.small.me-1 Aggregator
                                     p.small.text-white-50.mb-1 #{conn.description}
                                     .d-flex.flex-wrap.gap-1
                                         each cap in conn.capabilities
-                                            span.badge.text-bg-secondary.small #{cap.replace('_', ' ')}
+                                            span.badge.text-bg-dark.small.border.border-secondary #{cap.replace('_', ' ')}
+
+    //- Edit Account Modal
+    #editAccountModal.modal.fade(tabindex="-1")
+        .modal-dialog
+            .modal-content.text-bg-dark
+                .modal-header.border-secondary
+                    h5.modal-title
+                        i.bi.bi-pencil.me-2
+                        | Edit Account
+                    button.btn-close.btn-close-white(type="button" data-bs-dismiss="modal")
+                .modal-body
+                    form#editAccountForm.row.g-3
+                        input#editAccountId(type="hidden" name="accountId")
+                        .col-12
+                            label.form-label Account Name *
+                            input#editAccountName.form-control.text-bg-dark(type="text" name="accountName" required)
+                        .col-12#editExternalUserIdField
+                            label.form-label.edit-field-label User ID / External ID
+                            input#editExternalUserId.form-control.text-bg-dark(type="text" name="externalUserId")
+                .modal-footer.border-secondary
+                    button.btn.btn-secondary(type="button" data-bs-dismiss="modal") Cancel
+                    button.btn.btn-primary(type="submit" form="editAccountForm")
+                        i.bi.bi-check-lg.me-1
+                        | Save Changes
+
+    //- Manage Devices Modal (for push-style connectors)
+    #manageDevicesModal.modal.fade(tabindex="-1")
+        .modal-dialog.modal-lg
+            .modal-content.text-bg-dark
+                .modal-header.border-secondary
+                    h5.modal-title
+                        i.bi.bi-device-hdd.me-2
+                        span#devicesModalTitle Manage Devices
+                    button.btn-close.btn-close-white(type="button" data-bs-dismiss="modal")
+                .modal-body
+                    input#devicesAccountId(type="hidden")
+                    .alert.alert-info.mb-3
+                        i.bi.bi-info-circle.me-2
+                        | Devices allow external agents to push data to this account. Register a device to get a token for the agent.
+                    
+                    //- Device registration form
+                    form#registerDeviceForm.mb-4
+                        .row.g-2.align-items-end
+                            .col-md-8
+                                label.form-label Device Name
+                                input#deviceNameInput.form-control.text-bg-dark(type="text" name="deviceName" placeholder="e.g., Gaming PC" required)
+                            .col-md-4
+                                button.btn.btn-primary.w-100(type="submit")
+                                    i.bi.bi-plus-lg.me-1
+                                    | Register Device
+                    
+                    //- Device list container (populated by JavaScript)
+                    #devicesList
+                        .text-center.py-4
+                            .spinner-border.text-primary(role="status")
+                                span.visually-hidden Loading...
+                    
+                    .mt-4
+                        h6.text-white-50
+                            i.bi.bi-question-circle.me-1
+                            | How to use
+                        ol.small.text-white-50
+                            li Register a device above and copy the token
+                            li Install and configure the agent for your platform
+                            li Use the token to authenticate the agent
+                            li The agent will push library data to this account
+                .modal-footer.border-secondary
+                    button.btn.btn-secondary(type="button" data-bs-dismiss="modal") Close
 
     //- Add Account Modal
     #addAccountModal.modal.fade(tabindex="-1")
@@ -188,9 +300,9 @@ block content
                             label.form-label Provider *
                             select#providerSelect.form-select.text-bg-dark(name="provider" required)
                                 //- Options from registered connectors
-                                each p in connectorProviders
-                                    option(value=p selected=(p === connectorProviders[0])) #{p}
-                                option(value="Other") Other (Manual only)
+                                each conn in connectors
+                                    option(value=conn.provider data-sync-style=conn.syncStyle data-credential-fields=JSON.stringify(conn.credentialFields || []) selected=(conn === connectors[0])) #{conn.name}
+                                option(value="Other" data-sync-style="none" data-credential-fields="[]") Other (Manual only)
                         
                         //- Custom provider name (only visible when "Other" selected)
                         #customProviderField.col-12.d-none
@@ -200,17 +312,17 @@ block content
                         
                         .col-12
                             label.form-label Account Name *
-                            input.form-control.text-bg-dark(type="text" name="accountName" required placeholder="e.g., My Steam Account")
+                            input#addAccountName.form-control.text-bg-dark(type="text" name="accountName" required placeholder="e.g., My Steam Account")
                         
-                        //- Credential fields (hidden for "Other")
-                        #credentialFields
-                            .col-12
-                                label.form-label User ID / Steam ID
-                                input.form-control.text-bg-dark(type="text" name="externalUserId" placeholder="Your external user ID")
-                            .col-12.mt-2
-                                label.form-label API Key / Token (optional)
-                                input.form-control.text-bg-dark(type="password" name="tokenRef" placeholder="API key or token if required")
-                                .form-text.text-white-50 This will be stored securely and used for syncing.
+                        //- Dynamic credential fields container (populated by JavaScript)
+                        #credentialFieldsContainer
+                        
+                        //- Push-style connector notice
+                        #pushConnectorNotice.col-12.d-none
+                            .alert.alert-info.mb-0
+                                i.bi.bi-device-hdd.me-2
+                                strong Push-style Connector:
+                                |  After creating this account, register a device to enable data sync. The device token will be used to authenticate imports.
                         
                         //- Manual account notice (only visible when "Other" selected)
                         #manualAccountNotice.col-12.d-none
@@ -224,173 +336,9 @@ block content
                         i.bi.bi-link-45deg.me-1
                         | Link Account
 
+
 block scripts
-    script.
-        document.addEventListener('DOMContentLoaded', function() {
-            const providerSelect = document.getElementById('providerSelect');
-            const customProviderField = document.getElementById('customProviderField');
-            const customProviderInput = document.getElementById('customProviderInput');
-            const credentialFields = document.getElementById('credentialFields');
-            const manualAccountNotice = document.getElementById('manualAccountNotice');
-            const addAccountForm = document.getElementById('addAccountForm');
-            
-            if (providerSelect) {
-                providerSelect.addEventListener('change', function() {
-                    const isOther = this.value === 'Other';
-                    
-                    if (isOther) {
-                        customProviderField.classList.remove('d-none');
-                        credentialFields.classList.add('d-none');
-                        manualAccountNotice.classList.remove('d-none');
-                        customProviderInput.required = true;
-                    } else {
-                        customProviderField.classList.add('d-none');
-                        credentialFields.classList.remove('d-none');
-                        manualAccountNotice.classList.add('d-none');
-                        customProviderInput.required = false;
-                    }
-                });
-                
-                // On form submit, if "Other" is selected, use custom provider name
-                addAccountForm.addEventListener('submit', function(e) {
-                    if (providerSelect.value === 'Other') {
-                        // Replace the select value with custom provider input
-                        providerSelect.name = '';
-                        const hiddenInput = document.createElement('input');
-                        hiddenInput.type = 'hidden';
-                        hiddenInput.name = 'provider';
-                        hiddenInput.value = customProviderInput.value.trim() || 'Other';
-                        addAccountForm.appendChild(hiddenInput);
-                    }
-                });
-            }
-            
-            // Check sync status on page load for all accounts
-            const statusContainers = document.querySelectorAll('.sync-status-container');
-            statusContainers.forEach(container => {
-                const accountId = container.dataset.accountId;
-                if (accountId) {
-                    checkSyncStatus(accountId);
-                }
-            });
-            
-            // Add event listeners for check status buttons
-            document.querySelectorAll('.check-status-btn').forEach(btn => {
-                btn.addEventListener('click', function() {
-                    const accountId = this.dataset.accountId;
-                    if (accountId && isValidUUID(accountId)) {
-                        checkSyncStatus(accountId);
-                    }
-                });
-            });
-        });
-        
-        // Validate that a string is a valid UUID format
-        function isValidUUID(str) {
-            const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-            return uuidRegex.test(str);
-        }
-        
-        // Track accounts being polled
-        const pollingIntervals = {};
-        
-        // Check sync status for an account
-        async function checkSyncStatus(accountId) {
-            // Validate accountId format to prevent path traversal
-            if (!accountId || !isValidUUID(accountId)) {
-                console.error('Invalid account ID format');
-                return;
-            }
-            
-            try {
-                const response = await fetch(`/games/accounts/${encodeURIComponent(accountId)}/status`);
-                if (!response.ok) return;
-                
-                const status = await response.json();
-                updateSyncStatusUI(accountId, status);
-                
-                // If sync is in progress, start polling
-                if (status.latestJob && status.latestJob.status === 'in_progress') {
-                    startPolling(accountId);
-                } else {
-                    stopPolling(accountId);
-                }
-            } catch (err) {
-                console.error('Failed to check sync status:', err);
-            }
-        }
-        
-        // Update the UI with sync status
-        function updateSyncStatusUI(accountId, status) {
-            const container = document.querySelector(`.sync-status-container[data-account-id="${accountId}"]`);
-            if (!container) return;
-            
-            const statusDiv = container.querySelector('.sync-status');
-            const syncBtn = document.querySelector(`.sync-btn[data-account-id="${accountId}"]`);
-            const syncIcon = syncBtn?.querySelector('.sync-icon');
-            
-            if (!status.latestJob) {
-                statusDiv.innerHTML = '';
-                return;
-            }
-            
-            const job = status.latestJob;
-            let html = '';
-            let spinIcon = false;
-            
-            switch (job.status) {
-                case 'pending':
-                    html = '<i class="bi bi-hourglass-start me-1"></i>Sync pending...';
-                    spinIcon = true;
-                    break;
-                case 'in_progress':
-                    html = '<i class="bi bi-arrow-repeat me-1 sync-spin"></i>Sync in progress...';
-                    if (job.entriesProcessed !== null) {
-                        html += ` (${job.entriesProcessed} games processed)`;
-                    }
-                    spinIcon = true;
-                    break;
-                case 'completed':
-                    html = `<i class="bi bi-check-circle me-1 text-success"></i>`;
-                    html += `Completed: ${job.entriesProcessed || 0} games`;
-                    break;
-                case 'failed':
-                    html = `<i class="bi bi-x-circle me-1 text-danger"></i>`;
-                    html += `Failed: ${job.errorMessage || 'Unknown error'}`;
-                    break;
-            }
-            
-            statusDiv.innerHTML = html;
-            
-            // Add/remove spinning animation on sync button
-            if (syncIcon) {
-                if (spinIcon) {
-                    syncIcon.classList.add('sync-spin');
-                    if (syncBtn) syncBtn.disabled = true;
-                } else {
-                    syncIcon.classList.remove('sync-spin');
-                    if (syncBtn) syncBtn.disabled = false;
-                }
-            }
-        }
-        
-        // Start polling for sync status
-        function startPolling(accountId) {
-            if (pollingIntervals[accountId]) return; // Already polling
-            
-            pollingIntervals[accountId] = setInterval(() => {
-                checkSyncStatus(accountId);
-            }, 3000); // Poll every 3 seconds
-        }
-        
-        // Stop polling for sync status
-        function stopPolling(accountId) {
-            if (pollingIntervals[accountId]) {
-                clearInterval(pollingIntervals[accountId]);
-                delete pollingIntervals[accountId];
-            }
-        }
-    
+    script(type="module" src="/js/games/accounts.gen.js")
     style.
         .sync-spin {
             animation: spin 1s linear infinite;

@@ -133,14 +133,27 @@ const STEAM_MANIFEST: ConnectorManifest = {
         ConnectorCapability.PLAYTIME_SYNC,
     ],
     version: '1.1.0',
-    configSchema: {
-        type: 'object',
-        properties: {
-            steamId: {type: 'string', description: 'Steam User ID (64-bit) or profile URL'},
-            apiKey: {type: 'string', description: 'Optional: Your personal Steam Web API key for private profile access'},
+    syncStyle: 'fetch',
+    credentialFields: [
+        {
+            name: 'steamId',
+            label: 'Steam ID / Profile URL',
+            type: 'text',
+            required: true,
+            placeholder: 'Enter your Steam ID or profile URL',
+            helpText: 'Your 17-digit Steam ID, profile URL, or vanity name',
+            mapsTo: 'externalUserId',
         },
-        required: ['steamId'],
-    },
+        {
+            name: 'apiKey',
+            label: 'API Key (Optional)',
+            type: 'password',
+            required: false,
+            placeholder: 'Your Steam Web API key',
+            helpText: 'Required for private profiles. Get one at steamcommunity.com/dev/apikey',
+            mapsTo: 'tokenRef',
+        },
+    ],
 };
 
 export class SteamConnector extends BaseConnector {
@@ -434,6 +447,7 @@ export class SteamConnector extends BaseConnector {
             coverImageUrl: game.appid 
                 ? `https://cdn.cloudflare.steamstatic.com/steam/apps/${game.appid}/header.jpg`
                 : undefined,
+            storeUrl: `https://store.steampowered.com/app/${game.appid}`,
             platform: 'PC',
             rawPayload: {...game}, // Spread creates a plain object copy
         }));

@@ -8,6 +8,10 @@ async function bootstrap() {
         await settings.read();
         await initDataSource();
 
+        // Recover stale sync jobs from previous run
+        const {recoverStaleSyncJobs} = await import('./modules/games/GameSyncService');
+        await recoverStaleSyncJobs();
+
         const {default: app} = await import('./app');
         const server = http.createServer(app);
         server.listen(settings.value.appPort, () => {

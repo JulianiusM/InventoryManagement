@@ -7,6 +7,7 @@ import scanApiRouter from './api/scan';
 import itemsApiRouter from './api/items';
 import loansApiRouter from './api/loans';
 import gamesApiRouter from './api/games';
+import accountsApiRouter from './api/accounts';
 
 const router = express.Router();
 
@@ -15,6 +16,7 @@ router.use('/scan', scanApiRouter);
 router.use('/items', itemsApiRouter);
 router.use('/loans', loansApiRouter);
 router.use('/games', gamesApiRouter);
+router.use('/accounts', accountsApiRouter);
 
 router.use(handleValidationError);
 // catch 404 and forward to error handler

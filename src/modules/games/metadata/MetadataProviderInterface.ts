@@ -7,7 +7,57 @@
  * - Cover images and screenshots
  * - Developer and publisher information
  * - Player counts and multiplayer support
+ * 
+ * Providers should only fetch and reformat data, not handle rate limiting.
+ * Rate limiting is handled by the GameSyncService using the provider's rate limit config.
  */
+
+/**
+ * Provider capabilities for feature detection
+ */
+export interface MetadataProviderCapabilities {
+    /** Whether this provider can return accurate multiplayer player counts */
+    hasAccuratePlayerCounts: boolean;
+    
+    /** Whether this provider can return store URLs */
+    hasStoreUrls: boolean;
+    
+    /** Whether this provider can do batch requests (multiple IDs at once) */
+    supportsBatchRequests: boolean;
+    
+    /** Whether this provider can search for games by name */
+    supportsSearch: boolean;
+    
+    /** Whether this provider returns descriptions */
+    hasDescriptions: boolean;
+    
+    /** Whether this provider returns cover images */
+    hasCoverImages: boolean;
+}
+
+/**
+ * Rate limit configuration for a provider
+ * Used by GameSyncService to throttle requests appropriately
+ */
+export interface RateLimitConfig {
+    /** Minimum milliseconds between individual requests */
+    requestDelayMs: number;
+    
+    /** Maximum requests in a batch (if batching supported) */
+    maxBatchSize: number;
+    
+    /** Milliseconds to delay between batches */
+    batchDelayMs: number;
+    
+    /** Maximum total games to fetch in one sync operation */
+    maxGamesPerSync: number;
+    
+    /** Milliseconds to wait before retrying after a transient error */
+    retryDelayMs: number;
+    
+    /** Maximum consecutive errors before giving up */
+    maxConsecutiveErrors: number;
+}
 
 /**
  * Game metadata returned by providers
@@ -125,12 +175,27 @@ export interface MetadataProviderManifest {
 
 /**
  * Metadata provider interface that all providers must implement
+ * 
+ * Providers should only fetch and reformat data, not handle rate limiting.
+ * Rate limiting is handled by GameSyncService using getRateLimitConfig().
  */
 export interface MetadataProvider {
     /**
      * Get the provider manifest
      */
     getManifest(): MetadataProviderManifest;
+    
+    /**
+     * Get provider capabilities
+     * Used by GameSyncService to decide which provider to use for what data
+     */
+    getCapabilities(): MetadataProviderCapabilities;
+    
+    /**
+     * Get rate limit configuration
+     * Used by GameSyncService to throttle requests appropriately
+     */
+    getRateLimitConfig(): RateLimitConfig;
     
     /**
      * Search for games by name
@@ -163,6 +228,13 @@ export interface MetadataProvider {
 
 /**
  * Base metadata provider class with common functionality
+ * 
+ * Subclasses must implement:
+ * - searchGames()
+ * - getGameMetadata()
+ * - getGameUrl()
+ * - getCapabilities()
+ * - getRateLimitConfig()
  */
 export abstract class BaseMetadataProvider implements MetadataProvider {
     protected manifest: MetadataProviderManifest;
@@ -174,6 +246,10 @@ export abstract class BaseMetadataProvider implements MetadataProvider {
     getManifest(): MetadataProviderManifest {
         return this.manifest;
     }
+    
+    abstract getCapabilities(): MetadataProviderCapabilities;
+    
+    abstract getRateLimitConfig(): RateLimitConfig;
     
     abstract searchGames(query: string, limit?: number, apiKey?: string): Promise<MetadataSearchResult[]>;
     
@@ -198,6 +274,39 @@ export abstract class BaseMetadataProvider implements MetadataProvider {
  * Player info type alias for convenience
  */
 export type PlayerInfo = NonNullable<GameMetadata['playerInfo']>;
+
+/**
+ * Error thrown when a metadata provider hits a rate limit
+ * This allows the MetadataFetcher to detect and handle rate limits properly
+ */
+export class MetadataRateLimitError extends Error {
+    public readonly providerId: string;
+    public readonly statusCode: number;
+    public readonly retryAfterMs?: number;
+    
+    constructor(providerId: string, statusCode: number = 429, retryAfterMs?: number) {
+        super(`Rate limit exceeded for ${providerId} (${statusCode})`);
+        this.name = 'MetadataRateLimitError';
+        this.providerId = providerId;
+        this.statusCode = statusCode;
+        this.retryAfterMs = retryAfterMs;
+    }
+}
+
+/**
+ * Error thrown when a metadata API request fails
+ */
+export class MetadataApiError extends Error {
+    public readonly providerId: string;
+    public readonly statusCode?: number;
+    
+    constructor(providerId: string, message: string, statusCode?: number) {
+        super(`${providerId} API error: ${message}`);
+        this.name = 'MetadataApiError';
+        this.providerId = providerId;
+        this.statusCode = statusCode;
+    }
+}
 
 /**
  * Merge player counts from enrichment source into existing player info

@@ -5,6 +5,7 @@
 
 import {GameConnector, ConnectorManifest} from './ConnectorInterface';
 import {SteamConnector} from './SteamConnector';
+import {PlayniteConnector} from './playnite/PlayniteConnector';
 
 class ConnectorRegistry {
     private connectors: Map<string, GameConnector> = new Map();
@@ -73,6 +74,9 @@ export const connectorRegistry = new ConnectorRegistry();
 export function initializeConnectors(): void {
     // Register production Steam connector
     connectorRegistry.register(new SteamConnector());
+    
+    // Register Playnite connector (aggregator)
+    connectorRegistry.register(new PlayniteConnector());
     
     // Add more connectors here as they are implemented
     // connectorRegistry.register(new EpicConnector());

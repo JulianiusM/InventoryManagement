@@ -7,11 +7,15 @@
  * 
  * Note: This API is public and doesn't require an API key,
  * but user-provided keys can be used for extended functionality.
+ * 
+ * Rate limiting is handled by GameSyncService using getRateLimitConfig().
  */
 
 import {
     BaseMetadataProvider,
     MetadataProviderManifest,
+    MetadataProviderCapabilities,
+    RateLimitConfig,
     GameMetadata,
     MetadataSearchResult,
 } from './MetadataProviderInterface';
@@ -20,13 +24,6 @@ import settings from '../../settings';
 
 const STEAM_STORE_API_BASE = 'https://store.steampowered.com/api';
 const STEAM_SEARCH_URL = 'https://store.steampowered.com/search/suggest';
-
-// Rate limiting configuration - Steam API is strict about rate limits
-// Using conservative values to avoid being banned for large datasets
-const BATCH_SIZE = 3; // Smaller batch size to reduce concurrent requests
-const DELAY_BETWEEN_BATCHES_MS = 1000; // 1 second between batches (was 200ms)
-const DELAY_BETWEEN_INDIVIDUAL_MS = 350; // 350ms between individual requests
-const MAX_GAMES_TO_FETCH = 100; // Limit metadata fetches to avoid long sync times
 
 // Short description max length (2-4 lines)
 const MAX_SHORT_DESCRIPTION_LENGTH = 250;
@@ -100,6 +97,40 @@ const STEAM_METADATA_MANIFEST: MetadataProviderManifest = {
 export class SteamMetadataProvider extends BaseMetadataProvider {
     constructor() {
         super(STEAM_METADATA_MANIFEST);
+    }
+    
+    /**
+     * Steam capabilities:
+     * - Has store URLs (from Steam directly)
+     * - Does NOT have accurate player counts (only knows if multiplayer vs single-player)
+     * - Supports batch via sequential requests (not true batch API)
+     * - Supports search
+     * - Has descriptions and cover images
+     */
+    getCapabilities(): MetadataProviderCapabilities {
+        return {
+            hasAccuratePlayerCounts: false, // Steam only knows categories, not exact counts
+            hasStoreUrls: true,
+            supportsBatchRequests: false, // Individual requests only
+            supportsSearch: true,
+            hasDescriptions: true,
+            hasCoverImages: true,
+        };
+    }
+    
+    /**
+     * Steam rate limit configuration
+     * Steam is strict about rate limits - use conservative values
+     */
+    getRateLimitConfig(): RateLimitConfig {
+        return {
+            requestDelayMs: 400, // 400ms between individual requests
+            maxBatchSize: 5, // Process 5 games before longer delay
+            batchDelayMs: 1500, // 1.5 seconds between batches
+            maxGamesPerSync: 500, // Maximum games to fetch in one sync
+            retryDelayMs: 5000, // Wait 5 seconds on rate limit
+            maxConsecutiveErrors: 5, // Give up after 5 consecutive errors
+        };
     }
 
     /**
@@ -188,70 +219,54 @@ export class SteamMetadataProvider extends BaseMetadataProvider {
 
     /**
      * Get detailed metadata for a Steam game
+     * Returns GameMetadata on success, null on permanent failure (game not found, invalid ID),
+     * or throws Error on transient failure (network error, rate limit) that should be retried
      */
     async getGameMetadata(externalId: string, _apiKey?: string): Promise<GameMetadata | null> {
-        // Validate AppID format
+        // Validate AppID format - this is a permanent failure, don't retry
         if (!/^\d+$/.test(externalId)) {
             return null;
         }
         
         const url = `${STEAM_STORE_API_BASE}/appdetails?appids=${externalId}`;
         
-        try {
-            const response = await fetch(url);
-            
-            if (!response.ok) {
-                return null;
-            }
-            
-            const data = await response.json() as SteamAppDetailsResponse;
-            const appData = data[externalId];
-            
-            if (!appData?.success || !appData.data) {
-                return null;
-            }
-            
-            return this.mapToGameMetadata(appData.data);
-        } catch {
-            // Metadata fetch failures return null to allow graceful degradation
-            // The caller can retry or use cached data
+        const response = await fetch(url);
+        
+        // Rate limit or server error - throw to trigger retry
+        if (response.status === 429 || response.status >= 500) {
+            throw new Error(`Steam API error ${response.status} - transient, will retry`);
+        }
+        
+        // Other error (4xx) - permanent failure, don't retry
+        if (!response.ok) {
             return null;
         }
+        
+        const data = await response.json() as SteamAppDetailsResponse;
+        const appData = data[externalId];
+        
+        // Game not found or not available - permanent failure
+        if (!appData?.success || !appData.data) {
+            return null;
+        }
+        
+        return this.mapToGameMetadata(appData.data);
     }
 
     /**
      * Get metadata for multiple games
-     * Steam API only allows single appid per request, so we batch with rate limiting
+     * Steam API only allows single appid per request.
      * 
-     * Note: For large datasets, we limit the number of games fetched to avoid
-     * being rate-limited/banned by Steam (they block IPs after ~150 requests)
+     * NOTE: Rate limiting is handled by GameSyncService, not here.
+     * This method simply iterates through IDs without delays.
      */
     async getGamesMetadata(externalIds: string[], apiKey?: string): Promise<GameMetadata[]> {
         const results: GameMetadata[] = [];
         
-        // Limit to avoid being banned by Steam for large libraries
-        const idsToFetch = externalIds.slice(0, MAX_GAMES_TO_FETCH);
-        if (externalIds.length > MAX_GAMES_TO_FETCH) {
-            console.log(`Steam metadata: limiting fetch to ${MAX_GAMES_TO_FETCH} of ${externalIds.length} games to avoid rate limits`);
-        }
-        
-        // Steam rate limits: fetch in small batches with longer delays
-        for (let i = 0; i < idsToFetch.length; i += BATCH_SIZE) {
-            const batch = idsToFetch.slice(i, i + BATCH_SIZE);
-            
-            // Fetch batch one by one with small delays to be extra safe
-            for (const id of batch) {
-                const result = await this.getGameMetadata(id, apiKey);
-                if (result) {
-                    results.push(result);
-                }
-                // Small delay between individual requests
-                await new Promise(resolve => setTimeout(resolve, DELAY_BETWEEN_INDIVIDUAL_MS));
-            }
-            
-            // Longer delay between batches to avoid rate limiting
-            if (i + BATCH_SIZE < idsToFetch.length) {
-                await new Promise(resolve => setTimeout(resolve, DELAY_BETWEEN_BATCHES_MS));
+        for (const id of externalIds) {
+            const result = await this.getGameMetadata(id, apiKey);
+            if (result) {
+                results.push(result);
             }
         }
         
