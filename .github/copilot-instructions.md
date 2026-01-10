@@ -125,6 +125,35 @@ For detailed E2E testing patterns and examples, see [TESTING.md](../TESTING.md) 
 
 The Games module supports managing game titles, releases, and copies with external provider integration.
 
+### Sync Architecture (CRITICAL)
+
+The sync pipeline is **modular and unified**. All connectors (fetch-style and push-style) use the SAME processing logic.
+
+**Key File Structure:**
+```
+src/modules/games/
+├── sync/
+│   └── GameProcessor.ts       # SINGLE implementation for game processing
+├── GameSyncService.ts         # Orchestration and scheduling
+├── GameNameUtils.ts           # Edition extraction and title normalization
+├── connectors/                # External connector implementations
+└── metadata/                  # Metadata provider implementations
+```
+
+**Critical Design Rule:** BOTH fetch-style and push-style connectors use `processGameBatch()` from `GameProcessor.ts`.
+- NO duplicate processing implementations
+- Edition extraction is ALWAYS performed in `createGameFromData()`
+- DRY principle enforced across all sync flows
+
+**Processing Flow:**
+```
+Connector (fetch/push) → processGameBatch() → safeCreateGameFromData()
+                                                      │
+                              ├── extractEdition(game.name)   ← ALWAYS runs
+                              ├── getOrCreateGameTitle()      ← Uses baseName
+                              └── getOrCreateGameRelease()    ← Uses edition
+```
+
 ### Connectors
 
 Connectors sync game libraries from external providers like Steam or Playnite.
@@ -156,7 +185,7 @@ Aggregators like Playnite import games from multiple sources while preserving or
 Device Token → requirePushConnectorAuth → processPushImport()
                                               │
                     ├── connector.preprocessImport()   ← Connector-specific validation
-                    ├── processGamesWithAutoCreate()   ← Shared sync pipeline
+                    ├── processGameBatch()             ← UNIFIED sync pipeline
                     └── softRemoveUnseenEntries()      ← Shared soft-removal
 ```
 
