@@ -163,9 +163,34 @@ Device Token → requirePushConnectorAuth → processPushImport()
 ### Platform Normalization
 
 Platforms are normalized to prevent duplicates (e.g., "PS5" → "PlayStation 5"):
-- `normalizePlatformName()` in `PlatformService.ts`
-- Maps common aliases (PS5, Switch, etc.) to canonical names
+- `normalizePlatformName()` in `PlatformService.ts` (sync fallback)
+- `normalizePlatformNameWithDb()` in `PlatformService.ts` (async, uses database aliases)
+- User-defined aliases stored in Platform entity `aliases` column (comma-separated)
 - Unknown platforms are auto-created
+
+### Game Title Merging
+
+Game titles with different editions merge to the same title with different releases:
+- `extractEdition()` in `GameNameUtils.ts` extracts edition from game name
+- `normalizeGameTitle()` handles trademark symbols (™®©), punctuation variants
+- `getOrCreateGameTitle()` finds existing titles by normalized name
+- Example: "The Sims 4", "The Sims™ 4", "The Sims 4 Premium Edition" → same title
+
+### Smart Sync
+
+Syncs are optimized to skip unnecessary processing:
+- Pre-fetch existing items before processing
+- Games with existing copies only update playtime/status (skip metadata)
+- Metadata enrichment only for NEW games
+- Reduces API calls and sync duration
+
+### Metadata Provider Architecture
+
+Metadata providers are standardized with centralized rate limiting:
+- Providers implement `getCapabilities()` and `getRateLimitConfig()`
+- `MetadataFetcher` class in `GameSyncService.ts` handles rate limiting
+- Two metadata runs: general info from primary provider, player counts from IGDB
+- Provider fallback on 429 rate limit (IGDB → RAWG)
 
 ### Key Entities
 - **GameTitle**: A game's core info (name, description, player counts)
@@ -174,5 +199,6 @@ Platforms are normalized to prevent duplicates (e.g., "PS5" → "PlayStation 5")
 - **ExternalAccount**: Linked external accounts (Steam, Playnite, etc.)
 - **ConnectorDevice**: Devices for push-style connectors
 - **SyncJob**: Tracks sync history (pending, in_progress, completed, failed)
+- **Platform**: Game platforms with user-defined aliases for normalization
 
 ## Additional Resources

@@ -325,18 +325,12 @@ export async function getOrCreatePlatform(name: string, ownerId: number): Promis
 }
 
 /**
- * Update platform aliases
+ * Update platform aliases directly (without lookup)
  * @param id Platform ID
  * @param aliases Comma-separated list of aliases
- * @param ownerId Owner ID
  */
-export async function updatePlatformAliases(id: string, aliases: string | null, ownerId: number): Promise<void> {
+export async function setAliases(id: string, aliases: string | null): Promise<void> {
     const repo = AppDataSource.getRepository(Platform);
-    const platform = await getPlatformById(id, ownerId);
-    if (!platform) {
-        throw new Error("Platform not found");
-    }
-    
     await repo.update({id}, {aliases: aliases?.trim() || null});
 }
 

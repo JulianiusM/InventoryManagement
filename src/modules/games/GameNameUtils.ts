@@ -16,33 +16,49 @@ const EDITION_PATTERNS: Array<{pattern: RegExp; edition: string}> = [
     {pattern: /\s+GOTY(?:\s+Edition)?$/i, edition: 'Game of the Year Edition'},
     {pattern: /\s+Game of the Year$/i, edition: 'Game of the Year Edition'},
     
-    // Gold/Complete variants
+    // Gold/Complete variants (both with separator and just space)
     {pattern: /\s*[-–—:]\s*Gold Edition$/i, edition: 'Gold Edition'},
+    {pattern: /\s+Gold\s+Edition$/i, edition: 'Gold Edition'},
     {pattern: /\s+Gold$/i, edition: 'Gold Edition'},
     {pattern: /\s*[-–—:]\s*Complete Edition$/i, edition: 'Complete Edition'},
+    {pattern: /\s+Complete\s+Edition$/i, edition: 'Complete Edition'},
     {pattern: /\s+Complete$/i, edition: 'Complete Edition'},
     
-    // Definitive/Ultimate variants
+    // Definitive/Ultimate/Enhanced variants (both with separator and just space)
     {pattern: /\s*[-–—:]\s*Definitive Edition$/i, edition: 'Definitive Edition'},
+    {pattern: /\s+Definitive\s+Edition$/i, edition: 'Definitive Edition'},
     {pattern: /\s*[-–—:]\s*Ultimate Edition$/i, edition: 'Ultimate Edition'},
+    {pattern: /\s+Ultimate\s+Edition$/i, edition: 'Ultimate Edition'},
     {pattern: /\s*[-–—:]\s*Enhanced Edition$/i, edition: 'Enhanced Edition'},
+    {pattern: /\s+Enhanced\s+Edition$/i, edition: 'Enhanced Edition'},
     
-    // Special editions
+    // Special editions (both with separator and just space)
     {pattern: /\s*[-–—:]\s*Deluxe Edition$/i, edition: 'Deluxe Edition'},
+    {pattern: /\s+Deluxe\s+Edition$/i, edition: 'Deluxe Edition'},
     {pattern: /\s*[-–—:]\s*Premium Edition$/i, edition: 'Premium Edition'},
+    {pattern: /\s+Premium\s+Edition$/i, edition: 'Premium Edition'},
     {pattern: /\s*[-–—:]\s*Collector'?s Edition$/i, edition: 'Collector\'s Edition'},
+    {pattern: /\s+Collector'?s\s+Edition$/i, edition: 'Collector\'s Edition'},
     {pattern: /\s*[-–—:]\s*Limited Edition$/i, edition: 'Limited Edition'},
+    {pattern: /\s+Limited\s+Edition$/i, edition: 'Limited Edition'},
     {pattern: /\s*[-–—:]\s*Special Edition$/i, edition: 'Special Edition'},
+    {pattern: /\s+Special\s+Edition$/i, edition: 'Special Edition'},
     {pattern: /\s*[-–—:]\s*Anniversary Edition$/i, edition: 'Anniversary Edition'},
+    {pattern: /\s+Anniversary\s+Edition$/i, edition: 'Anniversary Edition'},
     {pattern: /\s*[-–—:]\s*Director'?s Cut$/i, edition: 'Director\'s Cut'},
+    {pattern: /\s+Director'?s\s+Cut$/i, edition: 'Director\'s Cut'},
     
-    // Remasters/Remakes
+    // Remasters/Remakes (both with separator and just space)
     {pattern: /\s*[-–—:]\s*Remastered$/i, edition: 'Remastered'},
+    {pattern: /\s+Remastered$/i, edition: 'Remastered'},
     {pattern: /\s*[-–—:]\s*HD Remaster$/i, edition: 'HD Remaster'},
+    {pattern: /\s+HD\s+Remaster$/i, edition: 'HD Remaster'},
     {pattern: /\s*[-–—:]\s*Remake$/i, edition: 'Remake'},
+    {pattern: /\s+Remake$/i, edition: 'Remake'},
     
     // Standard edition (often implicit, but sometimes explicit)
     {pattern: /\s*[-–—:]\s*Standard Edition$/i, edition: 'Standard Edition'},
+    {pattern: /\s+Standard\s+Edition$/i, edition: 'Standard Edition'},
 ];
 
 /**

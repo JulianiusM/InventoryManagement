@@ -1446,9 +1446,9 @@ export async function createPlatform(body: {name: string; description?: string; 
             description: body.description?.trim() || null,
         }, userId);
         
-        // Then update aliases if provided
+        // Then set aliases if provided
         if (body.aliases?.trim()) {
-            await platformService.updatePlatformAliases(platform.id, body.aliases.trim(), userId);
+            await platformService.setAliases(platform.id, body.aliases.trim());
         }
         
         return platform;
@@ -1477,7 +1477,7 @@ export async function deletePlatform(id: string, userId: number): Promise<void> 
 }
 
 /**
- * Update a platform
+ * Update platform
  * Aliases can be updated on both default and custom platforms.
  * Name and description can only be updated on custom platforms.
  */
@@ -1493,9 +1493,9 @@ export async function updatePlatform(id: string, body: {name?: string; descripti
         // For default platforms, only allow updating aliases
         if (platform.isDefault) {
             // Update aliases only
-            await platformService.updatePlatformAliases(id, body.aliases?.trim() || null, userId);
+            await platformService.setAliases(id, body.aliases || null);
         } else {
-            // For custom platforms, update all fields
+            // For custom platforms, update all fields including aliases
             if (body.name !== undefined && !body.name.trim()) {
                 throw new ExpectedError('Platform name is required', 'error', 400);
             }
@@ -1506,7 +1506,7 @@ export async function updatePlatform(id: string, body: {name?: string; descripti
             }, userId);
             
             // Update aliases
-            await platformService.updatePlatformAliases(id, body.aliases?.trim() || null, userId);
+            await platformService.setAliases(id, body.aliases || null);
         }
     } catch (error) {
         if (error instanceof Error && !(error instanceof ExpectedError)) {
