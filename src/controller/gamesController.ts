@@ -327,22 +327,25 @@ export async function fetchMetadataForTitle(
                               foundMetadata.playerInfo?.localMaxPlayers !== undefined;
     
     if (hasMultiplayer && !hasSpecificCounts) {
-        const igdbProvider = metadataProviderRegistry.getById('igdb');
-        if (igdbProvider) {
+        // Use capability-based lookup for player count enrichment
+        const playerCountProviders = metadataProviderRegistry.getAllByCapability('hasAccuratePlayerCounts');
+        for (const provider of playerCountProviders) {
             try {
-                console.log(`Enriching "${title.name}" with player counts from IGDB`);
-                const igdbResults = await igdbProvider.searchGames(query, 1);
-                if (igdbResults.length > 0) {
-                    const igdbMeta = await igdbProvider.getGameMetadata(igdbResults[0].externalId);
-                    if (igdbMeta?.playerInfo) {
-                        // Merge IGDB player counts into metadata using utility
-                        foundMetadata.playerInfo = mergePlayerCounts(foundMetadata.playerInfo, igdbMeta.playerInfo);
-                        primaryProviderName += ' + IGDB';
+                const providerName = provider.getManifest().name;
+                console.log(`Enriching "${title.name}" with player counts from ${providerName}`);
+                const results = await provider.searchGames(query, 1);
+                if (results.length > 0) {
+                    const playerMeta = await provider.getGameMetadata(results[0].externalId);
+                    if (playerMeta?.playerInfo) {
+                        // Merge player counts into metadata using utility
+                        foundMetadata.playerInfo = mergePlayerCounts(foundMetadata.playerInfo, playerMeta.playerInfo);
+                        primaryProviderName += ` + ${providerName}`;
+                        break; // Stop after first successful enrichment
                     }
                 }
             } catch (error) {
-                console.warn('IGDB enrichment failed:', error);
-                // Continue with original metadata
+                console.warn(`${provider.getManifest().name} enrichment failed:`, error);
+                // Continue with next provider
             }
         }
     }
@@ -540,25 +543,28 @@ export async function applyMetadataOption(
         return {updated: false, message: `No metadata found for ID ${externalId}`};
     }
     
-    // Enrich with IGDB if needed
+    // Enrich with player count providers if needed
     const hasMultiplayer = foundMetadata.playerInfo?.supportsOnline || foundMetadata.playerInfo?.supportsLocal;
     const hasSpecificCounts = foundMetadata.playerInfo?.onlineMaxPlayers !== undefined || 
                               foundMetadata.playerInfo?.localMaxPlayers !== undefined;
     
     if (hasMultiplayer && !hasSpecificCounts) {
-        const igdbProvider = metadataProviderRegistry.getById('igdb');
-        if (igdbProvider) {
+        // Use capability-based lookup for player count enrichment
+        const playerCountProviders = metadataProviderRegistry.getAllByCapability('hasAccuratePlayerCounts');
+        for (const provider of playerCountProviders) {
             try {
-                const igdbResults = await igdbProvider.searchGames(foundMetadata.name, 1);
-                if (igdbResults.length > 0) {
-                    const igdbMeta = await igdbProvider.getGameMetadata(igdbResults[0].externalId);
-                    if (igdbMeta?.playerInfo) {
-                        foundMetadata.playerInfo = mergePlayerCounts(foundMetadata.playerInfo, igdbMeta.playerInfo);
-                        primaryProviderName += ' + IGDB';
+                const results = await provider.searchGames(foundMetadata.name, 1);
+                if (results.length > 0) {
+                    const playerMeta = await provider.getGameMetadata(results[0].externalId);
+                    if (playerMeta?.playerInfo) {
+                        foundMetadata.playerInfo = mergePlayerCounts(foundMetadata.playerInfo, playerMeta.playerInfo);
+                        primaryProviderName += ` + ${provider.getManifest().name}`;
+                        break; // Stop after first successful enrichment
                     }
                 }
             } catch (error) {
-                console.warn('IGDB enrichment failed:', error);
+                console.warn(`${provider.getManifest().name} enrichment failed:`, error);
+                // Continue with next provider
             }
         }
     }

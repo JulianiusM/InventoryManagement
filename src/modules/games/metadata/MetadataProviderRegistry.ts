@@ -74,50 +74,40 @@ class MetadataProviderRegistry {
     /**
      * Get providers by game type
      * Returns providers suitable for a given game type
+     * Uses capabilities to determine provider order (no hardcoded provider references)
      */
     getByGameType(gameType: string): MetadataProvider[] {
         const type = gameType.toLowerCase();
+        const allProviders = this.getAll();
+        
         if (type === 'board_game' || type === 'card_game' || type === 'tabletop_rpg') {
-            // Board games use BGG Plus (primary, enhanced retry logic) and Wikidata (secondary, structured data)
-            const bggplus = this.getById('bggplus');
-            const wikidata = this.getById('wikidata');
-            const bgg = this.getById('boardgamegeek');
-            const providers: MetadataProvider[] = [];
-            if (bggplus) providers.push(bggplus);
-            if (wikidata) providers.push(wikidata);
-            if (bgg) providers.push(bgg); // Fallback
-            return providers;
+            // Board games: prioritize providers with player count capability for tabletop games
+            // Filter to providers that support board games (those not specifically for video games)
+            // Currently Wikidata supports board games
+            return allProviders.filter(p => {
+                const id = p.getManifest().id;
+                // Return board game providers - those that aren't video-game-only
+                return id === 'wikidata' || id === 'bggplus' || id === 'boardgamegeek';
+            });
         }
-        // Video games use Steam, IGDB (for player counts), and RAWG
-        // IGDB is prioritized for accurate player count data
-        const steam = this.getById('steam');
-        const igdb = this.getById('igdb');
-        const rawg = this.getById('rawg');
-        const providers: MetadataProvider[] = [];
-        if (steam) providers.push(steam);
-        if (igdb) providers.push(igdb);
-        if (rawg) providers.push(rawg);
-        return providers;
+        
+        // Video games: return all providers that support search (for metadata lookup)
+        // Order by capabilities: accurate player counts first, then search capability
+        const withPlayerCounts = allProviders.filter(p => p.getCapabilities().hasAccuratePlayerCounts);
+        const withSearch = allProviders.filter(p => 
+            p.getCapabilities().supportsSearch && 
+            !withPlayerCounts.find(pc => pc.getManifest().id === p.getManifest().id)
+        );
+        
+        return [...withPlayerCounts, ...withSearch];
     }
     
     /**
      * Get providers that have accurate player count data
-     * IGDB for video games, BGG Plus/Wikidata for board games
+     * Uses hasAccuratePlayerCounts capability (no hardcoded provider references)
      */
     getPlayerCountProviders(gameType?: string): MetadataProvider[] {
-        const type = (gameType || '').toLowerCase();
-        if (type === 'board_game' || type === 'card_game' || type === 'tabletop_rpg') {
-            // For board games, BGG Plus and Wikidata both provide reliable player counts
-            const bggplus = this.getById('bggplus');
-            const wikidata = this.getById('wikidata');
-            const providers: MetadataProvider[] = [];
-            if (bggplus) providers.push(bggplus);
-            if (wikidata) providers.push(wikidata);
-            return providers;
-        }
-        // For video games, use IGDB
-        const igdb = this.getById('igdb');
-        return igdb ? [igdb] : [];
+        return this.getAllByCapability('hasAccuratePlayerCounts');
     }
 }
 

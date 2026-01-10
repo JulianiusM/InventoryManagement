@@ -189,8 +189,48 @@ Syncs are optimized to skip unnecessary processing:
 Metadata providers are standardized with centralized rate limiting:
 - Providers implement `getCapabilities()` and `getRateLimitConfig()`
 - `MetadataFetcher` class in `GameSyncService.ts` handles rate limiting
-- Two metadata runs: general info from primary provider, player counts from IGDB
-- Provider fallback on 429 rate limit (IGDB → RAWG)
+- Two metadata runs: general info from primary provider, player counts from providers with `hasAccuratePlayerCounts` capability
+- Provider fallback uses capabilities (never hardcoded provider references)
+
+### Plugin Isolation Rules (CRITICAL)
+
+**Connectors and Metadata Providers are treated as external plugins.**
+
+#### Rule 1: No direct references to connectors/providers from app code
+- The app (GameSyncService, controllers, etc.) must ONLY use generic interfaces
+- **NEVER** reference a specific connector or provider by name/ID outside their respective folder
+- Use `ConnectorRegistry` and `MetadataProviderRegistry` for all lookups
+- Use capabilities (`getCapabilities()`) to select providers, not hardcoded IDs
+
+**Forbidden in app code:**
+```typescript
+// BAD - hardcoded provider reference
+const igdb = metadataProviderRegistry.getById('igdb');
+
+// GOOD - use capability-based lookup
+const providers = metadataProviderRegistry.getAllByCapability('hasAccuratePlayerCounts');
+```
+
+#### Rule 2: No app internal references from connectors/providers
+- Connectors and providers should ONLY call external APIs (Steam API, IGDB, etc.)
+- **NEVER** import or call app internals (database services, controllers, other modules)
+- They receive data via method parameters and return results via defined interfaces
+- They are stateless external adapters
+
+**Forbidden in connector/provider code:**
+```typescript
+// BAD - importing app internals
+import * as gameTitleService from '../../database/services/GameTitleService';
+
+// GOOD - return data via interface, let app handle persistence
+return { games: [...], success: true };
+```
+
+#### Rule 3: Folder isolation
+- All Playnite-specific code: `src/modules/games/connectors/playnite/`
+- All Steam connector code: `src/modules/games/connectors/SteamConnector.ts`
+- All metadata providers: `src/modules/games/metadata/*.ts`
+- These folders could be moved to separate packages without breaking the app
 
 ### Key Entities
 - **GameTitle**: A game's core info (name, description, player counts)

@@ -180,6 +180,7 @@ class MetadataFetcher {
     
     /**
      * Run 1: Fetch general metadata from the primary provider with fallback
+     * Uses registry to find fallback providers by capability (no hardcoded provider references)
      */
     private async fetchGeneralMetadataWithFallback(
         games: ExternalGame[],
@@ -192,13 +193,27 @@ class MetadataFetcher {
             await this.fetchGeneralMetadataFromProvider(games, primaryProvider, metadataCache);
         }
         
-        // If we didn't get all games, try fallback (RAWG)
-        const gamesStillNeeding = games.filter(g => !metadataCache.has(g.externalGameId));
+        // If we didn't get all games, try fallback providers with search capability
+        let gamesStillNeeding = games.filter(g => !metadataCache.has(g.externalGameId));
         if (gamesStillNeeding.length > 0) {
-            const fallbackProvider = metadataProviderRegistry.getById('rawg');
-            if (fallbackProvider && !this.isProviderRateLimited('rawg')) {
-                console.log(`Falling back to RAWG for ${gamesStillNeeding.length} games without metadata`);
+            // Get all providers that support search (for fallback by name)
+            const fallbackProviders = metadataProviderRegistry.getAllByCapability('supportsSearch');
+            
+            for (const fallbackProvider of fallbackProviders) {
+                const fallbackId = fallbackProvider.getManifest().id;
+                
+                // Skip the primary provider (already tried)
+                if (fallbackId === provider) continue;
+                
+                // Skip rate-limited providers
+                if (this.isProviderRateLimited(fallbackId)) continue;
+                
+                console.log(`Falling back to ${fallbackId} for ${gamesStillNeeding.length} games without metadata`);
                 await this.fetchGeneralMetadataFromProviderByName(gamesStillNeeding, fallbackProvider, metadataCache);
+                
+                // Update remaining games
+                gamesStillNeeding = games.filter(g => !metadataCache.has(g.externalGameId));
+                if (gamesStillNeeding.length === 0) break;
             }
         }
     }
@@ -312,14 +327,15 @@ class MetadataFetcher {
     }
     
     /**
-     * Run 2: Fetch player counts with fallback chain (IGDB → RAWG)
+     * Run 2: Fetch player counts with fallback chain
+     * Uses registry to find providers with accurate player count capability (no hardcoded provider references)
      */
     private async fetchPlayerCountsWithFallback(
         games: ExternalGame[],
         metadataCache: Map<string, GameMetadata>
     ): Promise<void> {
         // Filter to games that need player count enrichment
-        const gamesNeedingPlayerCounts = games.filter(game => {
+        let gamesNeedingPlayerCounts = games.filter(game => {
             const cachedMeta = metadataCache.get(game.externalGameId);
             return !cachedMeta || (
                 cachedMeta.playerInfo?.onlineMaxPlayers === undefined ||
@@ -331,30 +347,48 @@ class MetadataFetcher {
             return;
         }
         
-        // Try IGDB first (most accurate player counts)
-        let gamesRemaining = await this.fetchPlayerCountsFromProvider(
-            gamesNeedingPlayerCounts,
-            metadataCache,
-            'igdb'
-        );
+        // Get all providers with accurate player count capability (in order of preference)
+        const playerCountProviders = metadataProviderRegistry.getAllByCapability('hasAccuratePlayerCounts');
         
-        // If some games still need player counts, try RAWG
-        if (gamesRemaining.length > 0) {
-            await this.fetchPlayerCountsFromProvider(gamesRemaining, metadataCache, 'rawg');
+        // Also include providers with search capability as fallback
+        const searchProviders = metadataProviderRegistry.getAllByCapability('supportsSearch');
+        
+        // Combine lists, removing duplicates (player count providers first)
+        const allProviders: MetadataProvider[] = [...playerCountProviders];
+        for (const provider of searchProviders) {
+            if (!allProviders.find(p => p.getManifest().id === provider.getManifest().id)) {
+                allProviders.push(provider);
+            }
+        }
+        
+        // Try each provider in sequence until no games remain
+        for (const provider of allProviders) {
+            const providerId = provider.getManifest().id;
+            
+            if (this.isProviderRateLimited(providerId)) continue;
+            
+            gamesNeedingPlayerCounts = await this.fetchPlayerCountsFromProviderInstance(
+                gamesNeedingPlayerCounts,
+                metadataCache,
+                provider
+            );
+            
+            if (gamesNeedingPlayerCounts.length === 0) break;
         }
     }
     
     /**
-     * Fetch player counts from a specific provider
+     * Fetch player counts from a specific provider instance
      * @returns Games that still need player counts (provider failed or didn't have data)
      */
-    private async fetchPlayerCountsFromProvider(
+    private async fetchPlayerCountsFromProviderInstance(
         games: ExternalGame[],
         metadataCache: Map<string, GameMetadata>,
-        providerId: string
+        provider: MetadataProvider
     ): Promise<ExternalGame[]> {
-        const provider = metadataProviderRegistry.getById(providerId);
-        if (!provider || this.isProviderRateLimited(providerId)) {
+        const providerId = provider.getManifest().id;
+        
+        if (this.isProviderRateLimited(providerId)) {
             return games;
         }
         
@@ -408,34 +442,6 @@ class MetadataFetcher {
         
         // Return games that weren't successfully processed
         return games.filter(g => !gamesProcessed.includes(g));
-    }
-    
-    /**
-     * @deprecated Use fetchGeneralMetadataWithFallback instead
-     * Run 1: Fetch general metadata from the primary provider
-     */
-    private async fetchGeneralMetadata(
-        games: ExternalGame[],
-        provider: string,
-        metadataCache: Map<string, GameMetadata>
-    ): Promise<void> {
-        const primaryProvider = metadataProviderRegistry.getById(provider);
-        if (!primaryProvider || this.isProviderRateLimited(provider)) {
-            return;
-        }
-        
-        await this.fetchGeneralMetadataFromProvider(games, primaryProvider, metadataCache);
-    }
-    
-    /**
-     * @deprecated Use fetchPlayerCountsWithFallback instead
-     * Run 2: Fetch player counts from provider with accurate player count capability
-     */
-    private async fetchPlayerCounts(
-        games: ExternalGame[],
-        metadataCache: Map<string, GameMetadata>
-    ): Promise<void> {
-        await this.fetchPlayerCountsWithFallback(games, metadataCache);
     }
 }
 
