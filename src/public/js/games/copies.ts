@@ -16,10 +16,20 @@ function initFilters(): void {
     }
 
     $(document).ready(function() {
+        // Location filter
         $('#locationFilter').select2({
             theme: 'bootstrap-5',
             placeholder: 'All locations',
-            allowClear: true
+            allowClear: true,
+            width: '100%',
+        });
+        
+        // Copy type filter
+        $('#copyTypeFilter').select2({
+            theme: 'bootstrap-5',
+            placeholder: 'All types',
+            allowClear: true,
+            width: '100%',
         });
     });
 }

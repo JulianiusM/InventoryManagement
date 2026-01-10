@@ -34,19 +34,36 @@ function initSelect2(): void {
             theme: 'bootstrap-5',
             placeholder: 'Search releases...',
             allowClear: true,
-            dropdownParent: $('#mergeReleaseModal')
+            dropdownParent: $('#mergeReleaseModal'),
+            width: '100%',
         });
         $('select[name="locationId"]').select2({
             theme: 'bootstrap-5',
             placeholder: 'Select location...',
             allowClear: true,
-            dropdownParent: $('#addCopyModal')
+            dropdownParent: $('#addCopyModal'),
+            width: '100%',
         });
         $('select[name="externalAccountId"]').select2({
             theme: 'bootstrap-5',
             placeholder: 'Select account...',
             allowClear: true,
-            dropdownParent: $('#addCopyModal')
+            dropdownParent: $('#addCopyModal'),
+            width: '100%',
+        });
+        $('select[name="condition"]').select2({
+            theme: 'bootstrap-5',
+            placeholder: 'Select condition...',
+            allowClear: true,
+            dropdownParent: $('#addCopyModal'),
+            width: '100%',
+        });
+        // Copy type dropdown
+        $('#copyTypeSelect').select2({
+            theme: 'bootstrap-5',
+            placeholder: 'Select type...',
+            dropdownParent: $('#addCopyModal'),
+            width: '100%',
         });
     });
 }

@@ -673,6 +673,36 @@ export function init(): void {
     initSyncStatus();
     initEditAccountModal();
     initManageDevicesModal();
+    initSelect2();
+}
+
+declare const $: any;
+
+/**
+ * Initialize Select2 for all dropdowns
+ */
+function initSelect2(): void {
+    if (typeof $ === 'undefined' || !$.fn.select2) {
+        console.warn('Select2 not loaded');
+        return;
+    }
+
+    $(document).ready(function() {
+        // Provider dropdown in add account modal
+        $('#providerSelect').select2({
+            theme: 'bootstrap-5',
+            placeholder: 'Select provider...',
+            dropdownParent: $('#addAccountModal'),
+            width: '100%',
+        });
+        
+        // Interval dropdown in schedule modal
+        $('select[name="intervalMinutes"]').select2({
+            theme: 'bootstrap-5',
+            placeholder: 'Select interval...',
+            width: '100%',
+        });
+    });
 }
 
 // Expose to global scope

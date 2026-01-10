@@ -158,7 +158,13 @@ export class PlayniteConnector extends BaseConnector implements PushConnector {
             
             // Extract store URL from raw.links array by matching the provider and platform
             // Platform is important for providers with platform-specific stores (e.g., Nintendo 3DS vs Switch)
-            const storeUrl = extractStoreUrlFromLinks(rawData?.links, normalizedProvider, rawPlatform);
+            // Also pass originalProviderName for transparent aggregator pattern fallback
+            const storeUrl = extractStoreUrlFromLinks(
+                rawData?.links, 
+                normalizedProvider, 
+                rawPlatform, 
+                game.originalProviderName
+            );
             
             // Extract additional metadata from raw data
             const metadata = extractMetadataFromRaw(rawData);

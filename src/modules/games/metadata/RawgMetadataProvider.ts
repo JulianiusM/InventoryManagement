@@ -133,7 +133,7 @@ export class RawgMetadataProvider extends BaseMetadataProvider {
     /**
      * RAWG capabilities:
      * - Does NOT have accurate player counts (only knows if multiplayer vs single-player)
-     * - Does NOT have store URLs
+     * - Has store URLs via stores array
      * - Does NOT support batch requests
      * - Supports search
      * - Has descriptions and cover images
@@ -141,7 +141,7 @@ export class RawgMetadataProvider extends BaseMetadataProvider {
     getCapabilities(): MetadataProviderCapabilities {
         return {
             hasAccuratePlayerCounts: false,
-            hasStoreUrls: false,
+            hasStoreUrls: true,
             supportsBatchRequests: false,
             supportsSearch: true,
             hasDescriptions: true,
@@ -309,6 +309,9 @@ export class RawgMetadataProvider extends BaseMetadataProvider {
         // Get description (prefer raw, then strip HTML from formatted)
         const description = data.description_raw || stripHtml(data.description || '');
         
+        // Extract store URL - prefer Steam, then Epic, then first available
+        const storeUrl = this.extractStoreUrl(data.stores);
+        
         return {
             externalId: String(data.id),
             name: data.name,
@@ -324,9 +327,31 @@ export class RawgMetadataProvider extends BaseMetadataProvider {
             platforms,
             metacriticScore: data.metacritic,
             ageRating: data.esrb_rating?.name,
+            storeUrl,
             playerInfo,
             rawPayload: {...data},
         };
+    }
+    
+    /**
+     * Extract store URL from RAWG stores array
+     * Priority: Steam > Epic > GOG > any other with URL
+     */
+    private extractStoreUrl(stores?: RawgGameResponse['stores']): string | undefined {
+        if (!stores || stores.length === 0) return undefined;
+        
+        // Priority order for stores
+        const priorityOrder = ['steam', 'epic-games-store', 'gog', 'playstation-store', 'xbox-store', 'nintendo'];
+        
+        // Find store by priority
+        for (const storeSlug of priorityOrder) {
+            const store = stores.find(s => s.store.slug === storeSlug && s.url);
+            if (store?.url) return store.url;
+        }
+        
+        // Fallback to first store with URL
+        const firstWithUrl = stores.find(s => s.url);
+        return firstWithUrl?.url;
     }
     
     /**

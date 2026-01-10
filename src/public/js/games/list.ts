@@ -4,6 +4,8 @@
 
 import {setCurrentNavLocation} from '../core/navigation';
 
+declare const $: any;
+
 /**
  * Update bulk selection UI
  */
@@ -131,6 +133,42 @@ function initLoadingSpinners(): void {
 }
 
 /**
+ * Initialize Select2 for filter dropdowns
+ */
+function initSelect2(): void {
+    if (typeof $ === 'undefined' || !$.fn.select2) {
+        console.warn('Select2 not loaded');
+        return;
+    }
+
+    $(document).ready(function() {
+        // Platform filter dropdown
+        $('#filterPlatform').select2({
+            theme: 'bootstrap-5',
+            placeholder: 'All platforms',
+            allowClear: true,
+            width: '100%',
+        });
+        
+        // Type filter dropdown
+        $('#filterType').select2({
+            theme: 'bootstrap-5',
+            placeholder: 'All types',
+            allowClear: true,
+            width: '100%',
+        });
+        
+        // Game type in add modal
+        $('#type').select2({
+            theme: 'bootstrap-5',
+            placeholder: 'Select type...',
+            dropdownParent: $('#addGameModal'),
+            width: '100%',
+        });
+    });
+}
+
+/**
  * Initialize game titles list page
  */
 export function init(): void {
@@ -138,6 +176,7 @@ export function init(): void {
     initBulkSelection();
     initViewMode();
     initLoadingSpinners();
+    initSelect2();
 }
 
 // Expose functions to global scope

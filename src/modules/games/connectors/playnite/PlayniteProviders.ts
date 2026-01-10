@@ -34,70 +34,217 @@ export const KNOWN_PROVIDERS: Record<string, string> = {
 };
 
 /**
+ * Source name aliases for normalization
+ * Maps various source name strings to normalized provider IDs
+ * Includes language variations and common abbreviations
+ */
+export const SOURCE_NAME_ALIASES: Record<string, string> = {
+    // Steam
+    'steam': 'steam',
+    'steam store': 'steam',
+    'valve steam': 'steam',
+    // Epic
+    'epic': 'epic',
+    'epic games': 'epic',
+    'epic games store': 'epic',
+    'epic store': 'epic',
+    // GOG
+    'gog': 'gog',
+    'gog.com': 'gog',
+    'gog galaxy': 'gog',
+    // EA
+    'ea': 'ea',
+    'ea app': 'ea',
+    'ea play': 'ea',
+    'origin': 'ea',
+    'ea origin': 'ea',
+    'electronic arts': 'ea',
+    // Ubisoft
+    'ubisoft': 'ubisoft',
+    'ubisoft connect': 'ubisoft',
+    'uplay': 'ubisoft',
+    'ubi': 'ubisoft',
+    // Xbox/Microsoft
+    'xbox': 'xbox',
+    'xbox game pass': 'xbox',
+    'microsoft': 'xbox',
+    'microsoft store': 'xbox',
+    'windows store': 'xbox',
+    // PlayStation
+    'playstation': 'playstation',
+    'psn': 'playstation',
+    'ps store': 'playstation',
+    'playstation store': 'playstation',
+    'playstation network': 'playstation',
+    // Amazon
+    'amazon': 'amazon',
+    'amazon games': 'amazon',
+    'amazon luna': 'amazon',
+    'prime gaming': 'amazon',
+    // itch.io
+    'itch': 'itch',
+    'itch.io': 'itch',
+    // Humble
+    'humble': 'humble',
+    'humble bundle': 'humble',
+    'humble store': 'humble',
+    // Battle.net
+    'battlenet': 'battlenet',
+    'battle.net': 'battlenet',
+    'blizzard': 'battlenet',
+    'activision blizzard': 'battlenet',
+    // Nintendo
+    'nintendo': 'nintendo',
+    'nintendo eshop': 'nintendo',
+    'eshop': 'nintendo',
+    // Rockstar
+    'rockstar': 'rockstar',
+    'rockstar games': 'rockstar',
+    'rockstar launcher': 'rockstar',
+    // Bethesda
+    'bethesda': 'bethesda',
+    'bethesda.net': 'bethesda',
+    'bethesda launcher': 'bethesda',
+    // Legacy/Indiegala
+    'indiegala': 'indiegala',
+    'indie gala': 'indiegala',
+};
+
+/**
+ * Normalize a source name (from originalProviderName or other sources) to a provider ID
+ * Uses alias matching for flexible source identification
+ */
+export function normalizeSourceName(sourceName: string): string {
+    if (!sourceName) return 'unknown';
+    
+    const normalized = sourceName.toLowerCase().trim();
+    
+    // Direct lookup
+    if (SOURCE_NAME_ALIASES[normalized]) {
+        return SOURCE_NAME_ALIASES[normalized];
+    }
+    
+    // Partial match - check if any alias is contained in the source name
+    for (const [alias, providerId] of Object.entries(SOURCE_NAME_ALIASES)) {
+        if (normalized.includes(alias) || alias.includes(normalized)) {
+            return providerId;
+        }
+    }
+    
+    return 'unknown';
+}
+
+/**
  * Mapping of normalized provider names to store link name patterns
  * Used to match links from Playnite's raw.links array
  */
 export const PROVIDER_LINK_PATTERNS: Record<string, string[]> = {
     'steam': ['steam', 'store.steampowered.com'],
-    'epic': ['epic', 'epicgames.com', 'epic games'],
+    'epic': ['epic', 'epicgames.com', 'epic games', 'launcher.store.epicgames.com'],
     'gog': ['gog', 'gog.com'],
-    'ea': ['ea', 'ea.com', 'origin'],
-    'origin': ['origin', 'ea.com'],
-    'ubisoft': ['ubisoft', 'ubisoft.com', 'ubi.com'],
-    'xbox': ['xbox', 'microsoft', 'microsoft.com'],
-    'playstation': ['playstation', 'playstation.com', 'psn'],
-    'amazon': ['amazon', 'amazon.com'],
+    'ea': ['ea', 'ea.com', 'origin', 'origin.com'],
+    'ubisoft': ['ubisoft', 'ubisoft.com', 'ubi.com', 'store.ubi.com', 'uplay'],
+    'xbox': ['xbox', 'microsoft', 'microsoft.com', 'xbox.com'],
+    'playstation': ['playstation', 'playstation.com', 'psn', 'store.playstation.com'],
+    'amazon': ['amazon', 'amazon.com', 'gaming.amazon.com'],
     'itch': ['itch', 'itch.io'],
     'humble': ['humble', 'humblebundle.com'],
-    'battlenet': ['battle.net', 'blizzard', 'battlenet'],
+    'battlenet': ['battle.net', 'blizzard', 'battlenet', 'shop.battle.net'],
+    'nintendo': ['nintendo', 'nintendo.com', 'eshop'],
+    'rockstar': ['rockstar', 'rockstargames.com', 'socialclub.rockstargames.com'],
+    'bethesda': ['bethesda', 'bethesda.net'],
+    'indiegala': ['indiegala'],
 };
 
 /**
  * Platform-specific store link patterns
  * Some providers have different stores for different platforms
  * (e.g., Nintendo has separate stores for 3DS/Wii U eShop vs Switch eShop)
+ * Includes language-specific URL patterns where applicable
  */
 export const PLATFORM_STORE_PATTERNS: Record<string, Record<string, string[]>> = {
     // Nintendo platforms have separate eShops
     'nintendo': {
-        'switch': ['nintendo.com', 'nintendo switch', 'nintendo eshop'],
-        '3ds': ['3ds.nintendo.com', 'nintendo 3ds', '3ds eshop'],
-        'wii u': ['wiiu.nintendo.com', 'wii u eshop'],
+        'switch': ['nintendo.com', 'nintendo.co.', 'nintendo switch', 'nintendo eshop', 'ec.nintendo.com'],
+        '3ds': ['nintendo.com/3ds', 'nintendo 3ds', '3ds eshop'],
+        'wii u': ['nintendo.com/wiiu', 'wii u eshop'],
     },
-    // PlayStation platform-specific stores
+    // PlayStation platform-specific stores (unified but region-specific)
     'playstation': {
-        'ps5': ['playstation.com/ps5', 'ps5 store'],
-        'ps4': ['playstation.com/ps4', 'ps4 store'],
-        'vita': ['playstation.com/vita', 'vita store'],
+        'ps5': ['store.playstation.com', 'ps5'],
+        'ps4': ['store.playstation.com', 'ps4'],
+        'ps3': ['store.playstation.com', 'ps3'],
+        'vita': ['store.playstation.com', 'vita'],
+        'psp': ['store.playstation.com', 'psp'],
     },
-    // Xbox platform-specific (though usually unified)
+    // Xbox platform-specific (region-specific)
     'xbox': {
-        'xbox series x|s': ['microsoft.com', 'xbox store'],
-        'xbox one': ['microsoft.com', 'xbox store'],
+        'xbox series x|s': ['microsoft.com', 'xbox.com', 'xbox store'],
+        'xbox series x': ['microsoft.com', 'xbox.com'],
+        'xbox series s': ['microsoft.com', 'xbox.com'],
+        'xbox one': ['microsoft.com', 'xbox.com'],
+        'xbox 360': ['marketplace.xbox.com'],
     },
 };
 
 /**
  * Known store URL patterns that verify a link actually points to a store
  * Used to validate "Website" or "Official Website" links
+ * Includes language-specific patterns (de, fr, es, it, pt, jp, etc.)
  */
 export const KNOWN_STORE_URL_PATTERNS: string[] = [
+    // Steam
     'store.steampowered.com',
+    // Epic
     'store.epicgames.com',
     'epicgames.com/store',
+    'launcher.store.epicgames.com',
+    // GOG (multi-language)
     'gog.com/game',
     'gog.com/en/game',
+    'gog.com/de/game',
+    'gog.com/fr/game',
+    // EA / Origin
     'ea.com/games',
+    'ea.com/de-de/games',
+    'ea.com/fr-fr/games',
     'origin.com/store',
+    // Ubisoft (multi-language)
     'ubisoft.com/game',
     'store.ubi.com',
+    'store.ubisoft.com',
+    // Xbox/Microsoft (multi-language)
     'microsoft.com/store',
+    'microsoft.com/en-us/store',
+    'microsoft.com/de-de/store',
+    'microsoft.com/fr-fr/store',
     'xbox.com/games',
+    'xbox.com/en-us/games',
+    'xbox.com/de-de/games',
+    // PlayStation (multi-language)
     'store.playstation.com',
+    // Nintendo (multi-language/regional)
     'nintendo.com/store',
+    'nintendo.com/games',
+    'nintendo.co.uk/Games',
+    'nintendo.de/Spiele',
+    'nintendo.fr/Jeux',
+    'nintendo.es/Juegos',
+    'nintendo.it/Giochi',
+    'nintendo.co.jp',
+    'ec.nintendo.com',
+    // Itch.io
     'itch.io',
+    // Humble
     'humblebundle.com/store',
+    // Battle.net
     'battle.net/shop',
+    'shop.battle.net',
+    // Rockstar
+    'rockstargames.com/games',
+    'socialclub.rockstargames.com',
+    // IndieGala
+    'indiegala.com/store',
 ];
 
 /**
@@ -153,18 +300,21 @@ export interface PlayniteRawData {
  * 
  * This function uses a multi-pass approach:
  * 1. First, try to match platform-specific store patterns (e.g., 3DS eShop vs Switch eShop)
- * 2. Then, try to match provider patterns
- * 3. Finally, check "Website" or "Official Website" links that actually point to stores
+ * 2. Then, try to match provider patterns using normalized provider ID
+ * 3. Then, try to match using the original provider name (for transparent aggregator pattern)
+ * 4. Finally, check "Website" or "Official Website" links that actually point to stores
  * 
  * @param links - Array of links from Playnite raw data
  * @param normalizedProvider - The normalized provider name (e.g., 'steam', 'epic')
  * @param platform - Optional platform name (e.g., 'PC', 'Nintendo Switch', '3DS')
+ * @param originalProviderName - Optional original provider name from Playnite (e.g., 'Epic Games', 'Ubisoft Connect')
  * @returns The store URL if found, undefined otherwise
  */
 export function extractStoreUrlFromLinks(
     links: PlayniteLink[] | undefined,
     normalizedProvider: string,
-    platform?: string
+    platform?: string,
+    originalProviderName?: string
 ): string | undefined {
     if (!links || links.length === 0) {
         return undefined;
@@ -172,9 +322,15 @@ export function extractStoreUrlFromLinks(
     
     const normalizedPlatform = platform?.toLowerCase().trim();
     
+    // If provider is unknown, try to resolve from original provider name
+    let provider = normalizedProvider;
+    if (provider === 'unknown' && originalProviderName) {
+        provider = normalizeSourceName(originalProviderName);
+    }
+    
     // Pass 1: Check platform-specific patterns for this provider
-    if (normalizedPlatform && PLATFORM_STORE_PATTERNS[normalizedProvider]) {
-        const platformPatterns = PLATFORM_STORE_PATTERNS[normalizedProvider];
+    if (normalizedPlatform && PLATFORM_STORE_PATTERNS[provider]) {
+        const platformPatterns = PLATFORM_STORE_PATTERNS[provider];
         
         // Find matching platform key
         for (const [platformKey, patterns] of Object.entries(platformPatterns)) {
@@ -192,8 +348,8 @@ export function extractStoreUrlFromLinks(
         }
     }
     
-    // Pass 2: Check general provider patterns
-    const patterns = PROVIDER_LINK_PATTERNS[normalizedProvider];
+    // Pass 2: Check general provider patterns using normalized provider ID
+    const patterns = PROVIDER_LINK_PATTERNS[provider];
     if (patterns) {
         for (const link of links) {
             const linkNameLower = link.name.toLowerCase();
@@ -207,9 +363,27 @@ export function extractStoreUrlFromLinks(
         }
     }
     
-    // Pass 3: Check "Website" or "Official Website" links that point to known stores
+    // Pass 3: If we have originalProviderName, try to match the link by name directly
+    if (originalProviderName) {
+        const providerNameLower = originalProviderName.toLowerCase();
+        for (const link of links) {
+            const linkNameLower = link.name.toLowerCase();
+            // Check if link name matches or contains the provider name
+            if (linkNameLower === providerNameLower || 
+                linkNameLower.includes(providerNameLower) || 
+                providerNameLower.includes(linkNameLower)) {
+                // Verify it's actually a store URL (not a random website)
+                const linkUrlLower = link.url.toLowerCase();
+                if (KNOWN_STORE_URL_PATTERNS.some(storePattern => linkUrlLower.includes(storePattern))) {
+                    return link.url;
+                }
+            }
+        }
+    }
+    
+    // Pass 4: Check "Website" or "Official Website" links that point to known stores
     // This is a fallback for cases where the link name doesn't match but the URL is valid
-    const websitePatterns = ['website', 'official', 'store', 'buy', 'purchase'];
+    const websitePatterns = ['website', 'official', 'store', 'buy', 'purchase', 'shop'];
     for (const link of links) {
         const linkNameLower = link.name.toLowerCase();
         
@@ -221,6 +395,15 @@ export function extractStoreUrlFromLinks(
             if (KNOWN_STORE_URL_PATTERNS.some(storePattern => linkUrlLower.includes(storePattern))) {
                 return link.url;
             }
+        }
+    }
+    
+    // Pass 5: Last resort - check all links for known store patterns
+    // Sometimes store links have generic names like "Link" or "Homepage"
+    for (const link of links) {
+        const linkUrlLower = link.url.toLowerCase();
+        if (KNOWN_STORE_URL_PATTERNS.some(storePattern => linkUrlLower.includes(storePattern))) {
+            return link.url;
         }
     }
     

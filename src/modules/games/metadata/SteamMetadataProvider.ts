@@ -299,6 +299,9 @@ export class SteamMetadataProvider extends BaseMetadataProvider {
         // Use Steam's short description if available, otherwise truncate the full description
         const shortDescription = steamShortDesc || truncateText(fullDescription, MAX_SHORT_DESCRIPTION_LENGTH);
         
+        // Steam store URL
+        const storeUrl = `https://store.steampowered.com/app/${data.steam_appid}`;
+        
         return {
             externalId: String(data.steam_appid),
             name: data.name,
@@ -317,6 +320,7 @@ export class SteamMetadataProvider extends BaseMetadataProvider {
             metacriticScore: data.metacritic?.score,
             metacriticUrl: data.metacritic?.url,
             ageRating: this.parseAgeRating(data.required_age),
+            storeUrl,
             playerInfo,
             priceInfo: data.price_overview ? {
                 currency: data.price_overview.currency,

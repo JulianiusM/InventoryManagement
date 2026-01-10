@@ -39,7 +39,7 @@ jest.mock('../../src/modules/database/dataSource', () => ({
 }));
 
 import {validateImportPayload} from '../../src/modules/games/connectors/playnite/PlayniteImportService';
-import {normalizeProviderName, extractStoreUrlFromLinks} from '../../src/modules/games/connectors/playnite/PlayniteProviders';
+import {normalizeProviderName, extractStoreUrlFromLinks, normalizeSourceName} from '../../src/modules/games/connectors/playnite/PlayniteProviders';
 
 describe('Playnite Import Service', () => {
     beforeEach(() => {
@@ -183,6 +183,55 @@ describe('Playnite Providers', () => {
             ];
             // Should not use a non-store URL
             expect(extractStoreUrlFromLinks(links, 'unknown')).toBeUndefined();
+        });
+
+        test('uses originalProviderName as fallback for store URL matching', () => {
+            const links = [
+                {name: 'Ubisoft Connect', url: 'https://store.ubi.com/game/my-game'},
+                {name: 'Website', url: 'https://example.com'},
+            ];
+            // Should find store URL using originalProviderName
+            expect(extractStoreUrlFromLinks(links, 'unknown', undefined, 'Ubisoft Connect')).toBe('https://store.ubi.com/game/my-game');
+        });
+
+        test('finds any store URL in last resort pass', () => {
+            const links = [
+                {name: 'Homepage', url: 'https://store.steampowered.com/app/123456'},
+            ];
+            // Even with generic name, should find Steam store URL in last resort pass
+            expect(extractStoreUrlFromLinks(links, 'unknown')).toBe('https://store.steampowered.com/app/123456');
+        });
+    });
+
+    describe('normalizeSourceName', () => {
+        test('normalizes Steam variations', () => {
+            expect(normalizeSourceName('Steam')).toBe('steam');
+            expect(normalizeSourceName('steam store')).toBe('steam');
+            expect(normalizeSourceName('STEAM')).toBe('steam');
+        });
+
+        test('normalizes EA variations', () => {
+            expect(normalizeSourceName('EA App')).toBe('ea');
+            expect(normalizeSourceName('Origin')).toBe('ea');
+            expect(normalizeSourceName('ea play')).toBe('ea');
+            expect(normalizeSourceName('Electronic Arts')).toBe('ea');
+        });
+
+        test('normalizes Ubisoft variations', () => {
+            expect(normalizeSourceName('Ubisoft Connect')).toBe('ubisoft');
+            expect(normalizeSourceName('uplay')).toBe('ubisoft');
+            expect(normalizeSourceName('UBI')).toBe('ubisoft');
+        });
+
+        test('normalizes Xbox variations', () => {
+            expect(normalizeSourceName('Xbox')).toBe('xbox');
+            expect(normalizeSourceName('Xbox Game Pass')).toBe('xbox');
+            expect(normalizeSourceName('Microsoft Store')).toBe('xbox');
+        });
+
+        test('returns unknown for unrecognized source', () => {
+            expect(normalizeSourceName('Some Random Store')).toBe('unknown');
+            expect(normalizeSourceName('')).toBe('unknown');
         });
     });
 });
