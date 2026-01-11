@@ -167,7 +167,7 @@ jobs:
           console.log('Wrote release/package.json (devDependencies removed; install scripts stripped).');
           EOF
 
-          # Optional extra safety: make "npm install" omit dev deps by default in this bundle
+          # Safety: make "npm install" omit dev deps by default in this bundle
           cat > release/.npmrc <<'EOF'
           omit=dev
           EOF
