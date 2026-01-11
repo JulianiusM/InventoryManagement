@@ -1,33 +1,27 @@
 {
   "name": "inventory-management",
-  "version": "0.1.0",
+  "version": "0.1.0-rc.0",
   "private": true,
   "scripts": {
     "pretest": "npm run generate",
     "run": "node dist/server.js",
-
     "server:dev": "nodemon --watch src --ext ts,js --exec \"ts-node --project tsconfig.server.json src/server.ts\"",
     "server:client": "cross-env NODE_ENV=development node esbuild.client.js --watch",
     "server": "npm run build && concurrently \"npm run server:dev\" \"npm run server:client\"",
-
     "typeorm": "ts-node --project tsconfig.server.json scripts/runMigration.ts",
     "typeorm:drop": "npm run typeorm -- schema:drop migrationDataSource.ts",
     "typeorm:sync": "npm run typeorm -- schema:sync migrationDataSource.ts",
     "typeorm:migrate": "npm run typeorm -- migration:run migrationDataSource.ts",
     "typeorm:reset-db": "npm run typeorm:drop && npm run typeorm:sync && npm run typeorm:migrate",
-
     "generate:db-index": "ts-node --project tsconfig.server.json scripts/genTypeormIdx.ts",
     "generate": "npm run generate:db-index",
-
     "copy:assets": "cpx \"src/public/{img,style}/**/*\" dist/public",
     "copy:views": "cpx \"src/views/**/*\" dist/views",
     "copy": "npm run copy:assets && npm run copy:views",
-
     "build:sass": "sass src/public/style:src/public/style --no-source-map",
     "build:server": "npm run generate && tsc --project tsconfig.server.json",
     "build:client": "cross-env NODE_ENV=production node esbuild.client.js",
     "build": "npm run build:sass && npm run build:server && npm run build:client && npm run copy",
-
     "test": "jest --runInBand",
     "test:watch": "jest --watch",
     "test:debug": "cross-env TEST_DB_LOGGING=true jest --runInBand --detectOpenHandles",
@@ -41,7 +35,6 @@
     "test:client:flows": "jest --config jest.client.config.ts tests/client/flows",
     "test:client:watch": "jest --config jest.client.config.ts --watch",
     "test:client:coverage": "jest --config jest.client.config.ts --coverage",
-
     "e2e:prepare": "ts-node --transpile-only scripts/e2e.db.init.ts",
     "e2e:server": "cross-env NODE_ENV=e2e node dist/server.js",
     "e2e:init": "npm run build && npm run e2e:prepare && npm run e2e:server",
