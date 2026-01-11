@@ -31,6 +31,7 @@ export async function listGameTitles(ownerId: number, options?: {
     typeFilter?: string;
     platformFilter?: string;
     playersFilter?: number;
+    modeFilter?: string;  // online, local, physical
     page?: number;
     limit?: number | 'all';
 }) {
@@ -54,11 +55,30 @@ export async function listGameTitles(ownerId: number, options?: {
         );
     }
     
+    // Filter by game mode
+    if (options?.modeFilter) {
+        const mode = options.modeFilter;
+        titles = titles.filter(t => {
+            if (mode === 'online') return t.supportsOnline;
+            if (mode === 'local') return t.supportsLocal;
+            if (mode === 'physical') return t.supportsPhysical;
+            return true;
+        });
+    }
+    
     if (options?.playersFilter) {
         const count = options.playersFilter;
         titles = titles.filter(t => {
-            // Handle null (unknown) player counts - include games with unknown counts in search
+            // Handle null (unknown) player counts
             // For games with null overall counts, only match if player count is 1 (implied singleplayer)
+            if (t.overallMinPlayers === null && t.overallMaxPlayers === null) {
+                // Singleplayer-only games (no multiplayer modes)
+                if (!t.supportsOnline && !t.supportsLocal && !t.supportsPhysical) {
+                    return count === 1;
+                }
+                // Multiplayer games with unknown counts - don't include in filter
+                return false;
+            }
             const min = t.overallMinPlayers ?? 1;
             const max = t.overallMaxPlayers ?? 1;
             return count >= min && count <= max;
@@ -82,6 +102,7 @@ export async function listGameTitles(ownerId: number, options?: {
         platforms,
         perPage: options?.limit || 24,
         platformFilter: options?.platformFilter || '',
+        modeFilter: options?.modeFilter || '',
         pagination: {
             page,
             limit,

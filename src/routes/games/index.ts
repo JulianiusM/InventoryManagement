@@ -54,6 +54,7 @@ router.get('/', asyncHandler(async (req: Request, res: Response) => {
     const search = (req.query.search as string) || '';
     const typeFilter = (req.query.type as string) || '';
     const platformFilter = (req.query.platform as string) || '';
+    const modeFilter = (req.query.mode as string) || '';
     const playersFilter = req.query.players ? parseInt(req.query.players as string) : undefined;
     const page = req.query.page ? parseInt(req.query.page as string) : 1;
     const perPageRaw = req.query.perPage as string;
@@ -63,11 +64,12 @@ router.get('/', asyncHandler(async (req: Request, res: Response) => {
         search,
         typeFilter,
         platformFilter,
+        modeFilter,
         playersFilter,
         page,
         limit: perPage
     });
-    renderer.renderWithData(res, 'games/list', {...data, search, typeFilter, platformFilter, perPage});
+    renderer.renderWithData(res, 'games/list', {...data, search, typeFilter, platformFilter, modeFilter, playersFilter, perPage});
 }));
 
 // Create game title
