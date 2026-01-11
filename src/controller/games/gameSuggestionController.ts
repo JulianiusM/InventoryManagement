@@ -21,7 +21,7 @@ export interface SuggestionFormData {
 /**
  * Show the suggestion wizard page
  */
-export async function showSuggestionWizard(userId: number) {
+export async function showSuggestionWizard(userId: number, initialCriteria?: Partial<SuggestionFormData>) {
     requireAuthenticatedUser(userId);
     
     // Get all platforms for selection
@@ -38,6 +38,7 @@ export async function showSuggestionWizard(userId: number) {
     return {
         platforms,
         gameTypes,
+        criteria: initialCriteria || {},
     };
 }
 

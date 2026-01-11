@@ -13,7 +13,9 @@ const router = express.Router();
 // Show suggestion wizard
 router.get('/', asyncHandler(async (req: Request, res: Response) => {
     const userId = req.session.user!.id;
-    const data = await gamesController.showSuggestionWizard(userId);
+    // Accept query parameters as initial criteria (e.g., from "Change Criteria" link)
+    const initialCriteria = req.query as Record<string, any>;
+    const data = await gamesController.showSuggestionWizard(userId, initialCriteria);
     renderer.renderWithData(res, 'games/suggestion-wizard', data);
 }));
 

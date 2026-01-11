@@ -6,6 +6,7 @@ block meta
 block content
     - const platforms = (data && data.platforms) ? data.platforms : []
     - const gameTypes = (data && data.gameTypes) ? data.gameTypes : []
+    - const criteria = (data && data.criteria) ? data.criteria : {}
 
     #liveAlerts
 
@@ -54,7 +55,7 @@ block content
                                 button.btn.btn-lg.btn-outline-light.player-btn(type="button" data-value="5+" style="min-width: 100px;")
                                     i.bi.bi-people.me-2
                                     | 5+
-                            input#playerCount(type="hidden" name="playerCount" value="")
+                             input#playerCount(type="hidden" name="playerCount" value=criteria.playerCount || "")
                             .mt-2.text-center
                                 small.text-white-50 Or enter a specific number:
                             .input-group.mt-2.justify-content-center
@@ -114,13 +115,15 @@ block content
                                                 .col-md-6
                                                     label.form-label.small.text-white-50 Include (whitelist)
                                                     select#includePlatforms.form-select.text-bg-dark.border-secondary(name="includePlatforms" multiple size="5")
+                                                        - const selectedIncludePlatforms = criteria.includePlatforms ? (Array.isArray(criteria.includePlatforms) ? criteria.includePlatforms : [criteria.includePlatforms]) : []
                                                         each p in platforms
-                                                            option(value=p.name) #{p.name}
+                                                            option(value=p.name selected=selectedIncludePlatforms.includes(p.name)) #{p.name}
                                                 .col-md-6
                                                     label.form-label.small.text-white-50 Exclude (blacklist)
                                                     select#excludePlatforms.form-select.text-bg-dark.border-secondary(name="excludePlatforms" multiple size="5")
+                                                        - const selectedExcludePlatforms = criteria.excludePlatforms ? (Array.isArray(criteria.excludePlatforms) ? criteria.excludePlatforms : [criteria.excludePlatforms]) : []
                                                         each p in platforms
-                                                            option(value=p.name) #{p.name}
+                                                            option(value=p.name selected=selectedExcludePlatforms.includes(p.name)) #{p.name}
                                             small.text-white-50 Hold Ctrl/Cmd to select multiple. Leave empty to include all.
 
                                         //- Game Types
@@ -129,8 +132,9 @@ block content
                                                 i.bi.bi-grid.me-1
                                                 | Game Types
                                             select#gameTypes.form-select.text-bg-dark.border-secondary(name="gameTypes" multiple size="5")
+                                                - const selectedGameTypes = criteria.gameTypes ? (Array.isArray(criteria.gameTypes) ? criteria.gameTypes : [criteria.gameTypes]) : []
                                                 each type in gameTypes
-                                                    option(value=type.value) #{type.label}
+                                                    option(value=type.value selected=selectedGameTypes.includes(type.value)) #{type.label}
                                             small.text-white-50 Hold Ctrl/Cmd to select multiple. Leave empty to include all types.
 
                         //- Submit Button
@@ -256,4 +260,53 @@ block scripts
                 }
             `;
             document.head.appendChild(style);
+            
+            // Restore form state from criteria (passed via query params)
+            const playerCount = '#{criteria.playerCount || ''}';
+            if (playerCount) {
+                // Set the hidden input
+                document.getElementById('playerCount').value = playerCount;
+                
+                // Activate the corresponding button if it matches
+                document.querySelectorAll('.player-btn').forEach(btn => {
+                    const btnValue = btn.getAttribute('data-value');
+                    if ((btnValue === '5+' && parseInt(playerCount) >= 5) || btnValue === playerCount) {
+                        btn.classList.add('active');
+                    }
+                });
+            }
+            
+            // Restore mode button states
+            const includeOnline = '#{criteria.includeOnline || 'any'}';
+            const includeLocal = '#{criteria.includeLocal || 'any'}';
+            const includePhysical = '#{criteria.includePhysical || 'any'}';
+            
+            document.querySelectorAll('.mode-btn').forEach(btn => {
+                const mode = btn.getAttribute('data-mode');
+                let value = 'any';
+                if (mode === 'online') value = includeOnline;
+                else if (mode === 'local') value = includeLocal;
+                else if (mode === 'physical') value = includePhysical;
+                
+                // Set button state
+                btn.setAttribute('data-value', value);
+                const statusEl = btn.querySelector('.mode-status');
+                if (statusEl) {
+                    if (value === 'require') {
+                        statusEl.textContent = 'Required';
+                        btn.classList.add('active');
+                    } else if (value === 'exclude') {
+                        statusEl.textContent = 'Excluded';
+                        btn.classList.add('text-decoration-line-through');
+                    } else {
+                        statusEl.textContent = 'Any';
+                    }
+                }
+                
+                // Update hidden input
+                const input = btn.parentElement.querySelector('input[type="hidden"]');
+                if (input) {
+                    input.value = value;
+                }
+            });
         });

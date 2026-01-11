@@ -9,6 +9,26 @@ block content
     - const platforms = (data && data.platforms) ? data.platforms : []
     - const gameTypes = (data && data.gameTypes) ? data.gameTypes : []
     - const typeLabels = {video_game: 'Video Game', board_game: 'Board Game', card_game: 'Card Game', tabletop_rpg: 'Tabletop RPG', other_physical_game: 'Other Physical'}
+    
+    //- Build query string for "Change Criteria" link
+    - const queryParams = [];
+    - if (criteria.playerCount) queryParams.push(`playerCount=${encodeURIComponent(criteria.playerCount)}`);
+    - if (criteria.includeOnline && criteria.includeOnline !== 'any') queryParams.push(`includeOnline=${encodeURIComponent(criteria.includeOnline)}`);
+    - if (criteria.includeLocal && criteria.includeLocal !== 'any') queryParams.push(`includeLocal=${encodeURIComponent(criteria.includeLocal)}`);
+    - if (criteria.includePhysical && criteria.includePhysical !== 'any') queryParams.push(`includePhysical=${encodeURIComponent(criteria.includePhysical)}`);
+    - if (criteria.includePlatforms) {
+        - const includePlatformsArray = Array.isArray(criteria.includePlatforms) ? criteria.includePlatforms : [criteria.includePlatforms];
+        - includePlatformsArray.forEach(p => queryParams.push(`includePlatforms=${encodeURIComponent(p)}`));
+    - }
+    - if (criteria.excludePlatforms) {
+        - const excludePlatformsArray = Array.isArray(criteria.excludePlatforms) ? criteria.excludePlatforms : [criteria.excludePlatforms];
+        - excludePlatformsArray.forEach(p => queryParams.push(`excludePlatforms=${encodeURIComponent(p)}`));
+    - }
+    - if (criteria.gameTypes) {
+        - const gameTypesArray = Array.isArray(criteria.gameTypes) ? criteria.gameTypes : [criteria.gameTypes];
+        - gameTypesArray.forEach(t => queryParams.push(`gameTypes=${encodeURIComponent(t)}`));
+    - }
+    - const changeCriteriaUrl = `/games/suggest${queryParams.length > 0 ? '?' + queryParams.join('&') : ''}`;
 
     #liveAlerts
 
@@ -112,7 +132,7 @@ block content
                                 button.btn.btn-primary.btn-lg(type="submit")
                                     i.bi.bi-shuffle.me-2
                                     | Suggest Another
-                            a.btn.btn-outline-light.btn-lg(href="/games/suggest")
+                            a.btn.btn-outline-light.btn-lg(href=changeCriteriaUrl)
                                 i.bi.bi-sliders.me-2
                                 | Change Criteria
 
@@ -172,7 +192,7 @@ block content
                                         |  #{gameTypesArray.map(t => typeLabels[t] || t).join(', ')}
 
                         .d-grid.gap-2.d-md-flex.justify-content-center
-                            a.btn.btn-primary.btn-lg(href="/games/suggest")
+                            a.btn.btn-primary.btn-lg(href=changeCriteriaUrl)
                                 i.bi.bi-sliders.me-2
                                 | Change Criteria
                             a.btn.btn-outline-light.btn-lg(href="/games")
