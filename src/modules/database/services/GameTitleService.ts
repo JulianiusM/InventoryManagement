@@ -352,6 +352,39 @@ export interface SimilarTitleGroup {
  * @param includeDismissed Whether to include dismissed items
  * @returns Groups of similar titles (2+ titles per group)
  */
+// Constants for similarity matching
+const MIN_SIMILARITY_LENGTH = 6; // Minimum normalized name length to consider for matching
+const MAX_TITLES_FOR_CONTAINMENT_CHECK = 1000; // Performance guard for O(n²) containment check
+
+/**
+ * Aggressively normalize a title for similarity matching.
+ * Removes all non-alphanumeric characters, converts to lowercase.
+ * E.g., "Killing Floor 2" -> "killingfloor2", "KillingFloor2Beta" -> "killingfloor2beta"
+ */
+function aggressiveNormalize(title: string): string {
+    return title
+        .toLowerCase()
+        .replace(/[^a-z0-9]/g, ''); // Keep only alphanumeric
+}
+
+/**
+ * Check if two titles are similar using containment matching.
+ * E.g., "killingfloor2" is contained in "killingfloor2beta"
+ */
+function areTitlesSimilar(normA: string, normB: string): boolean {
+    if (normA === normB) return true;
+    // Check containment (one is prefix/suffix of the other with some overlap)
+    // Minimum overlap: at least MIN_SIMILARITY_LENGTH characters to avoid false positives
+    const minLength = Math.min(normA.length, normB.length);
+    if (minLength < MIN_SIMILARITY_LENGTH) return false;
+    
+    // Check if shorter is contained in longer
+    const shorter = normA.length <= normB.length ? normA : normB;
+    const longer = normA.length <= normB.length ? normB : normA;
+    
+    return longer.includes(shorter);
+}
+
 export async function findSimilarTitles(
     ownerId: number, 
     includeDismissed = false
@@ -370,24 +403,94 @@ export async function findSimilarTitles(
         titles = titles.filter(t => !t.dismissedSimilar);
     }
     
-    // Group by normalized name
-    const groups = new Map<string, GameTitle[]>();
+    // Pre-compute normalized names for all titles
+    const normalizedTitles: Array<{title: GameTitle; normalized: string; baseName: string}> = 
+        titles.map(t => {
+            const {baseName} = extractEdition(t.name);
+            return {
+                title: t,
+                normalized: aggressiveNormalize(baseName),
+                baseName,
+            };
+        });
     
-    for (const title of titles) {
-        const {baseName} = extractEdition(title.name);
-        const normalized = normalizeGameTitle(baseName);
-        
-        if (!groups.has(normalized)) {
-            groups.set(normalized, []);
+    // First pass: group by exact normalized name (fast O(n))
+    const exactGroups = new Map<string, GameTitle[]>();
+    for (const {title, normalized} of normalizedTitles) {
+        if (!exactGroups.has(normalized)) {
+            exactGroups.set(normalized, []);
         }
-        groups.get(normalized)!.push(title);
+        exactGroups.get(normalized)!.push(title);
     }
     
-    // Only return groups with 2+ titles (actual similar names)
-    const result: SimilarTitleGroup[] = [];
-    for (const [normalizedName, groupTitles] of groups) {
+    // Second pass: find containment matches (O(n²) but efficient with early exit)
+    // Use a union-find approach to group similar titles
+    const titleIndex = new Map<string, number>(); // title.id -> index
+    normalizedTitles.forEach((nt, idx) => titleIndex.set(nt.title.id, idx));
+    
+    const parent: number[] = normalizedTitles.map((_, i) => i);
+    
+    function find(i: number): number {
+        if (parent[i] !== i) {
+            parent[i] = find(parent[i]);
+        }
+        return parent[i];
+    }
+    
+    function union(i: number, j: number): void {
+        const pi = find(i);
+        const pj = find(j);
+        if (pi !== pj) {
+            parent[pi] = pj;
+        }
+    }
+    
+    // Union titles that match exactly (fast)
+    for (const [, groupTitles] of exactGroups) {
         if (groupTitles.length >= 2) {
-            result.push({normalizedName, titles: groupTitles});
+            const firstIdx = titleIndex.get(groupTitles[0].id)!;
+            for (let i = 1; i < groupTitles.length; i++) {
+                union(firstIdx, titleIndex.get(groupTitles[i].id)!);
+            }
+        }
+    }
+    
+    // Union titles with containment relationship (O(n²) but with early termination)
+    // Limit to reasonable library size for performance
+    if (normalizedTitles.length <= MAX_TITLES_FOR_CONTAINMENT_CHECK) {
+        for (let i = 0; i < normalizedTitles.length; i++) {
+            for (let j = i + 1; j < normalizedTitles.length; j++) {
+                if (find(i) !== find(j) && 
+                    areTitlesSimilar(normalizedTitles[i].normalized, normalizedTitles[j].normalized)) {
+                    union(i, j);
+                }
+            }
+        }
+    }
+    
+    // Build final groups from union-find
+    const finalGroups = new Map<number, GameTitle[]>();
+    for (let i = 0; i < normalizedTitles.length; i++) {
+        const root = find(i);
+        if (!finalGroups.has(root)) {
+            finalGroups.set(root, []);
+        }
+        finalGroups.get(root)!.push(normalizedTitles[i].title);
+    }
+    
+    // Only return groups with 2+ titles
+    const result: SimilarTitleGroup[] = [];
+    for (const [rootIdx, groupTitles] of finalGroups) {
+        if (groupTitles.length >= 2) {
+            // Find the shortest normalized name in the group for display
+            let shortestNormalized = normalizedTitles[rootIdx].normalized;
+            for (const title of groupTitles) {
+                const titleIdx = normalizedTitles.findIndex(nt => nt.title.id === title.id);
+                if (titleIdx >= 0 && normalizedTitles[titleIdx].normalized.length < shortestNormalized.length) {
+                    shortestNormalized = normalizedTitles[titleIdx].normalized;
+                }
+            }
+            result.push({normalizedName: shortestNormalized, titles: groupTitles});
         }
     }
     

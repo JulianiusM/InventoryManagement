@@ -479,9 +479,10 @@ function initAddAccountForm(): void {
     const customProviderInput = document.getElementById('customProviderInput') as HTMLInputElement | null;
     
     if (providerSelect) {
-        // Initial render for default selection
+        // Initial render for default selection (will be called again by Select2 init)
         renderCredentialFields(providerSelect.value);
         
+        // Also add native event listener as fallback for non-Select2 environments
         providerSelect.addEventListener('change', function() {
             renderCredentialFields(this.value);
         });
@@ -689,12 +690,25 @@ function initSelect2(): void {
 
     $(document).ready(function() {
         // Provider dropdown in add account modal
-        $('#providerSelect').select2({
+        const $providerSelect = $('#providerSelect');
+        $providerSelect.select2({
             theme: 'bootstrap-5',
             placeholder: 'Select provider...',
             dropdownParent: $('#addAccountModal'),
             width: '100%',
         });
+        
+        // Use Select2's change event for proper handling
+        $providerSelect.on('change', function() {
+            const selectedValue = $(this).val() as string;
+            renderCredentialFields(selectedValue);
+        });
+        
+        // Trigger initial render after Select2 is initialized
+        const initialValue = $providerSelect.val() as string;
+        if (initialValue) {
+            renderCredentialFields(initialValue);
+        }
         
         // Interval dropdown in schedule modal
         $('select[name="intervalMinutes"]').select2({
