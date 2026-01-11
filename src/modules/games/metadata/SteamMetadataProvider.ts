@@ -25,9 +25,6 @@ import settings from '../../settings';
 const STEAM_STORE_API_BASE = 'https://store.steampowered.com/api';
 const STEAM_SEARCH_URL = 'https://store.steampowered.com/search/suggest';
 
-// Short description max length (2-4 lines)
-const MAX_SHORT_DESCRIPTION_LENGTH = 250;
-
 /**
  * Steam app details response structure
  */
@@ -292,12 +289,9 @@ export class SteamMetadataProvider extends BaseMetadataProvider {
         if (data.platforms?.windows) platforms.push('Windows');
         if (data.platforms?.mac) platforms.push('macOS');
         if (data.platforms?.linux) platforms.push('Linux');
-        
-        // Strip HTML from descriptions and truncate for display
-        const fullDescription = stripHtml(data.about_the_game || data.detailed_description || '');
-        const steamShortDesc = stripHtml(data.short_description || '');
-        // Use Steam's short description if available, otherwise truncate the full description
-        const shortDescription = steamShortDesc || truncateText(fullDescription, MAX_SHORT_DESCRIPTION_LENGTH);
+
+        const fullDescription = data.about_the_game || data.detailed_description
+        const shortDescription = data.short_description;
         
         // Steam store URL
         const storeUrl = `https://store.steampowered.com/app/${data.steam_appid}`;
@@ -305,8 +299,8 @@ export class SteamMetadataProvider extends BaseMetadataProvider {
         return {
             externalId: String(data.steam_appid),
             name: data.name,
-            description: fullDescription || undefined,
-            shortDescription: shortDescription || undefined,
+            description: fullDescription,
+            shortDescription: shortDescription,
             coverImageUrl: data.capsule_imagev5 || data.capsule_image,
             headerImageUrl: data.header_image,
             screenshots: data.screenshots?.map(s => s.path_full),

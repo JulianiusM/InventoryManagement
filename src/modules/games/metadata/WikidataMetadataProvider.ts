@@ -26,9 +26,6 @@ import {truncateText} from '../../lib/htmlUtils';
 const WIKIDATA_REST_API = 'https://www.wikidata.org/w/rest.php/wikibase';
 const WIKIDATA_SPARQL_ENDPOINT = 'https://query.wikidata.org/sparql';
 
-// Short description max length (2-4 lines)
-const MAX_SHORT_DESCRIPTION_LENGTH = 250;
-
 // Scoring constants for search result ranking
 const EXACT_MATCH_SCORE = 500;
 const PREFIX_MATCH_SCORE = 150;
@@ -471,7 +468,7 @@ LIMIT 50`;
             externalId,
             name,
             description: description || undefined,
-            shortDescription: description ? truncateText(description, MAX_SHORT_DESCRIPTION_LENGTH) : undefined,
+            shortDescription: description,
             coverImageUrl,
             headerImageUrl: coverImageUrl,
             genres: genres.size > 0 ? Array.from(genres).slice(0, 5) : ['Board Game'],

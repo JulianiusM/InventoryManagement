@@ -27,9 +27,6 @@ import settings from '../../settings';
 
 const RAWG_API_BASE = 'https://api.rawg.io/api';
 
-// Maximum length for short description (2-4 lines)
-const MAX_SHORT_DESCRIPTION_LENGTH = 250;
-
 /**
  * RAWG game response structure
  */
@@ -307,7 +304,7 @@ export class RawgMetadataProvider extends BaseMetadataProvider {
         const platforms = data.platforms?.map(p => p.platform.name) || [];
         
         // Get description (prefer raw, then strip HTML from formatted)
-        const description = data.description_raw || stripHtml(data.description || '');
+        const description = data.description_raw || data.description;
         
         // Extract store URL - prefer Steam, then Epic, then first available
         const storeUrl = this.extractStoreUrl(data.stores);
@@ -316,7 +313,7 @@ export class RawgMetadataProvider extends BaseMetadataProvider {
             externalId: String(data.id),
             name: data.name,
             description,
-            shortDescription: description ? truncateText(description, MAX_SHORT_DESCRIPTION_LENGTH) : undefined,
+            shortDescription: description,
             coverImageUrl: data.background_image,
             headerImageUrl: data.background_image_additional || data.background_image,
             screenshots: data.short_screenshots?.map(s => s.image),

@@ -297,7 +297,8 @@ export class MetadataPipeline {
     async applyToTitle(
         titleId: string,
         title: GameTitle,
-        metadata: GameMetadata
+        metadata: GameMetadata,
+        forceUpdate = false,
     ): Promise<{updates: Partial<GameTitle>; fieldsUpdated: string[]}> {
         const updates: Partial<GameTitle> = {};
         
@@ -310,13 +311,13 @@ export class MetadataPipeline {
             const hasPlaceholderDescription = title.description && title.description.length < MIN_VALID_DESCRIPTION_LENGTH;
             const hasNameAsDescription = title.description === title.name;
             
-            if (newDescription && (hasNoDescription || hasPlaceholderDescription || hasNameAsDescription)) {
+            if (newDescription && (forceUpdate || hasNoDescription || hasPlaceholderDescription || hasNameAsDescription)) {
                 updates.description = newDescription;
             }
         }
         
         // Apply cover image
-        if (metadata.coverImageUrl && !title.coverImageUrl) {
+        if (metadata.coverImageUrl && (forceUpdate || !title.coverImageUrl)) {
             updates.coverImageUrl = metadata.coverImageUrl;
         }
         

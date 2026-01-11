@@ -88,7 +88,7 @@ export function truncateText(text: string, maxLength: number): string {
 }
 
 // Maximum description length for storage (prevents overly long descriptions)
-const MAX_DESCRIPTION_LENGTH = 5000;
+const MAX_DESCRIPTION_LENGTH = 250;
 
 // Threshold for finding sentence boundary (80% of max length)
 const SENTENCE_BOUNDARY_THRESHOLD = 0.8;

@@ -129,7 +129,7 @@ export async function applyMetadataToTitle(
     metadata: GameMetadata
 ): Promise<{updates: Partial<GameTitle>; fieldsUpdated: string[]}> {
     const pipeline = getMetadataPipeline();
-    return pipeline.applyToTitle(titleId, title, metadata);
+    return pipeline.applyToTitle(titleId, title, metadata, true);
 }
 
 // Singleton instance
