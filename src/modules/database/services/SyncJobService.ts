@@ -2,6 +2,7 @@ import {AppDataSource} from '../dataSource';
 import {SyncJob} from '../entities/syncJob/SyncJob';
 import {ExternalAccount} from '../entities/externalAccount/ExternalAccount';
 import {SyncStatus, SyncJobType} from '../../../types/InventoryEnums';
+import {User} from "../entities/user/User";
 
 export async function createSyncJob(externalAccountId: string): Promise<SyncJob> {
     const repo = AppDataSource.getRepository(SyncJob);
@@ -18,7 +19,7 @@ export async function createSyncJob(externalAccountId: string): Promise<SyncJob>
 export async function createMetadataResyncJob(ownerId: number): Promise<SyncJob> {
     const repo = AppDataSource.getRepository(SyncJob);
     const job = new SyncJob();
-    job.ownerId = ownerId;
+    job.owner = {id: ownerId} as User;
     job.jobType = SyncJobType.METADATA_RESYNC;
     job.status = SyncStatus.PENDING;
     return await repo.save(job);
@@ -109,7 +110,7 @@ export async function getPendingJobs(): Promise<SyncJob[]> {
 export async function createSimilarityAnalysisJob(ownerId: number): Promise<SyncJob> {
     const repo = AppDataSource.getRepository(SyncJob);
     const job = new SyncJob();
-    job.ownerId = ownerId;
+    job.owner = {id: ownerId} as User;
     job.jobType = SyncJobType.SIMILARITY_ANALYSIS;
     job.status = SyncStatus.PENDING;
     return await repo.save(job);
