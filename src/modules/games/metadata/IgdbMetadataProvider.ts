@@ -32,12 +32,6 @@ import settings from '../../settings';
 const IGDB_API_BASE = 'https://api.igdb.com/v4';
 const TWITCH_AUTH_URL = 'https://id.twitch.tv/oauth2/token';
 
-// Short description max length
-const MAX_SHORT_DESCRIPTION_LENGTH = 250;
-
-// Default max players for splitscreen (IGDB only has boolean flag, no count)
-const DEFAULT_SPLITSCREEN_MAX_PLAYERS = 4;
-
 // Cache for OAuth token
 let cachedToken: {token: string; expiresAt: number} | null = null;
 
@@ -421,8 +415,8 @@ export class IgdbMetadataProvider extends BaseMetadataProvider {
         return {
             externalId: String(data.id),
             name: data.name,
-            description: description || undefined,
-            shortDescription: description ? truncateText(description, MAX_SHORT_DESCRIPTION_LENGTH) : undefined,
+            description: description,
+            shortDescription: description,
             coverImageUrl,
             headerImageUrl,
             screenshots,
@@ -490,10 +484,6 @@ export class IgdbMetadataProvider extends BaseMetadataProvider {
             // Splitscreen is boolean in IGDB (no max count) - use default constant
             if (mode.splitscreen) {
                 supportsLocal = true;
-                // Use offlinemax if available, otherwise use default splitscreen max
-                if (localMaxPlayers === undefined || localMaxPlayers < DEFAULT_SPLITSCREEN_MAX_PLAYERS) {
-                    localMaxPlayers = DEFAULT_SPLITSCREEN_MAX_PLAYERS;
-                }
             }
             
             // LAN modes count as both

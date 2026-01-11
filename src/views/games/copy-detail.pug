@@ -23,6 +23,20 @@ block content
             i.bi.bi-exclamation-triangle.me-2
             | Copy not found.
     else
+        //- Breadcrumb navigation
+        - const gameTitle = copy.gameRelease && copy.gameRelease.gameTitle ? copy.gameRelease.gameTitle : null
+        nav.mb-2(aria-label="breadcrumb")
+            ol.breadcrumb.mb-0
+                li.breadcrumb-item
+                    a.text-info(href="/games") Games
+                if gameTitle
+                    li.breadcrumb-item
+                        a.text-info(href=`/games/titles/${gameTitle.id}`) #{gameTitle.name}
+                if copy.gameRelease
+                    li.breadcrumb-item
+                        a.text-info(href=`/games/releases/${copy.gameRelease.id}`) #{copy.gameRelease.edition || 'Standard'} (#{copy.gameRelease.platform})
+                li.breadcrumb-item.active.text-white(aria-current="page") Copy
+
         //- Header
         .d-flex.justify-content-between.align-items-start.mb-3
             div
@@ -31,7 +45,7 @@ block content
                         i.bi.bi-cloud.me-2
                     else
                         i.bi.bi-disc.me-2
-                    | #{copy.gameRelease && copy.gameRelease.gameTitle ? copy.gameRelease.gameTitle.name : 'Game Copy'}
+                    | #{gameTitle ? gameTitle.name : 'Game Copy'}
                 .d-flex.flex-wrap.gap-2.align-items-center
                     if copy.gameCopyType === 'digital_license'
                         span.badge.text-bg-primary
@@ -49,6 +63,52 @@ block content
         .row.g-3
             //- Left column
             .col-lg-7
+                //- Game Info Card (inherited from title)
+                if gameTitle && (gameTitle.coverImageUrl || gameTitle.description)
+                    .card.text-bg-dark.border-secondary.mb-3
+                        if gameTitle.coverImageUrl
+                            img.card-img-top(src=gameTitle.coverImageUrl alt=`${gameTitle.name} cover` style="max-height: 200px; object-fit: cover;")
+                        .card-body
+                            if gameTitle.description
+                                p.text-white-50.mb-2.small #{gameTitle.description.substring(0, 200)}#{gameTitle.description.length > 200 ? '...' : ''}
+                            .d-flex.flex-wrap.gap-2.align-items-center
+                                //- Overall player count - handle null (unknown) values
+                                if gameTitle.overallMaxPlayers
+                                    span.badge.text-bg-secondary
+                                        i.bi.bi-people.me-1
+                                        | #{gameTitle.overallMinPlayers || 1}-#{gameTitle.overallMaxPlayers} players
+                                else if gameTitle.supportsOnline || gameTitle.supportsLocal || gameTitle.supportsPhysical
+                                    span.badge.text-bg-warning.text-dark
+                                        i.bi.bi-people.me-1
+                                        i.bi.bi-exclamation-triangle.me-1
+                                        | ? players
+                                else
+                                    span.badge.text-bg-secondary
+                                        i.bi.bi-people.me-1
+                                        | 1 player
+                                if gameTitle.supportsOnline
+                                    span.badge.text-bg-primary
+                                        i.bi.bi-globe.me-1
+                                        | Online
+                                        //- Warning for unknown player count
+                                        if !gameTitle.onlineMaxPlayers
+                                            i.bi.bi-exclamation-triangle.ms-1(title="Player count unknown")
+                                if gameTitle.supportsLocal
+                                    span.badge.text-bg-success
+                                        i.bi.bi-display.me-1
+                                        | Local
+                                        //- Warning for unknown player count
+                                        if !gameTitle.localMaxPlayers
+                                            i.bi.bi-exclamation-triangle.ms-1(title="Player count unknown")
+                            .mt-2
+                                a.btn.btn-sm.btn-outline-light.me-2(href=`/games/titles/${gameTitle.id}`)
+                                    i.bi.bi-arrow-left.me-1
+                                    | Title
+                                if copy.gameRelease
+                                    a.btn.btn-sm.btn-outline-light(href=`/games/releases/${copy.gameRelease.id}`)
+                                        i.bi.bi-box.me-1
+                                        | Release
+
                 //- Copy details
                 .card.text-bg-dark.border-secondary.mb-3
                     .card-header.d-flex.justify-content-between.align-items-center
@@ -110,6 +170,15 @@ block content
                                         a.text-info(href=copy.storeUrl target="_blank" rel="noopener noreferrer")
                                             | View on Store
                                             i.bi.bi-box-arrow-up-right.ms-1
+                                else
+                                    //- Show indicator when store URL is unavailable
+                                    dt.col-sm-4
+                                        i.bi.bi-shop.me-1
+                                        | Store Link
+                                    dd.col-sm-8
+                                        span.text-white-50
+                                            i.bi.bi-exclamation-circle.me-1.text-warning
+                                            | Unavailable
                                 
                                 if copy.playtimeMinutes
                                     dt.col-sm-4

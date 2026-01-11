@@ -114,6 +114,9 @@ export interface GameMetadata {
     /** Recommended age rating */
     ageRating?: string;
     
+    /** Store URL for purchasing/viewing the game */
+    storeUrl?: string;
+    
     /** Player count information */
     playerInfo?: {
         overallMinPlayers?: number;

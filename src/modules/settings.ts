@@ -101,7 +101,7 @@ const defaults: Settings = {
     boardGameAtlasClientId: "",
     
     // Metadata sync configuration
-    igdbQueryTimeoutMs: 300000, // 5 minutes default for thorough metadata enrichment
+    igdbQueryTimeoutMs: 3000000, // 5 minutes default for thorough metadata enrichment
 };
 
 // CSV_KEY -> settings key

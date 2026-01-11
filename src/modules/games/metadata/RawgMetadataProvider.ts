@@ -27,9 +27,6 @@ import settings from '../../settings';
 
 const RAWG_API_BASE = 'https://api.rawg.io/api';
 
-// Maximum length for short description (2-4 lines)
-const MAX_SHORT_DESCRIPTION_LENGTH = 250;
-
 /**
  * RAWG game response structure
  */
@@ -133,7 +130,7 @@ export class RawgMetadataProvider extends BaseMetadataProvider {
     /**
      * RAWG capabilities:
      * - Does NOT have accurate player counts (only knows if multiplayer vs single-player)
-     * - Does NOT have store URLs
+     * - Has store URLs via stores array
      * - Does NOT support batch requests
      * - Supports search
      * - Has descriptions and cover images
@@ -141,7 +138,7 @@ export class RawgMetadataProvider extends BaseMetadataProvider {
     getCapabilities(): MetadataProviderCapabilities {
         return {
             hasAccuratePlayerCounts: false,
-            hasStoreUrls: false,
+            hasStoreUrls: true,
             supportsBatchRequests: false,
             supportsSearch: true,
             hasDescriptions: true,
@@ -307,13 +304,16 @@ export class RawgMetadataProvider extends BaseMetadataProvider {
         const platforms = data.platforms?.map(p => p.platform.name) || [];
         
         // Get description (prefer raw, then strip HTML from formatted)
-        const description = data.description_raw || stripHtml(data.description || '');
+        const description = data.description_raw || data.description;
+        
+        // Extract store URL - prefer Steam, then Epic, then first available
+        const storeUrl = this.extractStoreUrl(data.stores);
         
         return {
             externalId: String(data.id),
             name: data.name,
             description,
-            shortDescription: description ? truncateText(description, MAX_SHORT_DESCRIPTION_LENGTH) : undefined,
+            shortDescription: description,
             coverImageUrl: data.background_image,
             headerImageUrl: data.background_image_additional || data.background_image,
             screenshots: data.short_screenshots?.map(s => s.image),
@@ -324,9 +324,94 @@ export class RawgMetadataProvider extends BaseMetadataProvider {
             platforms,
             metacriticScore: data.metacritic,
             ageRating: data.esrb_rating?.name,
+            storeUrl,
             playerInfo,
             rawPayload: {...data},
         };
+    }
+    
+    /**
+     * Extract store URL from RAWG stores array
+     * Prefers the appropriate platform store first, then falls back to priority order
+     * 
+     * For PC platform with transparent aggregator pattern:
+     * - If originalProviderName is provided (e.g., "Steam", "Epic"), prefer that store
+     * 
+     * @param stores RAWG stores array
+     * @param targetPlatform Optional platform to prefer (e.g., "PC", "PlayStation 5")
+     * @param originalProviderName Optional provider name for transparent aggregator pattern
+     */
+    private extractStoreUrl(stores?: RawgGameResponse['stores'], targetPlatform?: string, originalProviderName?: string): string | undefined {
+        if (!stores || stores.length === 0) return undefined;
+        
+        // Normalize target platform for matching
+        const normalizedPlatform = targetPlatform?.toLowerCase() || '';
+        
+        // For PC platform, check if we have a specific store from transparent aggregator
+        if (normalizedPlatform.includes('pc') && originalProviderName) {
+            const providerLower = originalProviderName.toLowerCase();
+            
+            // Map provider names to store slugs (transparent aggregator pattern)
+            const providerToStore: Record<string, string[]> = {
+                'steam': ['steam'],
+                'epic': ['epic-games-store'],
+                'epic games': ['epic-games-store'],
+                'gog': ['gog'],
+                'ea': ['origin', 'ea-app'],
+                'ea app': ['origin', 'ea-app'],
+                'origin': ['origin', 'ea-app'],
+                'ubisoft': ['ubisoft-connect'],
+                'ubisoft connect': ['ubisoft-connect'],
+                'uplay': ['ubisoft-connect'],
+                'xbox': ['xbox-store'],
+                'microsoft store': ['xbox-store'],
+            };
+            
+            // Find matching provider
+            for (const [provider, storeSlugs] of Object.entries(providerToStore)) {
+                if (providerLower.includes(provider)) {
+                    for (const slug of storeSlugs) {
+                        const store = stores.find(s => s.store.slug === slug && s.url);
+                        if (store?.url) return store.url;
+                    }
+                }
+            }
+        }
+        
+        // Map platforms to preferred store slugs
+        const platformToStore: Record<string, string[]> = {
+            'pc': ['steam', 'epic-games-store', 'gog'],
+            'playstation': ['playstation-store'],
+            'ps5': ['playstation-store'],
+            'ps4': ['playstation-store'],
+            'ps3': ['playstation-store'],
+            'xbox': ['xbox-store', 'xbox360'],
+            'nintendo': ['nintendo'],
+            'switch': ['nintendo'],
+        };
+        
+        // Try platform-specific stores
+        for (const [platform, storeSlugs] of Object.entries(platformToStore)) {
+            if (normalizedPlatform.includes(platform)) {
+                for (const slug of storeSlugs) {
+                    const store = stores.find(s => s.store.slug === slug && s.url);
+                    if (store?.url) return store.url;
+                }
+            }
+        }
+        
+        // Fallback to generic priority order (useful when no platform specified)
+        const priorityOrder = ['steam', 'epic-games-store', 'gog', 'playstation-store', 'xbox-store', 'nintendo'];
+        
+        // Find store by priority
+        for (const storeSlug of priorityOrder) {
+            const store = stores.find(s => s.store.slug === storeSlug && s.url);
+            if (store?.url) return store.url;
+        }
+        
+        // Fallback to first store with URL
+        const firstWithUrl = stores.find(s => s.url);
+        return firstWithUrl?.url;
     }
     
     /**

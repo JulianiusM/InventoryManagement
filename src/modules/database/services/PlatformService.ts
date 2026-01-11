@@ -133,17 +133,21 @@ export async function normalizePlatformNameWithDb(name: string, ownerId: number)
     const trimmed = name.trim();
     const lowercased = trimmed.toLowerCase();
     
-    // First, check user-defined aliases in the database
+    // Get all user's platforms from database
     const repo = AppDataSource.getRepository(Platform);
     const platforms = await repo.find({where: {owner: {id: ownerId}}});
     
+    // FIRST PASS: Check if input matches any platform name exactly (case-insensitive)
+    // This ensures user-created platforms with specific names take priority over aliases
     for (const platform of platforms) {
-        // Check if input matches platform name exactly (case-insensitive)
         if (platform.name.toLowerCase() === lowercased) {
             return platform.name;
         }
-        
-        // Check if input matches any of the aliases
+    }
+    
+    // SECOND PASS: Check if input matches any platform's aliases
+    // Only after confirming no platform has this exact name
+    for (const platform of platforms) {
         if (platform.aliases) {
             const aliasList = platform.aliases.split(',').map(a => a.trim().toLowerCase());
             if (aliasList.includes(lowercased)) {

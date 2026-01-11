@@ -133,17 +133,59 @@ The sync pipeline is **modular and unified**. All connectors (fetch-style and pu
 ```
 src/modules/games/
 ├── sync/
-│   └── GameProcessor.ts       # SINGLE implementation for game processing
+│   ├── GameProcessor.ts       # SINGLE implementation for game processing
+│   ├── MetadataPipeline.ts    # THE UNIFIED IMPLEMENTATION - composable pipeline with modular steps:
+│   │                          #   - Core Steps: searchProvider(), fetchFromProvider(), enrichPlayerCounts(), applyToTitle()
+│   │                          #   - High-level: processGame(), processGameBatch(), searchOptions()
+│   │                          #   - Both manual and batch operations use the SAME core steps
+│   └── MetadataFetcher.ts     # Backwards-compatible wrapper around MetadataPipeline
 ├── GameSyncService.ts         # Orchestration and scheduling
 ├── GameNameUtils.ts           # Edition extraction and title normalization
 ├── connectors/                # External connector implementations
-└── metadata/                  # Metadata provider implementations
+└── metadata/                  # Metadata provider implementations (providers only, no services)
+
+src/controller/games/          # Modular controller structure
+├── gameTitleController.ts     # Title operations and metadata (uses MetadataFetcher)
+├── gameReleaseController.ts   # Release operations
+├── gameCopyController.ts      # Copy/item operations
+├── gameAccountController.ts   # External account and sync operations
+├── gameMappingController.ts   # Mapping queue operations
+├── gamePlatformController.ts  # Platform operations
+├── gameJobsController.ts      # Job listing operations
+├── helpers.ts                 # Shared utility functions
+└── index.ts                   # Module exports
 ```
 
-**Critical Design Rule:** BOTH fetch-style and push-style connectors use `processGameBatch()` from `GameProcessor.ts`.
-- NO duplicate processing implementations
-- Edition extraction is ALWAYS performed in `createGameFromData()`
-- DRY principle enforced across all sync flows
+**Critical Design Rules:**
+1. BOTH fetch-style and push-style connectors use `processGameBatch()` from `GameProcessor.ts` - NO duplicate implementations
+2. ALL metadata operations use the unified `MetadataPipeline.ts` - ONE implementation with modular, composable steps
+3. Edition extraction is ALWAYS performed in `createGameFromData()`
+4. DRY principle enforced: batch processing is just multiple single-game operations with shared state
+
+**Metadata Pipeline Architecture:**
+```
+                    ┌─────────────────────────────────────────────┐
+                    │           MetadataPipeline                  │
+                    │                                             │
+                    │   CORE STEPS (reusable building blocks):    │
+                    │   ├── searchProvider()                      │
+                    │   ├── fetchFromProvider()                   │
+                    │   ├── enrichPlayerCounts()                  │
+                    │   └── applyToTitle()                        │
+                    │                                             │
+                    │   HIGH-LEVEL OPERATIONS (compose steps):    │
+                    │   ├── processGame()      ← Manual sync      │
+                    │   ├── processGameBatch() ← Batch sync       │
+                    │   └── searchOptions()    ← Search UI        │
+                    └─────────────────────────────────────────────┘
+                                      ↑
+                    ┌─────────────────┴─────────────────┐
+                    │                                   │
+             Manual Operations                   Sync Operations
+         (gameTitleController)                (GameSyncService)
+                    │                                   │
+                    └───── SAME core steps ─────────────┘
+```
 
 **Processing Flow:**
 ```
@@ -189,6 +231,25 @@ Device Token → requirePushConnectorAuth → processPushImport()
                     └── softRemoveUnseenEntries()      ← Shared soft-removal
 ```
 
+### Connector Metadata Extraction
+
+Connectors extract as much metadata as possible from their sources:
+
+**Steam Connector:**
+- `name`, `playtimeMinutes`, `lastPlayedAt` from GetOwnedGames API
+- `coverImageUrl` generated from Steam CDN URL
+- `storeUrl` generated from app ID
+- Multiplayer info NOT available from GetOwnedGames API (requires metadata enrichment)
+
+**Playnite Connector:**
+- Basic fields: `name`, `playtimeSeconds`, `lastActivity`, `installed`
+- From `raw` data: `description`, `genres`, `releaseDate`, `developer`, `publisher`
+- Multiplayer support from `features`/`tags`/`categories`:
+  - Online: "online multiplayer", "online co-op", "mmo", etc.
+  - Local: "local multiplayer", "split screen", "couch co-op", etc.
+- Store URLs extracted from `raw.links` array (5-pass algorithm)
+- Cover images: Playnite uses local paths, so metadata providers fill this
+
 ### Platform Normalization
 
 Platforms are normalized to prevent duplicates (e.g., "PS5" → "PlayStation 5"):
@@ -217,9 +278,42 @@ Syncs are optimized to skip unnecessary processing:
 
 Metadata providers are standardized with centralized rate limiting:
 - Providers implement `getCapabilities()` and `getRateLimitConfig()`
-- `MetadataFetcher` class in `GameSyncService.ts` handles rate limiting
+- `MetadataFetcher` class in `sync/MetadataFetcher.ts` handles rate limiting
 - Two metadata runs: general info from primary provider, player counts from providers with `hasAccuratePlayerCounts` capability
 - Provider fallback uses capabilities (never hardcoded provider references)
+
+### Player Count Handling
+
+Player counts are handled with explicit "known" vs "unknown" distinction:
+
+**Design Principles:**
+1. **Singleplayer games**: Player count is implied as 1 (no modes enabled = 1 player)
+2. **Multiplayer games**: ALL counts (including overall) can be null = "unknown"
+3. **Never set defaults**: Do NOT set arbitrary defaults that would obscure unknown data
+4. **Invalid data = unknown**: Values ≤0, NaN, or Infinity are treated as "unknown" (null)
+5. **Preserve provider data**: We never change values we get from providers; if invalid, we just don't apply them
+
+**Data Model:**
+- `overallMinPlayers` / `overallMaxPlayers`: **NULLABLE**
+  - `null` = player count unknown
+  - For singleplayer-only games (no modes), null = implied 1 player
+  - For multiplayer games, null = we don't know (UI shows warning)
+- `onlineMaxPlayers` / `localMaxPlayers` / `physicalMaxPlayers`: **NULLABLE**
+  - `null` = player count unknown for this mode
+  - Valid number = known player count from metadata or user
+
+**UI Behavior:**
+- Overall badge: shows "? players" with warning for multiplayer games with null count
+- Singleplayer-only games (no modes): shows "1 player" even if overall is null
+- Mode badges (Online/Local): show warning icon (⚠️) when mode-specific count is null
+- Details section shows "Unknown (click Fetch Metadata to update)" text
+- Edit form allows leaving player counts empty (= unknown)
+
+**Key Code Locations:**
+- `GameProcessor.ts`: `createGameFromData()` preserves null for unknown counts
+- `MetadataPipeline.ts`: `applyPlayerInfoUpdates()` only applies valid values
+- `GameValidationService.ts`: Allows null for all player counts
+- `GameTitleService.ts`: Interface allows nullable overall counts
 
 ### Plugin Isolation Rules (CRITICAL)
 

@@ -7,19 +7,28 @@ import {
     RelationId,
 } from "typeorm";
 import {ExternalAccount} from "../externalAccount/ExternalAccount";
-import {SyncStatus} from "../../../../types/InventoryEnums";
+import {User} from "../user/User";
+import {SyncStatus, SyncJobType} from "../../../../types/InventoryEnums";
 
 @Entity("sync_jobs")
 export class SyncJob {
     @PrimaryGeneratedColumn("uuid")
     id!: string;
 
-    @ManyToOne(() => ExternalAccount, (account) => account.syncJobs, {onDelete: "CASCADE"})
+    @ManyToOne(() => ExternalAccount, (account) => account.syncJobs, {onDelete: "CASCADE", nullable: true})
     @JoinColumn({name: "external_account_id"})
-    externalAccount!: ExternalAccount;
+    externalAccount?: ExternalAccount | null;
 
     @RelationId((job: SyncJob) => job.externalAccount)
-    externalAccountId!: string;
+    externalAccountId?: string | null;
+
+    @Column({
+        type: "enum",
+        enum: SyncJobType,
+        default: SyncJobType.ACCOUNT_SYNC,
+        name: "job_type",
+    })
+    jobType!: SyncJobType;
 
     @Column({
         type: "enum",
@@ -45,6 +54,13 @@ export class SyncJob {
 
     @Column("text", {name: "error_message", nullable: true})
     errorMessage?: string | null;
+    
+    @ManyToOne(() => User, {onDelete: "SET NULL", nullable: true})
+    @JoinColumn({name: "owner_id"})
+    owner?: User | null;
+    
+    @RelationId((job: SyncJob) => job.owner)
+    ownerId?: number | null;
 
     @Column("timestamp", {
         name: "created_at",

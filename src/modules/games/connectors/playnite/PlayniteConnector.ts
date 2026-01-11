@@ -24,7 +24,7 @@ import {
 import {ConnectorCapability} from '../../../../types/InventoryEnums';
 import * as connectorDeviceService from '../../../database/services/ConnectorDeviceService';
 import {normalizePlatformName} from '../../../database/services/PlatformService';
-import {normalizeProviderName, generateStoreUrl} from './PlayniteProviders';
+import {normalizeProviderName, extractStoreUrlFromLinks, extractMetadataFromRaw, PlayniteRawData} from './PlayniteProviders';
 import {validateImportPayload} from './PlayniteImportService';
 
 /**
@@ -147,13 +147,27 @@ export class PlayniteConnector extends BaseConnector implements PushConnector {
                 needsReviewCount++;
             }
             
-            const normalizedProvider = normalizeProviderName(game.originalProviderPluginId);
-            // Prefer storeUrl from Playnite payload (more reliable), fallback to generated URL
-            const storeUrl = game.storeUrl?.trim() || generateStoreUrl(normalizedProvider, game.originalProviderGameId);
-            
             // Normalize platform (e.g., "Macintosh" -> "PC", "PC Windows" -> "PC")
             const rawPlatform = game.platforms?.[0] || 'PC';
             const normalizedPlatform = normalizePlatformName(rawPlatform);
+            
+            const normalizedProvider = normalizeProviderName(game.originalProviderPluginId);
+            
+            // Cast raw to PlayniteRawData for type safety
+            const rawData = game.raw as PlayniteRawData | undefined;
+            
+            // Extract store URL from raw.links array by matching the provider and platform
+            // Platform is important for providers with platform-specific stores (e.g., Nintendo 3DS vs Switch)
+            // Also pass originalProviderName for transparent aggregator pattern fallback
+            const storeUrl = extractStoreUrlFromLinks(
+                rawData?.links, 
+                normalizedProvider, 
+                rawPlatform, 
+                game.originalProviderName
+            );
+            
+            // Extract additional metadata from raw data
+            const metadata = extractMetadataFromRaw(rawData);
             
             return {
                 externalGameId: entitlementKey,
@@ -164,6 +178,18 @@ export class PlayniteConnector extends BaseConnector implements PushConnector {
                 platform: normalizedPlatform,
                 rawPayload: game.raw,
                 storeUrl,
+                
+                // Extended metadata from Playnite raw data
+                description: metadata.description,
+                genres: metadata.genres,
+                releaseDate: metadata.releaseDate,
+                developer: metadata.developer,
+                publisher: metadata.publisher,
+                coverImageUrl: metadata.coverImageUrl,
+                
+                // Multiplayer support from features/tags
+                supportsOnline: metadata.supportsOnline,
+                supportsLocal: metadata.supportsLocal,
                 
                 // Aggregator origin fields
                 originalProviderPluginId: game.originalProviderPluginId,

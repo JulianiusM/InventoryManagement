@@ -12,8 +12,10 @@
  * - Smart sync: Pre-fetches existing items to skip unnecessary processing
  */
 
+import {Platform} from "../../database/entities/platform/Platform";
 import {ExternalGame} from '../connectors/ConnectorInterface';
 import {extractEdition, normalizeGameTitle} from '../GameNameUtils';
+import {normalizeDescription} from '../../lib/htmlUtils';
 import {PlayerProfileValidationError} from '../../database/services/GameValidationService';
 import * as gameTitleService from '../../database/services/GameTitleService';
 import * as gameReleaseService from '../../database/services/GameReleaseService';
@@ -25,8 +27,12 @@ import {GameTitle} from '../../database/entities/gameTitle/GameTitle';
 import {GameRelease} from '../../database/entities/gameRelease/GameRelease';
 import {GameType, MappingStatus, GameCopyType} from '../../../types/InventoryEnums';
 
-// Default maximum players for multiplayer games when not specified
-const DEFAULT_MULTIPLAYER_MAX_PLAYERS = 4;
+// NOTE: Player counts can be null to indicate "unknown".
+// We preserve this distinction throughout the pipeline:
+// - null = we don't know the player count
+// - For singleplayer-only games (no modes enabled), null overall count = implied 1 player
+// - For multiplayer games, null = UI shows warning that count is unknown
+// This is critical for accurate search functionality.
 
 // Map provider to default platform
 const providerPlatformDefaults: Record<string, string> = {
@@ -116,53 +122,82 @@ function hasMultiplayerSupport(game: ExternalGame): boolean {
 }
 
 /**
+ * Validate a player count value - returns undefined if invalid
+ * Valid: positive finite integer
+ * Invalid: 0, negative, NaN, Infinity -> returns undefined (unknown)
+ */
+function validatePlayerCount(value: number | undefined): number | undefined {
+    if (value === undefined) return undefined;
+    if (value <= 0 || !Number.isFinite(value)) return undefined;
+    return value;
+}
+
+/**
  * Clamp player profile values to ensure they pass validation.
  * 
  * Key principles:
  * 1. Mode-specific values (online/local max) take PRECEDENCE over overall values
  * 2. If mode-specific values exist but supportsX is false, enable supportsX
  * 3. Overall max is EXTENDED to accommodate mode max values (not clamped down)
+ * 4. PRESERVE null/undefined for unknown counts - do NOT set defaults
+ * 5. Invalid values (0, negative, NaN) are treated as "unknown" (set to undefined)
+ * 6. Overall counts can be null (unknown) - this is valid
  */
 function clampPlayerProfileValues(game: ExternalGame): ExternalGame {
     const clamped: ExternalGame = {...game};
     
-    // Step 1: If mode-specific values exist but supportsX is false, enable the support flag
-    if (clamped.onlineMaxPlayers !== undefined && clamped.onlineMaxPlayers > 0) {
+    // Step 1: Validate mode-specific values - treat invalid values as "unknown"
+    clamped.onlineMaxPlayers = validatePlayerCount(clamped.onlineMaxPlayers);
+    clamped.localMaxPlayers = validatePlayerCount(clamped.localMaxPlayers);
+    clamped.onlineMinPlayers = validatePlayerCount(clamped.onlineMinPlayers);
+    clamped.localMinPlayers = validatePlayerCount(clamped.localMinPlayers);
+    
+    // If mode-specific values are valid, enable support
+    if (clamped.onlineMaxPlayers !== undefined) {
         clamped.supportsOnline = true;
     }
-    if (clamped.localMaxPlayers !== undefined && clamped.localMaxPlayers > 0) {
+    if (clamped.localMaxPlayers !== undefined) {
         clamped.supportsLocal = true;
     }
     
-    // Step 2: Find the maximum player count across all modes (mode values take precedence)
-    let derivedMaxPlayers = clamped.overallMaxPlayers ?? 1;
+    // Step 2: Validate overall counts - treat invalid values as "unknown"
+    clamped.overallMinPlayers = validatePlayerCount(clamped.overallMinPlayers);
+    clamped.overallMaxPlayers = validatePlayerCount(clamped.overallMaxPlayers);
+    
+    // Step 3: If we have valid mode-specific counts, derive overall from them
+    // This ONLY sets overall if mode counts are known, otherwise keeps as unknown
+    let hasKnownMax = false;
+    let derivedMaxPlayers = clamped.overallMaxPlayers ?? 0;
     
     if (clamped.supportsOnline && clamped.onlineMaxPlayers !== undefined) {
         derivedMaxPlayers = Math.max(derivedMaxPlayers, clamped.onlineMaxPlayers);
+        hasKnownMax = true;
     }
     if (clamped.supportsLocal && clamped.localMaxPlayers !== undefined) {
         derivedMaxPlayers = Math.max(derivedMaxPlayers, clamped.localMaxPlayers);
+        hasKnownMax = true;
     }
     
-    // Step 3: Ensure overall max is at least 1 and accommodates all mode maxes
-    clamped.overallMaxPlayers = Math.max(1, derivedMaxPlayers);
-    
-    // Step 4: Ensure overall min is at least 1 and <= overall max
-    if (!clamped.overallMinPlayers || clamped.overallMinPlayers < 1) {
-        clamped.overallMinPlayers = 1;
+    // Only update overall max if we have known values from modes
+    if (hasKnownMax) {
+        clamped.overallMaxPlayers = derivedMaxPlayers;
     }
-    if (clamped.overallMinPlayers > clamped.overallMaxPlayers) {
-        clamped.overallMinPlayers = clamped.overallMaxPlayers;
+    // Otherwise, keep overall max as is (could be null/undefined = unknown)
+    
+    // Step 4: Validate min/max relationship for overall if both are known
+    if (clamped.overallMinPlayers !== undefined && clamped.overallMaxPlayers !== undefined) {
+        if (clamped.overallMinPlayers > clamped.overallMaxPlayers) {
+            clamped.overallMinPlayers = clamped.overallMaxPlayers;
+        }
     }
     
     // Step 5: Clear mode-specific values if mode is not supported (validation requires this)
+    // But preserve null/undefined for unknown counts when mode IS supported
     if (!clamped.supportsOnline) {
         clamped.onlineMinPlayers = undefined;
         clamped.onlineMaxPlayers = undefined;
     } else {
-        if (clamped.onlineMinPlayers !== undefined && clamped.onlineMinPlayers < 1) {
-            clamped.onlineMinPlayers = 1;
-        }
+        // For supported modes, validate min/max relationship if both are set
         if (clamped.onlineMinPlayers !== undefined && clamped.onlineMaxPlayers !== undefined 
             && clamped.onlineMaxPlayers < clamped.onlineMinPlayers) {
             clamped.onlineMaxPlayers = clamped.onlineMinPlayers;
@@ -173,9 +208,7 @@ function clampPlayerProfileValues(game: ExternalGame): ExternalGame {
         clamped.localMinPlayers = undefined;
         clamped.localMaxPlayers = undefined;
     } else {
-        if (clamped.localMinPlayers !== undefined && clamped.localMinPlayers < 1) {
-            clamped.localMinPlayers = 1;
-        }
+        // For supported modes, validate min/max relationship if both are set
         if (clamped.localMinPlayers !== undefined && clamped.localMaxPlayers !== undefined 
             && clamped.localMaxPlayers < clamped.localMinPlayers) {
             clamped.localMaxPlayers = clamped.localMinPlayers;
@@ -191,6 +224,10 @@ function clampPlayerProfileValues(game: ExternalGame): ExternalGame {
  * 
  * This is the SINGLE implementation for creating games - used by all sync flows.
  * 
+ * IMPORTANT: Mode-specific player counts (onlineMaxPlayers, localMaxPlayers) are kept
+ * as null/undefined when not known from metadata. This preserves the distinction between
+ * "we know it supports X players" vs "we don't know how many players".
+ * 
  * @param game The external game data
  * @param platform The platform for the release
  * @param ownerId The owner ID
@@ -201,36 +238,47 @@ async function createGameFromData(
     ownerId: number
 ): Promise<AutoCreateGameResult> {
     // Ensure the platform exists in the database (auto-create if missing)
-    await platformService.getOrCreatePlatform(platform, ownerId);
+    const pf = await platformService.getOrCreatePlatform(platform, ownerId);
     
     // CRITICAL: Extract edition from game name
     // e.g., "The Sims 4 Premium Edition" -> baseName: "The Sims 4", edition: "Premium Edition"
     const {baseName, edition} = extractEdition(game.name);
     
     // Log for debugging
-    console.log(`Game processing: "${game.name}" -> baseName: "${baseName}", edition: "${edition}"`);
+    //console.log(`Game processing: "${game.name}" -> baseName: "${baseName}", edition: "${edition}"`);
     
-    // Determine player info with sensible defaults for multiplayer games
+    // Determine multiplayer support from game data
     const supportsOnline = game.supportsOnline ?? false;
     const supportsLocal = game.supportsLocal ?? false;
-    const hasMultiplayer = hasMultiplayerSupport(game);
+    
+    // Normalize description in the shared pipeline (handles HTML, length, etc.)
+    const normalizedDescription = normalizeDescription(game.description);
+    
+    // KEY DESIGN DECISION: Player counts are preserved as-is (including null).
+    // null = "we don't know the player count" - this is critical for search functionality.
+    // We NEVER set default values that would obscure unknown data.
+    //
+    // For singleplayer-only games (no multiplayer modes): null overall = implied 1 player
+    // For multiplayer games: null overall = we don't know (UI will show warning)
     
     // Get or create game title (merges with existing titles with same normalized name)
     // The title uses the BASE NAME (without edition)
     const {title, isNew: titleCreated} = await gameTitleService.getOrCreateGameTitle({
         name: baseName, // Use base name WITHOUT edition
         type: GameType.VIDEO_GAME,
-        description: game.description || null,
+        description: normalizedDescription || null,
         coverImageUrl: game.coverImageUrl || null,
-        overallMinPlayers: game.overallMinPlayers ?? 1,
-        overallMaxPlayers: game.overallMaxPlayers ?? (hasMultiplayer ? DEFAULT_MULTIPLAYER_MAX_PLAYERS : 1),
+        // Overall player counts: preserve as-is (null = unknown)
+        overallMinPlayers: game.overallMinPlayers ?? null,
+        overallMaxPlayers: game.overallMaxPlayers ?? null,
         supportsOnline,
         supportsLocal,
         supportsPhysical: game.supportsPhysical ?? false,
-        onlineMinPlayers: supportsOnline ? (game.onlineMinPlayers ?? 1) : null,
-        onlineMaxPlayers: supportsOnline ? (game.onlineMaxPlayers ?? DEFAULT_MULTIPLAYER_MAX_PLAYERS) : null,
-        localMinPlayers: supportsLocal ? (game.localMinPlayers ?? 1) : null,
-        localMaxPlayers: supportsLocal ? (game.localMaxPlayers ?? DEFAULT_MULTIPLAYER_MAX_PLAYERS) : null,
+        // Mode-specific counts: only set if we have actual data, otherwise null (unknown)
+        onlineMinPlayers: supportsOnline ? (game.onlineMinPlayers ?? null) : null,
+        onlineMaxPlayers: supportsOnline ? (game.onlineMaxPlayers ?? null) : null,
+        localMinPlayers: supportsLocal ? (game.localMinPlayers ?? null) : null,
+        localMaxPlayers: supportsLocal ? (game.localMaxPlayers ?? null) : null,
         physicalMinPlayers: null,
         physicalMaxPlayers: null,
         ownerId,
@@ -239,13 +287,13 @@ async function createGameFromData(
     // Get or create release for this platform with the DETECTED edition
     const {release, isNew: releaseCreated} = await gameReleaseService.getOrCreateGameRelease({
         gameTitleId: title.id,
-        platform,
+        platform: pf.name,
         releaseDate: game.releaseDate || null,
         edition, // Store the DETECTED edition (e.g., "Premium Edition")
         ownerId,
     });
     
-    console.log(`  -> Title: "${title.name}" (${titleCreated ? 'NEW' : 'existing'}), Release edition: "${edition}" (${releaseCreated ? 'NEW' : 'existing'})`);
+    //console.log(`  -> Title: "${title.name}" (${titleCreated ? 'NEW' : 'existing'}), Release edition: "${edition}" (${releaseCreated ? 'NEW' : 'existing'})`);
     
     return {title, release, titleCreated, releaseCreated};
 }

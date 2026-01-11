@@ -32,12 +32,14 @@ export class GameTitle {
     @Column("varchar", {name: "cover_image_url", length: 500, nullable: true})
     coverImageUrl?: string | null;
 
-    // Overall player counts (required)
-    @Column("int", {name: "overall_min_players", default: 1})
-    overallMinPlayers!: number;
+    // Overall player counts (nullable - null means "unknown")
+    // For singleplayer-only games (no multiplayer modes), null = implied 1 player
+    // For multiplayer games, null = we don't know the player count
+    @Column("int", {name: "overall_min_players", nullable: true})
+    overallMinPlayers?: number | null;
 
-    @Column("int", {name: "overall_max_players", default: 1})
-    overallMaxPlayers!: number;
+    @Column("int", {name: "overall_max_players", nullable: true})
+    overallMaxPlayers?: number | null;
 
     // Multiplayer mode support flags (required)
     @Column("boolean", {name: "supports_online", default: false})

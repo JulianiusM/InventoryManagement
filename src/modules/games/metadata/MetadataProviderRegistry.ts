@@ -116,14 +116,14 @@ export const metadataProviderRegistry = new MetadataProviderRegistry();
 
 // Register default providers
 export function initializeMetadataProviders(): void {
-    // Register Steam metadata provider (primary for video games, no API key required)
-    metadataProviderRegistry.register(new SteamMetadataProvider());
-    
     // Register IGDB metadata provider (accurate player counts for video games, requires Twitch OAuth)
     metadataProviderRegistry.register(new IgdbMetadataProvider());
     
     // Register RAWG metadata provider (secondary for video games, requires API key)
     metadataProviderRegistry.register(new RawgMetadataProvider());
+
+    // Register Steam metadata provider (primary for video games, no API key required)
+    metadataProviderRegistry.register(new SteamMetadataProvider());
     
     // Register Wikidata metadata provider (secondary for board games, structured data)
     // Provides player counts, designers, and publishers without requiring API key

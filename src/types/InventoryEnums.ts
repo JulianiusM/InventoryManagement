@@ -106,6 +106,12 @@ export enum SyncStatus {
     FAILED = 'failed',
 }
 
+export enum SyncJobType {
+    ACCOUNT_SYNC = 'account_sync',
+    METADATA_RESYNC = 'metadata_resync',
+    PUSH_IMPORT = 'push_import',
+}
+
 export enum MappingStatus {
     PENDING = 'pending',
     MAPPED = 'mapped',
