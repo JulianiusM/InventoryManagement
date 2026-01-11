@@ -134,12 +134,11 @@ The sync pipeline is **modular and unified**. All connectors (fetch-style and pu
 src/modules/games/
 ├── sync/
 │   ├── GameProcessor.ts       # SINGLE implementation for game processing
-│   └── MetadataFetcher.ts     # THE SINGLE centralized implementation for ALL metadata operations:
-│                              #   - Rate limiting per provider
-│                              #   - Batch metadata fetching (sync)
-│                              #   - Single game metadata fetching (manual)
-│                              #   - Metadata application to titles
-│                              #   - ExternalGame enrichment
+│   ├── MetadataPipeline.ts    # THE UNIFIED IMPLEMENTATION - composable pipeline with modular steps:
+│   │                          #   - Core Steps: searchProvider(), fetchFromProvider(), enrichPlayerCounts(), applyToTitle()
+│   │                          #   - High-level: processGame(), processGameBatch(), searchOptions()
+│   │                          #   - Both manual and batch operations use the SAME core steps
+│   └── MetadataFetcher.ts     # Backwards-compatible wrapper around MetadataPipeline
 ├── GameSyncService.ts         # Orchestration and scheduling
 ├── GameNameUtils.ts           # Edition extraction and title normalization
 ├── connectors/                # External connector implementations
@@ -159,9 +158,34 @@ src/controller/games/          # Modular controller structure
 
 **Critical Design Rules:**
 1. BOTH fetch-style and push-style connectors use `processGameBatch()` from `GameProcessor.ts` - NO duplicate implementations
-2. ALL metadata operations use `MetadataFetcher.ts` - there is ONE implementation, not separate services
+2. ALL metadata operations use the unified `MetadataPipeline.ts` - ONE implementation with modular, composable steps
 3. Edition extraction is ALWAYS performed in `createGameFromData()`
-4. DRY principle enforced across all sync and metadata flows
+4. DRY principle enforced: batch processing is just multiple single-game operations with shared state
+
+**Metadata Pipeline Architecture:**
+```
+                    ┌─────────────────────────────────────────────┐
+                    │           MetadataPipeline                  │
+                    │                                             │
+                    │   CORE STEPS (reusable building blocks):    │
+                    │   ├── searchProvider()                      │
+                    │   ├── fetchFromProvider()                   │
+                    │   ├── enrichPlayerCounts()                  │
+                    │   └── applyToTitle()                        │
+                    │                                             │
+                    │   HIGH-LEVEL OPERATIONS (compose steps):    │
+                    │   ├── processGame()      ← Manual sync      │
+                    │   ├── processGameBatch() ← Batch sync       │
+                    │   └── searchOptions()    ← Search UI        │
+                    └─────────────────────────────────────────────┘
+                                      ↑
+                    ┌─────────────────┴─────────────────┐
+                    │                                   │
+             Manual Operations                   Sync Operations
+         (gameTitleController)                (GameSyncService)
+                    │                                   │
+                    └───── SAME core steps ─────────────┘
+```
 
 **Processing Flow:**
 ```
