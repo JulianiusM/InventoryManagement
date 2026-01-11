@@ -4,6 +4,7 @@ import {coerceLimit, generateUniqueToken, maskEmail, SQL_ALLOW_LIST} from '../..
 import {User} from '../entities/user/User';
 import {MoreThan} from "typeorm";
 import type {OidcClaims, UserInfo} from "../../../types/UserTypes";
+import settings from '../../settings';
 
 export async function registerUser(username: string, name: string, password: string, email: string) {
     const repo = AppDataSource.getRepository(User);
@@ -32,7 +33,7 @@ export async function verifyPassword(userId: number, password: string) {
 export async function generateActivationToken(userId: number) {
     const repo = AppDataSource.getRepository(User);
     const token = generateUniqueToken();
-    const expiration = new Date(Date.now() + 3600_000);
+    const expiration = new Date(Date.now() + settings.value.tokenExpirationMs);
     await repo.update({id: userId}, {
         activationToken: token,
         activationTokenExpiration: expiration
@@ -63,7 +64,7 @@ export async function activateUser(userId: number) {
 export async function generatePasswordResetToken(username: string) {
     const repo = AppDataSource.getRepository(User);
     const token = generateUniqueToken();
-    const expiration = new Date(Date.now() + 3600_000);
+    const expiration = new Date(Date.now() + settings.value.tokenExpirationMs);
     await repo.update({username}, {
         resetToken: token,
         resetTokenExpiration: expiration

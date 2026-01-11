@@ -24,11 +24,11 @@ import {
     MetadataFetchResult,
     getMetadataPipeline,
     enrichGameWithMetadata as pipelineEnrichGameWithMetadata,
-    MIN_VALID_DESCRIPTION_LENGTH as PIPELINE_MIN_VALID_DESCRIPTION_LENGTH,
 } from './MetadataPipeline';
+import settings from '../../settings';
 
-// Re-export constants
-export const MIN_VALID_DESCRIPTION_LENGTH = PIPELINE_MIN_VALID_DESCRIPTION_LENGTH;
+// Re-export constant from settings
+export const MIN_VALID_DESCRIPTION_LENGTH = settings.value.minValidDescriptionLength;
 
 // Re-export types
 export type {MetadataFetchResult} from './MetadataPipeline';

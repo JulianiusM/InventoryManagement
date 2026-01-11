@@ -3,6 +3,7 @@ import * as loanController from '../controller/loanController';
 import renderer from '../modules/renderer';
 import {asyncHandler} from '../modules/lib/asyncHandler';
 import {requireAuth} from '../middleware/authMiddleware';
+import settings from '../modules/settings';
 
 const router = express.Router();
 
@@ -13,7 +14,7 @@ router.use(requireAuth);
 router.get('/', asyncHandler(async (req: Request, res: Response) => {
     const ownerId = req.session.user!.id;
     const page = parseInt(req.query.page as string) || 1;
-    const perPage = parseInt(req.query.perPage as string) || 30;
+    const perPage = parseInt(req.query.perPage as string) || settings.value.paginationDefaultLoans;
     const tab = (req.query.tab as 'active' | 'history') || 'active';
     
     const data = await loanController.listLoans(ownerId, {

@@ -53,6 +53,41 @@ export type Settings = {
     // Metadata sync configuration
     igdbQueryTimeoutMs: number;
 
+    // Token expiration (in milliseconds)
+    tokenExpirationMs: number;
+
+    // Rate limiting configuration
+    rateLimitWindowMs: number;
+    rateLimitMaxPushConnector: number;
+    rateLimitMaxDeviceRegistration: number;
+
+    // Pagination defaults
+    paginationDefaultItems: number;
+    paginationDefaultLocations: number;
+    paginationDefaultGames: number;
+    paginationDefaultLoans: number;
+    paginationMaxPerPage: number;
+    paginationMaxTimezoneItems: number;
+
+    // Description length constraints
+    minValidDescriptionLength: number;
+    maxDescriptionLength: number;
+
+    // Similar title matching thresholds
+    minNormalizedTitleLength: number;
+    minSimilarityScore: number;
+
+    // Wikidata metadata scoring
+    wikidataExactMatchScore: number;
+    wikidataPrefixMatchScore: number;
+    wikidataExpansionMatchScore: number;
+    wikidataContainsMatchScore: number;
+    wikidataGameIndicatorBoost: number;
+    wikidataNoGameIndicatorPenalty: number;
+    wikidataNameLengthPenaltyFactor: number;
+    wikidataNonGamePenaltyScore: number;
+    wikidataMinAcceptableScore: number;
+
     initialized: boolean;
 };
 
@@ -102,6 +137,41 @@ const defaults: Settings = {
     
     // Metadata sync configuration
     igdbQueryTimeoutMs: 3000000, // 5 minutes default for thorough metadata enrichment
+
+    // Token expiration (1 hour in milliseconds)
+    tokenExpirationMs: 3600_000,
+
+    // Rate limiting configuration (1 hour window)
+    rateLimitWindowMs: 60 * 60 * 1000,
+    rateLimitMaxPushConnector: 10,
+    rateLimitMaxDeviceRegistration: 5,
+
+    // Pagination defaults
+    paginationDefaultItems: 30,
+    paginationDefaultLocations: 50,
+    paginationDefaultGames: 24,
+    paginationDefaultLoans: 30,
+    paginationMaxPerPage: 100,
+    paginationMaxTimezoneItems: 200,
+
+    // Description length constraints
+    minValidDescriptionLength: 50,
+    maxDescriptionLength: 250,
+
+    // Similar title matching thresholds
+    minNormalizedTitleLength: 4,
+    minSimilarityScore: 50,
+
+    // Wikidata metadata scoring
+    wikidataExactMatchScore: 500,
+    wikidataPrefixMatchScore: 150,
+    wikidataExpansionMatchScore: 80,
+    wikidataContainsMatchScore: 50,
+    wikidataGameIndicatorBoost: 100,
+    wikidataNoGameIndicatorPenalty: 50,
+    wikidataNameLengthPenaltyFactor: 0.5,
+    wikidataNonGamePenaltyScore: -1000,
+    wikidataMinAcceptableScore: -500,
 };
 
 // CSV_KEY -> settings key
@@ -137,6 +207,29 @@ const keyMap: Record<string, keyof Settings> = {
     TWITCH_CLIENT_SECRET: "twitchClientSecret",
     BOARD_GAME_ATLAS_CLIENT_ID: "boardGameAtlasClientId",
     IGDB_QUERY_TIMEOUT_MS: "igdbQueryTimeoutMs",
+    TOKEN_EXPIRATION_MS: "tokenExpirationMs",
+    RATE_LIMIT_WINDOW_MS: "rateLimitWindowMs",
+    RATE_LIMIT_MAX_PUSH_CONNECTOR: "rateLimitMaxPushConnector",
+    RATE_LIMIT_MAX_DEVICE_REGISTRATION: "rateLimitMaxDeviceRegistration",
+    PAGINATION_DEFAULT_ITEMS: "paginationDefaultItems",
+    PAGINATION_DEFAULT_LOCATIONS: "paginationDefaultLocations",
+    PAGINATION_DEFAULT_GAMES: "paginationDefaultGames",
+    PAGINATION_DEFAULT_LOANS: "paginationDefaultLoans",
+    PAGINATION_MAX_PER_PAGE: "paginationMaxPerPage",
+    PAGINATION_MAX_TIMEZONE_ITEMS: "paginationMaxTimezoneItems",
+    MIN_VALID_DESCRIPTION_LENGTH: "minValidDescriptionLength",
+    MAX_DESCRIPTION_LENGTH: "maxDescriptionLength",
+    MIN_NORMALIZED_TITLE_LENGTH: "minNormalizedTitleLength",
+    MIN_SIMILARITY_SCORE: "minSimilarityScore",
+    WIKIDATA_EXACT_MATCH_SCORE: "wikidataExactMatchScore",
+    WIKIDATA_PREFIX_MATCH_SCORE: "wikidataPrefixMatchScore",
+    WIKIDATA_EXPANSION_MATCH_SCORE: "wikidataExpansionMatchScore",
+    WIKIDATA_CONTAINS_MATCH_SCORE: "wikidataContainsMatchScore",
+    WIKIDATA_GAME_INDICATOR_BOOST: "wikidataGameIndicatorBoost",
+    WIKIDATA_NO_GAME_INDICATOR_PENALTY: "wikidataNoGameIndicatorPenalty",
+    WIKIDATA_NAME_LENGTH_PENALTY_FACTOR: "wikidataNameLengthPenaltyFactor",
+    WIKIDATA_NON_GAME_PENALTY_SCORE: "wikidataNonGamePenaltyScore",
+    WIKIDATA_MIN_ACCEPTABLE_SCORE: "wikidataMinAcceptableScore",
 };
 
 // per-field coercion
@@ -145,6 +238,29 @@ const coerce: Partial<Record<keyof Settings, (v: string) => any>> = {
     smtpPort: (v) => Number(v),
     appPort: (v) => Number(v),
     igdbQueryTimeoutMs: (v) => Number(v),
+    tokenExpirationMs: (v) => Number(v),
+    rateLimitWindowMs: (v) => Number(v),
+    rateLimitMaxPushConnector: (v) => Number(v),
+    rateLimitMaxDeviceRegistration: (v) => Number(v),
+    paginationDefaultItems: (v) => Number(v),
+    paginationDefaultLocations: (v) => Number(v),
+    paginationDefaultGames: (v) => Number(v),
+    paginationDefaultLoans: (v) => Number(v),
+    paginationMaxPerPage: (v) => Number(v),
+    paginationMaxTimezoneItems: (v) => Number(v),
+    minValidDescriptionLength: (v) => Number(v),
+    maxDescriptionLength: (v) => Number(v),
+    minNormalizedTitleLength: (v) => Number(v),
+    minSimilarityScore: (v) => Number(v),
+    wikidataExactMatchScore: (v) => Number(v),
+    wikidataPrefixMatchScore: (v) => Number(v),
+    wikidataExpansionMatchScore: (v) => Number(v),
+    wikidataContainsMatchScore: (v) => Number(v),
+    wikidataGameIndicatorBoost: (v) => Number(v),
+    wikidataNoGameIndicatorPenalty: (v) => Number(v),
+    wikidataNameLengthPenaltyFactor: (v) => Number(v),
+    wikidataNonGamePenaltyScore: (v) => Number(v),
+    wikidataMinAcceptableScore: (v) => Number(v),
     smtpPool: (v) => /^(1|true|yes|on)$/i.test(v),
     smtpSecure: (v) => /^(1|true|yes|on)$/i.test(v),
     localLoginEnabled: (v) => /^(1|true|yes|on)$/i.test(v),

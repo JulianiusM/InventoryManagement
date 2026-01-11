@@ -82,13 +82,12 @@ export function stripHtml(html: string): string {
  * @param maxLength Maximum length
  * @returns Truncated text
  */
+import settings from '../settings';
+
 export function truncateText(text: string, maxLength: number): string {
     if (!text || text.length <= maxLength) return text;
     return text.slice(0, maxLength - 3) + '...';
 }
-
-// Maximum description length for storage (prevents overly long descriptions)
-const MAX_DESCRIPTION_LENGTH = 250;
 
 // Threshold for finding sentence boundary (80% of max length)
 const SENTENCE_BOUNDARY_THRESHOLD = 0.8;
@@ -105,10 +104,10 @@ const SENTENCE_BOUNDARY_THRESHOLD = 0.8;
  * - Handle empty/invalid descriptions
  * 
  * @param description Raw description from any source
- * @param maxLength Maximum length (default: 5000)
+ * @param maxLength Maximum length (defaults to configured value)
  * @returns Cleaned description or undefined if empty/invalid
  */
-export function normalizeDescription(description: string | undefined | null, maxLength = MAX_DESCRIPTION_LENGTH): string | undefined {
+export function normalizeDescription(description: string | undefined | null, maxLength = settings.value.maxDescriptionLength): string | undefined {
     if (!description) return undefined;
     
     // Step 1: Strip HTML and decode entities

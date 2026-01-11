@@ -43,9 +43,6 @@ import {GameTitle} from '../../database/entities/gameTitle/GameTitle';
 import {GameType} from '../../../types/InventoryEnums';
 import settings from '../../settings';
 
-// Minimum length for a description to be considered valid (avoid placeholders)
-export const MIN_VALID_DESCRIPTION_LENGTH = 50;
-
 /**
  * Validate player count: must be a positive finite integer
  * Used throughout the pipeline to reject invalid values (0, negative, NaN, Infinity)
@@ -308,7 +305,7 @@ export class MetadataPipeline {
             const newDescription = normalizeDescription(rawDescription);
             
             const hasNoDescription = !title.description;
-            const hasPlaceholderDescription = title.description && title.description.length < MIN_VALID_DESCRIPTION_LENGTH;
+            const hasPlaceholderDescription = title.description && title.description.length < settings.value.minValidDescriptionLength;
             const hasNameAsDescription = title.description === title.name;
             
             if (newDescription && (forceUpdate || hasNoDescription || hasPlaceholderDescription || hasNameAsDescription)) {

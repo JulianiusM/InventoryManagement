@@ -7,6 +7,7 @@ import {ExpectedError} from '../modules/lib/errors';
 import {checkOwnership, requireAuthenticatedUser} from '../middleware/authMiddleware';
 import {Item} from '../modules/database/entities/item/Item';
 import {ItemType, ItemCondition} from '../types/InventoryEnums';
+import settings from '../modules/settings';
 
 export async function listItems(ownerId: number, options?: {
     page?: number;
@@ -17,7 +18,7 @@ export async function listItems(ownerId: number, options?: {
 }) {
     requireAuthenticatedUser(ownerId);
     const page = options?.page || 1;
-    const perPage = Math.min(options?.perPage || 30, 100); // Max 100 items per page
+    const perPage = Math.min(options?.perPage || settings.value.paginationDefaultItems, settings.value.paginationMaxPerPage);
     const skip = (page - 1) * perPage;
     
     // Get all items first (we'll add pagination to service layer later)

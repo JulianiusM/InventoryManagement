@@ -5,6 +5,7 @@ import renderer from '../modules/renderer';
 import {asyncHandler} from '../modules/lib/asyncHandler';
 import {requireAuth} from '../middleware/authMiddleware';
 import {ItemType} from '../types/InventoryEnums';
+import settings from '../modules/settings';
 
 const router = express.Router();
 
@@ -15,7 +16,7 @@ router.use(requireAuth);
 router.get('/', asyncHandler(async (req: Request, res: Response) => {
     const ownerId = req.session.user!.id;
     const page = parseInt(req.query.page as string) || 1;
-    const perPage = parseInt(req.query.perPage as string) || 30;
+    const perPage = parseInt(req.query.perPage as string) || settings.value.paginationDefaultItems;
     const search = (req.query.search as string) || '';
     const typeFilter = (req.query.type as string) || '';
     const locationFilter = (req.query.location as string) || '';

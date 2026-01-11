@@ -8,6 +8,7 @@ import express, {Request, Response} from 'express';
 import * as gamesController from '../../controller/gamesController';
 import renderer from '../../modules/renderer';
 import {asyncHandler} from '../../modules/lib/asyncHandler';
+import settings from '../../modules/settings';
 
 import titleRoutes from './titleRoutes';
 import releaseRoutes from './releaseRoutes';
@@ -58,7 +59,7 @@ router.get('/', asyncHandler(async (req: Request, res: Response) => {
     const playersFilter = req.query.players ? parseInt(req.query.players as string) : undefined;
     const page = req.query.page ? parseInt(req.query.page as string) : 1;
     const perPageRaw = req.query.perPage as string;
-    const perPage = perPageRaw === 'all' ? 'all' : (perPageRaw ? parseInt(perPageRaw) : 24);
+    const perPage = perPageRaw === 'all' ? 'all' : (perPageRaw ? parseInt(perPageRaw) : settings.value.paginationDefaultGames);
 
     const data = await gamesController.listGameTitles(ownerId, {
         search,

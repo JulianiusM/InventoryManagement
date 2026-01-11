@@ -8,6 +8,7 @@ import {NextFunction, Request, Response} from 'express';
 import rateLimit, {ipKeyGenerator} from 'express-rate-limit';
 import * as connectorDeviceService from '../modules/database/services/ConnectorDeviceService';
 import {ExpectedError} from '../modules/lib/errors';
+import settings from '../modules/settings';
 
 // Extend Express Request to include push connector device info
 declare global {
@@ -65,11 +66,11 @@ export async function requirePushConnectorAuth(
 
 /**
  * Rate limiter for push connector import endpoint
- * Limits to 10 imports per hour per device
+ * Limits to configurable imports per hour per device
  */
 export const pushConnectorImportRateLimiter = rateLimit({
-    windowMs: 60 * 60 * 1000, // 1 hour
-    max: 10, // 10 imports per hour
+    windowMs: settings.value.rateLimitWindowMs,
+    max: settings.value.rateLimitMaxPushConnector,
     message: {
         status: 'error',
         message: 'Too many import requests. Please wait before trying again.',
@@ -84,11 +85,11 @@ export const pushConnectorImportRateLimiter = rateLimit({
 
 /**
  * Rate limiter for device registration
- * Limits to 10 device registrations per hour per user session
+ * Limits to configurable device registrations per hour per user session
  */
 export const deviceRegistrationRateLimiter = rateLimit({
-    windowMs: 60 * 60 * 1000, // 1 hour
-    max: 10, // 10 registrations per hour
+    windowMs: settings.value.rateLimitWindowMs,
+    max: settings.value.rateLimitMaxPushConnector,
     message: {
         status: 'error',
         message: 'Too many device registration requests. Please wait before trying again.',
