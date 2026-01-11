@@ -10,7 +10,8 @@ Welcome to Inventory Management! This guide will help you get started with catal
 4. [Organizing Locations](#organizing-locations)
 5. [Barcode Scanning](#barcode-scanning)
 6. [Lending & Borrowing](#lending--borrowing)
-7. [Tips & Best Practices](#tips--best-practices)
+7. [Games Module](GAMES.md) - **NEW!** Comprehensive guide for managing your game collection
+8. [Tips & Best Practices](#tips--best-practices)
 
 ---
 
