@@ -16,10 +16,10 @@ const SEQUEL_PATTERNS = [
     /^(one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve)$/i,
     /^(first|second|third|fourth|fifth|sixth|seventh|eighth|ninth|tenth)$/i,
     // Common sequel suffixes
-    /^(hd|remastered|remake|definitive|ultimate|complete|goty|deluxe|premium|gold|platinum|special|anniversary|enhanced)$/i,
-    /^(edition|version|remaster|redux|extended|director|cut|classic|legacy|standard)$/i,
+    ///^(hd|remastered|remake|definitive|ultimate|complete|goty|deluxe|premium|gold|platinum|special|anniversary|enhanced)$/i,
+    ///^(edition|version|remaster|redux|extended|director|cut|classic|legacy|standard)$/i,
     // Beta/alpha/demo markers
-    /^(beta|alpha|demo|trial|test|preview)$/i,
+    ///^(beta|alpha|demo|trial|test|preview)$/i,
 ];
 
 // Minimum normalized length to consider for matching
@@ -33,7 +33,7 @@ const MIN_SIMILARITY_SCORE = 50;
  * Removes all non-alphanumeric, converts to lowercase.
  */
 function aggressiveNormalize(title: string): string {
-    return title.toLowerCase().replace(/[^a-z0-9]/g, '');
+    return title.toLowerCase().replace(/[^a-z0-9\s]/g, '');
 }
 
 /**
@@ -96,7 +96,7 @@ export function calculateSimilarity(nameA: string, nameB: string): {score: numbe
             
             if (allSequelPatterns && extraTokens.length > 0) {
                 // High score - likely same game with edition/sequel marker
-                return {score: 95, matchType: 'prefix'};
+                return {score: 0, matchType: 'sequel'};
             }
             // Good score - prefix match
             return {score: Math.round(70 + lengthRatio * 25), matchType: 'prefix'};
@@ -111,26 +111,42 @@ export function calculateSimilarity(nameA: string, nameB: string): {score: numbe
         // Contains in the middle - less reliable
         return {score: Math.round(40 + lengthRatio * 20), matchType: 'contains'};
     }
-    
+
     // Token-based comparison (for fuzzy matching)
-    const tokensA = getCoreTokens(nameA);
-    const tokensB = getCoreTokens(nameB);
-    
+    const tokensA = tokenize(normA);
+    const coreTokensA = getCoreTokens(normA);
+    const tokensB = tokenize(normB);
+    const coreTokensB = getCoreTokens(normB);
+
     if (tokensA.length === 0 || tokensB.length === 0) {
         return {score: 0, matchType: 'none'};
     }
-    
+
     // Calculate Jaccard similarity on core tokens
-    const setA = new Set(tokensA);
-    const setB = new Set(tokensB);
+    const setA = new Set(coreTokensA);
+    const fullSetA = new Set(tokensA);
+    const setB = new Set(coreTokensB);
+    const fullSetB = new Set(tokensB);
     const intersection = new Set([...setA].filter(x => setB.has(x)));
+    const fullIntersection = new Set([...fullSetA].filter(x => fullSetB.has(x)));
     const union = new Set([...setA, ...setB]);
+    const fullUnion = new Set([...fullSetA, ...fullSetB]);
     const jaccard = intersection.size / union.size;
-    
+
     // Also check if one set is a subset of the other
     const isSubset = intersection.size === Math.min(setA.size, setB.size);
-    
-    if (isSubset && intersection.size >= 2) {
+    const isFullSubset = fullIntersection.size === Math.min(fullSetA.size, fullSetB.size);
+
+    if (isSubset) {
+        // See if difference is a sequel pattern
+        if(!isFullSubset){
+            const fullDiff = [...fullIntersection].filter(x => !fullUnion.has(x));
+            if(fullDiff.every(x => isSequelPattern(x))){
+                // Only difference is a sequel pattern
+                return {score: 0, matchType: 'sequel'};
+            }
+        }
+
         // One is a subset of the other - likely related
         return {score: Math.round(60 + jaccard * 30), matchType: 'fuzzy'};
     }
