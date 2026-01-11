@@ -18,6 +18,7 @@ import {
     ItemCondition,
     LoanDirection
 } from '../../types/InventoryEnums';
+import settings from '../../modules/settings';
 import {
     CreateGameCopyBody,
     MoveGameCopyBody,
@@ -61,7 +62,7 @@ export async function listGameCopies(ownerId: number, options?: {
     
     // Apply pagination
     const page = options?.page || 1;
-    const limit = options?.limit || 24;
+    const limit = options?.limit || settings.value.paginationDefaultGames;
     const totalCount = copies.length;
     const totalPages = Math.ceil(totalCount / limit);
     const offset = (page - 1) * limit;
