@@ -236,12 +236,51 @@ export async function syncExternalAccount(
             entriesUpdated: stats.entriesUpdated,
         });
         
+        // Trigger similarity analysis in background if new games were added
+        if (stats.entriesAdded > 0) {
+            triggerSimilarityAnalysisInBackground(ownerId);
+        }
+        
         return {success: true, stats, jobId: job.id};
         
     } catch (error) {
         const message = error instanceof Error ? error.message : 'Unknown error';
         await syncJobService.failSyncJob(job.id, message);
         return {success: false, error: message, jobId: job.id};
+    }
+}
+
+/**
+ * Trigger similarity analysis in background (fire and forget).
+ * This is called after successful syncs that add new games.
+ * Creates a proper SyncJob for tracking in the jobs overview.
+ */
+async function triggerSimilarityAnalysisInBackground(ownerId: number): Promise<void> {
+    try {
+        // Create a job for tracking
+        const job = await syncJobService.createSimilarityAnalysisJob(ownerId);
+        
+        // Run asynchronously - don't await
+        (async () => {
+            try {
+                await syncJobService.startSyncJob(job.id);
+                const {runSimilarityAnalysis} = await import('../database/services/SimilarTitlePairService');
+                const result = await runSimilarityAnalysis(ownerId);
+                // Note: Using entriesUpdated for pairsRemoved since SyncJob doesn't have a separate field for removals
+                // This represents pairs that were cleaned up (no longer match due to title changes)
+                await syncJobService.completeSyncJob(job.id, {
+                    entriesProcessed: result.pairsFound,
+                    entriesAdded: result.pairsCreated,
+                    entriesUpdated: result.pairsRemoved,
+                });
+            } catch (error) {
+                const message = error instanceof Error ? error.message : 'Unknown error';
+                await syncJobService.failSyncJob(job.id, message);
+                console.error('Background similarity analysis failed:', error);
+            }
+        })();
+    } catch (error) {
+        console.error('Failed to create similarity analysis job:', error);
     }
 }
 

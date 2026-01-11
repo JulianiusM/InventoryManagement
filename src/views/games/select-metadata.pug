@@ -7,6 +7,7 @@ block content
     - const title = (data && data.title) ? data.title : null
     - const options = (data && data.options) ? data.options : []
     - const searchQuery = data ? data.searchQuery : ''
+    - const returnUrl = data ? data.returnUrl : null
 
     #liveAlerts
 
@@ -15,12 +16,16 @@ block content
             i.bi.bi-exclamation-triangle.me-2
             | Game not found.
     else
-        //- Header with back button
-        .d-flex.align-items-center.mb-3
-            a.btn.btn-outline-secondary.me-3(href=`/games/titles/${title.id}`)
+        //- Header with back buttons
+        .d-flex.align-items-center.mb-3.flex-wrap.gap-2
+            a.btn.btn-outline-secondary(href=`/games/titles/${title.id}`)
                 i.bi.bi-arrow-left.me-1
-                | Back
-            h1.h4.mb-0.text-white
+                | Back to Game
+            if returnUrl
+                a.btn.btn-outline-info(href=returnUrl)
+                    i.bi.bi-tools.me-1
+                    | Back to Metadata Management
+            h1.h4.mb-0.ms-3.text-white
                 i.bi.bi-cloud-download.me-2
                 | Select Metadata for: #{title.name}
 
@@ -28,6 +33,8 @@ block content
         .card.text-bg-dark.border-secondary.mb-4
             .card-body
                 form.row.g-2(method="get" action=`/games/titles/${title.id}/search-metadata`)
+                    if returnUrl
+                        input(type="hidden" name="return" value=returnUrl)
                     .col-md-9
                         input.form-control.text-bg-dark(type="text" name="q" value=searchQuery placeholder="Search for game...")
                     .col-md-3
@@ -48,7 +55,7 @@ block content
                 each option, index in options
                     form.list-group-item.list-group-item-action.text-bg-dark.border-secondary.d-flex.justify-content-between.align-items-center(
                         method="post"
-                        action=`/games/titles/${title.id}/apply-metadata`
+                        action=`/games/titles/${title.id}/apply-metadata${returnUrl ? '?return=' + encodeURIComponent(returnUrl) : ''}`
                     )
                         input(type="hidden" name="providerId" value=option.provider)
                         input(type="hidden" name="externalId" value=option.externalId)

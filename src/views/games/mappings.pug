@@ -1,34 +1,43 @@
 extends ../layout
 
 block meta
-    title Mapping Queue | Inventory Management
+    title Metadata Management | Inventory Management
 
 block content
     - const mappings = (data && data.mappings) ? data.mappings : []
     - const titles = (data && data.titles) ? data.titles : []
-    - const providerLabels = {steam: 'Steam', epic: 'Epic Games', gog: 'GOG', xbox: 'Xbox', playstation: 'PlayStation', nintendo: 'Nintendo', origin: 'Origin', ubisoft: 'Ubisoft', other: 'Other'}
+    - const similarPairs = (data && data.similarPairs) ? data.similarPairs : []
+    - const missingMetadata = (data && data.missingMetadata) ? data.missingMetadata : []
+    - const invalidPlayers = (data && data.invalidPlayers) ? data.invalidPlayers : []
+    - const counts = (data && data.counts) ? data.counts : {pendingMappings: 0, similarCount: 0, missingMetadataCount: 0, invalidPlayersCount: 0, totalCount: 0}
+    - const providerLabels = {steam: 'Steam', epic: 'Epic Games', gog: 'GOG', xbox: 'Xbox', playstation: 'PlayStation', nintendo: 'Nintendo', origin: 'Origin', ubisoft: 'Ubisoft', playnite: 'Playnite', other: 'Other'}
+    - const typeLabels = {video_game: 'Video Game', board_game: 'Board Game', card_game: 'Card Game', tabletop_rpg: 'Tabletop RPG', other_physical_game: 'Other Physical'}
+    - const matchTypeLabels = {exact: 'Exact Match', prefix: 'Prefix Match', suffix: 'Suffix Match', contains: 'Contains', fuzzy: 'Similar Tokens'}
 
     #liveAlerts
 
+    //- Header
     .d-flex.justify-content-between.align-items-center.mb-3.flex-wrap.gap-2
         h1.h3.mb-0.text-white
-            i.bi.bi-link-45deg.me-2
-            | Mapping Queue
-            if mappings.length > 0
-                span.badge.text-bg-warning.ms-2.fs-6 #{mappings.length} pending
+            i.bi.bi-tools.me-2
+            | Metadata Management
+            - const totalIssues = counts.pendingMappings + counts.totalCount
+            if totalIssues > 0
+                span.badge.text-bg-warning.ms-2.fs-6 #{totalIssues} issues
             else
                 span.badge.text-bg-success.ms-2.fs-6 All good
         
-        if mappings.length > 0
-            .d-flex.gap-2
-                form(method="post" action="/games/mappings/bulk-create")
-                    button.btn.btn-primary(type="submit" onclick="return confirm('This will create new game titles for all pending mappings. Continue?')")
-                        i.bi.bi-plus-circle.me-1
-                        | Auto-Create All
-                form(method="post" action="/games/mappings/bulk-ignore")
-                    button.btn.btn-outline-secondary(type="submit" onclick="return confirm('Ignore all pending mappings?')")
-                        i.bi.bi-x-circle.me-1
-                        | Ignore All
+        .d-flex.gap-2.align-items-center
+            //- Analyze similar names button
+            form(method="post" action="/games/mappings/analyze-similar" style="display:inline")
+                button.btn.btn-outline-info(type="submit" title="Run similarity analysis to find similar game names")
+                    i.bi.bi-search.me-1
+                    | Analyze Similar
+            //- Global reset button
+            if counts.totalCount > 0
+                button.btn.btn-outline-secondary(type="button" data-bs-toggle="modal" data-bs-target="#resetDismissalsModal")
+                    i.bi.bi-arrow-counterclockwise.me-1
+                    | Reset Dismissals
 
     //- Info card
     .card.text-bg-dark.border-info.mb-3
@@ -37,71 +46,409 @@ block content
                 i.bi.bi-info-circle.text-info.me-2.fs-5
                 div
                     p.mb-2
-                        strong Note:
-                        |  Connectors now automatically create game titles during sync. This queue only contains edge cases that couldn't be auto-mapped (rare).
-                    if mappings.length === 0
-                        p.text-success.mb-0
-                            i.bi.bi-check-circle.me-1
-                            | Your library is fully synchronized!
-                    else
-                        | Options for pending mappings:
-                        ul.mb-0.mt-2
-                            li 
-                                strong Auto-Create All
-                                |  - Creates new game titles for each pending mapping
-                            li 
-                                strong Map to existing
-                                |  - Link to an existing game title (useful for duplicates)
-                            li 
-                                strong Ignore
-                                |  - Skip this game permanently
+                        strong Metadata Management
+                        |  helps you maintain data quality in your game library.
+                    ul.mb-0
+                        li 
+                            strong Similar Names
+                            |  - Find duplicate games or editions that could be merged
+                        li 
+                            strong Missing Metadata
+                            |  - Games without description and cover image
+                        li 
+                            strong Invalid Players
+                            |  - Multiplayer games with unknown player counts
+                        li 
+                            strong Pending Mappings
+                            |  - Unresolved external game imports
 
-    //- Mappings list
-    if mappings.length === 0
-        .card.text-bg-dark.border-secondary
-            .card-body.text-center.py-5
-                i.bi.bi-check-circle.display-1.text-success.mb-3.d-block
-                h4.text-white All synced!
-                p.text-white-50.mb-3 No pending mappings. All games from your connected accounts have been imported.
-                a.btn.btn-outline-light(href="/games/accounts")
-                    i.bi.bi-cloud.me-1
-                    | Manage Accounts
-    else
-        .table-responsive
-            table.table.table-dark.table-hover.align-middle
-                thead
-                    tr
-                        th Provider
-                        th External Game
-                        th Map To / Create
-                        th.text-end Actions
-                tbody
-                    each mapping in mappings
-                        tr
-                            td
-                                span.badge.text-bg-info #{providerLabels[mapping.provider] || mapping.provider}
-                            td
-                                strong.text-white #{mapping.externalGameName || mapping.externalGameId}
-                                .small.text-white-50 ID: #{mapping.externalGameId}
-                            td
-                                form.d-flex.gap-2.align-items-center(method="post" action=`/games/mappings/${mapping.id}` id=`mapForm-${mapping.id}`)
-                                    input(type="hidden" name="action" value="map")
-                                    select.form-select.form-select-sm.text-bg-dark.border-secondary(name="gameTitleId" style="max-width: 200px")
-                                        option(value="") Select existing...
-                                        each t in titles
-                                            option(value=t.id) #{t.name}
-                            td.text-end
-                                .btn-group.btn-group-sm
-                                    button.btn.btn-outline-success(type="submit" form=`mapForm-${mapping.id}` title="Map to selected game")
-                                        i.bi.bi-link-45deg
-                                    form.d-inline(method="post" action=`/games/mappings/${mapping.id}`)
-                                        input(type="hidden" name="action" value="create")
-                                        button.btn.btn-outline-primary(type="submit" title="Create new game title")
-                                            i.bi.bi-plus-lg
-                                    form.d-inline(method="post" action=`/games/mappings/${mapping.id}`)
-                                        input(type="hidden" name="action" value="ignore")
-                                        button.btn.btn-outline-secondary(type="submit" title="Ignore this game")
-                                            i.bi.bi-x-lg
+    //- Tabs
+    ul.nav.nav-tabs.mb-3(role="tablist")
+        li.nav-item(role="presentation")
+            button.nav-link.text-bg-dark.border-secondary#similar-tab(
+                class=similarPairs.length > 0 ? 'active' : ''
+                data-bs-toggle="tab" 
+                data-bs-target="#similar-panel" 
+                type="button" 
+                role="tab"
+            )
+                i.bi.bi-diagram-3.me-1
+                | Similar Names
+                if counts.similarCount > 0
+                    span.badge.text-bg-warning.ms-2 #{counts.similarCount}
+        li.nav-item(role="presentation")
+            button.nav-link.text-bg-dark.border-secondary#metadata-tab(
+                class=(similarPairs.length === 0 && missingMetadata.length > 0) ? 'active' : ''
+                data-bs-toggle="tab" 
+                data-bs-target="#metadata-panel" 
+                type="button" 
+                role="tab"
+            )
+                i.bi.bi-image.me-1
+                | Missing Metadata
+                if counts.missingMetadataCount > 0
+                    span.badge.text-bg-warning.ms-2 #{counts.missingMetadataCount}
+        li.nav-item(role="presentation")
+            button.nav-link.text-bg-dark.border-secondary#players-tab(
+                class=(similarPairs.length === 0 && missingMetadata.length === 0 && invalidPlayers.length > 0) ? 'active' : ''
+                data-bs-toggle="tab" 
+                data-bs-target="#players-panel" 
+                type="button" 
+                role="tab"
+            )
+                i.bi.bi-people.me-1
+                | Invalid Players
+                if counts.invalidPlayersCount > 0
+                    span.badge.text-bg-warning.ms-2 #{counts.invalidPlayersCount}
+        li.nav-item(role="presentation")
+            button.nav-link.text-bg-dark.border-secondary#mappings-tab(
+                class=(similarPairs.length === 0 && missingMetadata.length === 0 && invalidPlayers.length === 0) ? 'active' : ''
+                data-bs-toggle="tab" 
+                data-bs-target="#mappings-panel" 
+                type="button" 
+                role="tab"
+            )
+                i.bi.bi-link-45deg.me-1
+                | Pending Mappings
+                if counts.pendingMappings > 0
+                    span.badge.text-bg-warning.ms-2 #{counts.pendingMappings}
+
+    //- Tab content
+    .tab-content
+
+        //- Similar Names Panel
+        #similar-panel.tab-pane.fade(
+            class=similarPairs.length > 0 ? 'show active' : ''
+            role="tabpanel"
+        )
+            if similarPairs.length === 0
+                .card.text-bg-dark.border-secondary
+                    .card-body.text-center.py-5
+                        i.bi.bi-check-circle.display-1.text-success.mb-3.d-block
+                        h4.text-white No similar names found
+                        p.text-white-50.mb-3 All your game titles are unique.
+                        form(method="post" action="/games/mappings/analyze-similar" style="display:inline")
+                            button.btn.btn-outline-info(type="submit")
+                                i.bi.bi-search.me-1
+                                | Run Similarity Analysis
+            else
+                //- Explain how similarity works
+                .alert.alert-info.d-flex.align-items-start.mb-3
+                    i.bi.bi-info-circle.me-2.fs-5
+                    div
+                        | Each card below shows a pair of games detected as similar. 
+                        | Use 
+                        strong Merge
+                        |  to combine them or 
+                        strong Dismiss
+                        |  if they are intentionally different.
+                
+                //- Show each pair as a separate card
+                each pair in similarPairs
+                    .card.text-bg-dark.border-secondary.mb-3
+                        .card-header.d-flex.justify-content-between.align-items-center
+                            .d-flex.align-items-center.flex-wrap.gap-2
+                                span.badge.text-bg-info #{pair.score}% match
+                                span.badge.text-bg-secondary #{matchTypeLabels[pair.matchType] || pair.matchType}
+                            .btn-group.btn-group-sm
+                                //- Merge button: merge B into A
+                                a.btn.btn-outline-success(
+                                    href=`/games/titles/${pair.titleB.id}?merge_into=${pair.titleA.id}`
+                                    title="Merge second game into first"
+                                )
+                                    i.bi.bi-arrow-left-right.me-1
+                                    | Merge
+                                //- Dismiss button
+                                form.d-inline(method="post" action=`/games/mappings/dismiss-pair/${pair.pairId}`)
+                                    button.btn.btn-outline-secondary(type="submit" title="Dismiss this pair - they are intentionally different")
+                                        i.bi.bi-x-lg.me-1
+                                        | Dismiss
+                        .card-body.p-0
+                            .row.g-0
+                                //- Title A (left side)
+                                .col-md-6.p-3.border-end.border-secondary
+                                    .d-flex.align-items-start
+                                        if pair.titleA.coverImageUrl
+                                            img.me-3(src=pair.titleA.coverImageUrl alt="" style="width:64px;height:64px;object-fit:cover;border-radius:4px;")
+                                        else
+                                            .me-3.d-flex.align-items-center.justify-content-center.bg-secondary(style="width:64px;height:64px;border-radius:4px;")
+                                                i.bi.bi-controller.text-muted
+                                        div
+                                            h5.mb-1
+                                                a.text-white.text-decoration-none(href=`/games/titles/${pair.titleA.id}`)
+                                                    | #{pair.titleA.name}
+                                            p.mb-1.text-white-50.small
+                                                span.badge.text-bg-secondary.me-1 #{typeLabels[pair.titleA.type] || pair.titleA.type}
+                                                if pair.titleA.releases && pair.titleA.releases.length > 0
+                                                    span.me-2 #{pair.titleA.releases.length} release(s)
+                                            .btn-group.btn-group-sm.mt-2
+                                                a.btn.btn-outline-light.btn-sm(href=`/games/titles/${pair.titleA.id}` title="View/Edit")
+                                                    i.bi.bi-pencil.me-1
+                                                    | Edit
+                                
+                                //- Title B (right side)
+                                .col-md-6.p-3
+                                    .d-flex.align-items-start
+                                        if pair.titleB.coverImageUrl
+                                            img.me-3(src=pair.titleB.coverImageUrl alt="" style="width:64px;height:64px;object-fit:cover;border-radius:4px;")
+                                        else
+                                            .me-3.d-flex.align-items-center.justify-content-center.bg-secondary(style="width:64px;height:64px;border-radius:4px;")
+                                                i.bi.bi-controller.text-muted
+                                        div
+                                            h5.mb-1
+                                                a.text-white.text-decoration-none(href=`/games/titles/${pair.titleB.id}`)
+                                                    | #{pair.titleB.name}
+                                            p.mb-1.text-white-50.small
+                                                span.badge.text-bg-secondary.me-1 #{typeLabels[pair.titleB.type] || pair.titleB.type}
+                                                if pair.titleB.releases && pair.titleB.releases.length > 0
+                                                    span.me-2 #{pair.titleB.releases.length} release(s)
+                                            .btn-group.btn-group-sm.mt-2
+                                                a.btn.btn-outline-light.btn-sm(href=`/games/titles/${pair.titleB.id}` title="View/Edit")
+                                                    i.bi.bi-pencil.me-1
+                                                    | Edit
+
+        //- Missing Metadata Panel
+        #metadata-panel.tab-pane.fade(
+            class=(similarPairs.length === 0 && missingMetadata.length > 0) ? 'show active' : ''
+            role="tabpanel"
+        )
+            if missingMetadata.length === 0
+                .card.text-bg-dark.border-secondary
+                    .card-body.text-center.py-5
+                        i.bi.bi-check-circle.display-1.text-success.mb-3.d-block
+                        h4.text-white All games have metadata
+                        p.text-white-50.mb-0 All your game titles have descriptions and cover images.
+            else
+                .card.text-bg-dark.border-secondary
+                    .card-header.d-flex.justify-content-between.align-items-center
+                        span.text-white
+                            i.bi.bi-image.me-2
+                            | Games missing description and cover image
+                        form(method="post" action="/games/resync-metadata" style="display:inline")
+                            button.btn.btn-sm.btn-outline-info(type="submit" onclick="return confirm('This will fetch metadata for all games in the background. Continue?')")
+                                i.bi.bi-cloud-download.me-1
+                                | Fetch All Metadata
+                    .card-body.p-0
+                        .table-responsive
+                            table.table.table-dark.table-hover.align-middle.mb-0
+                                thead
+                                    tr
+                                        th Name
+                                        th Type
+                                        th Description
+                                        th Cover
+                                        th.text-end Actions
+                                tbody
+                                    each title in missingMetadata
+                                        tr
+                                            td
+                                                a.text-white.text-decoration-none(href=`/games/titles/${title.id}`)
+                                                    | #{title.name}
+                                            td
+                                                span.badge.text-bg-secondary #{typeLabels[title.type] || title.type}
+                                            td
+                                                if title.description
+                                                    i.bi.bi-check-circle.text-success
+                                                else
+                                                    i.bi.bi-x-circle.text-danger
+                                            td
+                                                if title.coverImageUrl
+                                                    i.bi.bi-check-circle.text-success
+                                                else
+                                                    i.bi.bi-x-circle.text-danger
+                                            td.text-end
+                                                .btn-group.btn-group-sm
+                                                    a.btn.btn-outline-info(href=`/games/titles/${title.id}/search-metadata?return=/games/mappings` title="Search Metadata")
+                                                        i.bi.bi-search
+                                                    a.btn.btn-outline-light(href=`/games/titles/${title.id}` title="View/Edit")
+                                                        i.bi.bi-pencil
+                                                    form.d-inline(method="post" action=`/games/mappings/dismiss/${title.id}`)
+                                                        input(type="hidden" name="type" value="missing_metadata")
+                                                        button.btn.btn-outline-secondary(type="submit" title="Dismiss")
+                                                            i.bi.bi-x-lg
+
+        //- Invalid Players Panel
+        #players-panel.tab-pane.fade(
+            class=(similarPairs.length === 0 && missingMetadata.length === 0 && invalidPlayers.length > 0) ? 'show active' : ''
+            role="tabpanel"
+        )
+            if invalidPlayers.length === 0
+                .card.text-bg-dark.border-secondary
+                    .card-body.text-center.py-5
+                        i.bi.bi-check-circle.display-1.text-success.mb-3.d-block
+                        h4.text-white All player counts are valid
+                        p.text-white-50.mb-0 All your multiplayer games have defined player counts.
+            else
+                .card.text-bg-dark.border-secondary
+                    .card-header.d-flex.justify-content-between.align-items-center
+                        span.text-white
+                            i.bi.bi-people.me-2
+                            | Multiplayer games with unknown player counts
+                        form(method="post" action="/games/resync-metadata" style="display:inline")
+                            button.btn.btn-sm.btn-outline-info(type="submit" onclick="return confirm('This will fetch metadata for all games in the background. Continue?')")
+                                i.bi.bi-cloud-download.me-1
+                                | Fetch All Metadata
+                    .card-body.p-0
+                        .table-responsive
+                            table.table.table-dark.table-hover.align-middle.mb-0
+                                thead
+                                    tr
+                                        th Name
+                                        th Modes
+                                        th Overall
+                                        th Online
+                                        th Local
+                                        th.text-end Actions
+                                tbody
+                                    each title in invalidPlayers
+                                        tr
+                                            td
+                                                a.text-white.text-decoration-none(href=`/games/titles/${title.id}`)
+                                                    if title.coverImageUrl
+                                                        img.me-2(src=title.coverImageUrl alt="" style="width:32px;height:32px;object-fit:cover;border-radius:4px;")
+                                                    | #{title.name}
+                                            td
+                                                if title.supportsOnline
+                                                    span.badge.text-bg-primary.me-1 Online
+                                                if title.supportsLocal
+                                                    span.badge.text-bg-success.me-1 Local
+                                                if title.supportsPhysical
+                                                    span.badge.text-bg-warning.text-dark Physical
+                                            td
+                                                if title.overallMaxPlayers
+                                                    | #{title.overallMinPlayers || 1}-#{title.overallMaxPlayers}
+                                                else
+                                                    span.text-warning
+                                                        i.bi.bi-exclamation-triangle.me-1
+                                                        | Unknown
+                                            td
+                                                if !title.supportsOnline
+                                                    span.text-white-50 N/A
+                                                else if title.onlineMaxPlayers
+                                                    | #{title.onlineMinPlayers || 1}-#{title.onlineMaxPlayers}
+                                                else
+                                                    span.text-warning
+                                                        i.bi.bi-exclamation-triangle.me-1
+                                                        | Unknown
+                                            td
+                                                if !title.supportsLocal
+                                                    span.text-white-50 N/A
+                                                else if title.localMaxPlayers
+                                                    | #{title.localMinPlayers || 1}-#{title.localMaxPlayers}
+                                                else
+                                                    span.text-warning
+                                                        i.bi.bi-exclamation-triangle.me-1
+                                                        | Unknown
+                                            td.text-end
+                                                .btn-group.btn-group-sm
+                                                    a.btn.btn-outline-info(href=`/games/titles/${title.id}/search-metadata?return=/games/mappings` title="Search Metadata")
+                                                        i.bi.bi-search
+                                                    a.btn.btn-outline-light(href=`/games/titles/${title.id}` title="View/Edit")
+                                                        i.bi.bi-pencil
+                                                    form.d-inline(method="post" action=`/games/mappings/dismiss/${title.id}`)
+                                                        input(type="hidden" name="type" value="invalid_players")
+                                                        button.btn.btn-outline-secondary(type="submit" title="Dismiss")
+                                                            i.bi.bi-x-lg
+
+        //- Pending Mappings Panel
+        #mappings-panel.tab-pane.fade(
+            class=(similarPairs.length === 0 && missingMetadata.length === 0 && invalidPlayers.length === 0) ? 'show active' : ''
+            role="tabpanel"
+        )
+            if mappings.length === 0
+                .card.text-bg-dark.border-secondary
+                    .card-body.text-center.py-5
+                        i.bi.bi-check-circle.display-1.text-success.mb-3.d-block
+                        h4.text-white All synced!
+                        p.text-white-50.mb-3 No pending mappings. All games from your connected accounts have been imported.
+                        a.btn.btn-outline-light(href="/games/accounts")
+                            i.bi.bi-cloud.me-1
+                            | Manage Accounts
+            else
+                .card.text-bg-dark.border-secondary
+                    .card-header.d-flex.justify-content-between.align-items-center
+                        span.text-white
+                            i.bi.bi-link-45deg.me-2
+                            | Unmapped external games
+                        .d-flex.gap-2
+                            form(method="post" action="/games/mappings/bulk-create")
+                                button.btn.btn-sm.btn-primary(type="submit" onclick="return confirm('This will create new game titles for all pending mappings. Continue?')")
+                                    i.bi.bi-plus-circle.me-1
+                                    | Auto-Create All
+                            form(method="post" action="/games/mappings/bulk-ignore")
+                                button.btn.btn-sm.btn-outline-secondary(type="submit" onclick="return confirm('Ignore all pending mappings?')")
+                                    i.bi.bi-x-circle.me-1
+                                    | Ignore All
+                    .card-body.p-0
+                        .table-responsive
+                            table.table.table-dark.table-hover.align-middle.mb-0
+                                thead
+                                    tr
+                                        th Provider
+                                        th External Game
+                                        th Map To / Create
+                                        th.text-end Actions
+                                tbody
+                                    each mapping in mappings
+                                        tr
+                                            td
+                                                span.badge.text-bg-info #{providerLabels[mapping.provider] || mapping.provider}
+                                            td
+                                                strong.text-white #{mapping.externalGameName || mapping.externalGameId}
+                                                .small.text-white-50 ID: #{mapping.externalGameId}
+                                            td
+                                                form.d-flex.gap-2.align-items-center(method="post" action=`/games/mappings/${mapping.id}` id=`mapForm-${mapping.id}`)
+                                                    input(type="hidden" name="action" value="map")
+                                                    select.form-select.form-select-sm.text-bg-dark.border-secondary(name="gameTitleId" style="max-width: 200px")
+                                                        option(value="") Select existing...
+                                                        each t in titles
+                                                            option(value=t.id) #{t.name}
+                                            td.text-end
+                                                .btn-group.btn-group-sm
+                                                    button.btn.btn-outline-success(type="submit" form=`mapForm-${mapping.id}` title="Map to selected game")
+                                                        i.bi.bi-link-45deg
+                                                    form.d-inline(method="post" action=`/games/mappings/${mapping.id}`)
+                                                        input(type="hidden" name="action" value="create")
+                                                        button.btn.btn-outline-primary(type="submit" title="Create new game title")
+                                                            i.bi.bi-plus-lg
+                                                    form.d-inline(method="post" action=`/games/mappings/${mapping.id}`)
+                                                        input(type="hidden" name="action" value="ignore")
+                                                        button.btn.btn-outline-secondary(type="submit" title="Ignore this game")
+                                                            i.bi.bi-x-lg
+
+    //- Reset Dismissals Modal
+    #resetDismissalsModal.modal.fade(tabindex="-1")
+        .modal-dialog
+            .modal-content.text-bg-dark
+                .modal-header.border-secondary
+                    h5.modal-title
+                        i.bi.bi-arrow-counterclockwise.me-2
+                        | Reset Dismissals
+                    button.btn-close.btn-close-white(type="button" data-bs-dismiss="modal")
+                .modal-body
+                    p.text-white-50 This will restore previously dismissed items so they appear in the issue lists again.
+                    form#resetAllForm(method="post" action="/games/mappings/reset-dismissals")
+                        //- No type = reset all
+                    form#resetSimilarForm(method="post" action="/games/mappings/reset-dismissals")
+                        input(type="hidden" name="type" value="similar")
+                    form#resetMetadataForm(method="post" action="/games/mappings/reset-dismissals")
+                        input(type="hidden" name="type" value="missing_metadata")
+                    form#resetPlayersForm(method="post" action="/games/mappings/reset-dismissals")
+                        input(type="hidden" name="type" value="invalid_players")
+                .modal-footer.border-secondary.flex-wrap.gap-2
+                    button.btn.btn-secondary(type="button" data-bs-dismiss="modal") Cancel
+                    button.btn.btn-outline-light(type="submit" form="resetSimilarForm")
+                        i.bi.bi-diagram-3.me-1
+                        | Reset Similar
+                    button.btn.btn-outline-light(type="submit" form="resetMetadataForm")
+                        i.bi.bi-image.me-1
+                        | Reset Metadata
+                    button.btn.btn-outline-light(type="submit" form="resetPlayersForm")
+                        i.bi.bi-people.me-1
+                        | Reset Players
+                    button.btn.btn-primary(type="submit" form="resetAllForm")
+                        i.bi.bi-arrow-counterclockwise.me-1
+                        | Reset All
 
 block scripts
     script(type="module" src="/js/games/mappings.gen.js")

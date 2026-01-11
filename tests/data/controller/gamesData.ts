@@ -297,3 +297,118 @@ export const lendGameCopyErrorData = [
         errorMessage: 'not lendable',
     },
 ];
+
+// ============ Metadata Management Test Data ============
+
+// Sample game titles for metadata management tests
+export const sampleGameTitles = [
+    // Games with similar names (should be grouped)
+    {
+        id: 'title-1',
+        name: 'The Sims 4',
+        type: 'video_game',
+        description: 'Life simulation game',
+        coverImageUrl: 'https://example.com/sims4.jpg',
+        overallMinPlayers: 1,
+        overallMaxPlayers: 1,
+        supportsOnline: false,
+        supportsLocal: false,
+        supportsPhysical: false,
+        ownerId: TEST_USER_ID,
+        dismissedSimilar: false,
+        dismissedMissingMetadata: false,
+        dismissedInvalidPlayers: false,
+    },
+    {
+        id: 'title-2',
+        name: 'The Sims 4 Premium Edition',
+        type: 'video_game',
+        description: null, // Missing metadata
+        coverImageUrl: null, // Missing metadata
+        overallMinPlayers: 1,
+        overallMaxPlayers: 1,
+        supportsOnline: false,
+        supportsLocal: false,
+        supportsPhysical: false,
+        ownerId: TEST_USER_ID,
+        dismissedSimilar: false,
+        dismissedMissingMetadata: false,
+        dismissedInvalidPlayers: false,
+    },
+    {
+        id: 'title-3',
+        name: 'Counter-Strike 2',
+        type: 'video_game',
+        description: 'Competitive shooter',
+        coverImageUrl: 'https://example.com/cs2.jpg',
+        overallMinPlayers: 1,
+        overallMaxPlayers: null, // Invalid: multiplayer with unknown count
+        supportsOnline: true,
+        supportsLocal: false,
+        supportsPhysical: false,
+        onlineMinPlayers: 2,
+        onlineMaxPlayers: null, // Unknown online player count
+        ownerId: TEST_USER_ID,
+        dismissedSimilar: false,
+        dismissedMissingMetadata: false,
+        dismissedInvalidPlayers: false,
+    },
+    {
+        id: 'title-4',
+        name: 'Minecraft',
+        type: 'video_game',
+        description: 'Sandbox game',
+        coverImageUrl: 'https://example.com/minecraft.jpg',
+        overallMinPlayers: 1,
+        overallMaxPlayers: 8,
+        supportsOnline: true,
+        supportsLocal: true,
+        supportsPhysical: false,
+        onlineMinPlayers: 1,
+        onlineMaxPlayers: 8,
+        localMinPlayers: 1,
+        localMaxPlayers: 4,
+        ownerId: TEST_USER_ID,
+        dismissedSimilar: false,
+        dismissedMissingMetadata: false,
+        dismissedInvalidPlayers: false,
+    },
+    {
+        id: 'title-5',
+        name: 'Unknown Game',
+        type: 'video_game',
+        description: null,
+        coverImageUrl: null,
+        overallMinPlayers: null,
+        overallMaxPlayers: null,
+        supportsOnline: true, // Multiplayer but unknown counts
+        supportsLocal: false,
+        supportsPhysical: false,
+        ownerId: TEST_USER_ID,
+        dismissedSimilar: false,
+        dismissedMissingMetadata: false,
+        dismissedInvalidPlayers: false,
+    },
+];
+
+// Test data for dismissal functionality
+export const dismissalTestData = [
+    {
+        description: 'dismisses similar title',
+        titleId: 'title-1',
+        dismissalType: 'similar' as const,
+        expectedField: 'dismissedSimilar',
+    },
+    {
+        description: 'dismisses missing metadata title',
+        titleId: 'title-2',
+        dismissalType: 'missing_metadata' as const,
+        expectedField: 'dismissedMissingMetadata',
+    },
+    {
+        description: 'dismisses invalid players title',
+        titleId: 'title-3',
+        dismissalType: 'invalid_players' as const,
+        expectedField: 'dismissedInvalidPlayers',
+    },
+];

@@ -70,6 +70,20 @@ export class GameTitle {
     @Column("int", {name: "physical_max_players", nullable: true})
     physicalMaxPlayers?: number | null;
 
+    // Dismissal flags for metadata management page
+    // When true, the title is hidden from the corresponding issue list
+    
+    // DEPRECATED: Similar title dismissals now use per-pair tracking via SimilarTitlePair entity
+    // This column is kept for backwards compatibility but is no longer used
+    @Column("boolean", {name: "dismissed_similar", default: false})
+    dismissedSimilar!: boolean;
+
+    @Column("boolean", {name: "dismissed_missing_metadata", default: false})
+    dismissedMissingMetadata!: boolean;
+
+    @Column("boolean", {name: "dismissed_invalid_players", default: false})
+    dismissedInvalidPlayers!: boolean;
+
     @OneToMany(() => GameRelease, (release) => release.gameTitle)
     releases?: GameRelease[];
 

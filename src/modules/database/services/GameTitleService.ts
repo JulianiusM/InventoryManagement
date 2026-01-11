@@ -334,3 +334,238 @@ export async function mergeGameTitleAsRelease(
     
     return newRelease.id;
 }
+
+// ============ Metadata Management Functions ============
+
+// NOTE: Similar titles functionality has been moved to SimilarTitlePairService
+// which uses background jobs and per-pair dismissals.
+// The functions below handle missing metadata and invalid player counts only.
+
+/**
+ * Find game titles that are missing essential metadata.
+ * Missing metadata = no description AND no cover image.
+ * 
+ * @param ownerId Owner user ID
+ * @param includeDismissed Whether to include dismissed items
+ * @returns Titles missing metadata
+ */
+export async function findTitlesMissingMetadata(
+    ownerId: number, 
+    includeDismissed = false
+): Promise<GameTitle[]> {
+    const repo = AppDataSource.getRepository(GameTitle);
+    
+    // Get all titles for owner
+    const titles = await repo.find({
+        where: {owner: {id: ownerId}},
+        relations: ['releases'],
+        order: {name: 'ASC'},
+    });
+    
+    // Filter to those missing metadata
+    return titles.filter(title => {
+        // Skip dismissed if not including them
+        if (!includeDismissed && title.dismissedMissingMetadata) {
+            return false;
+        }
+        
+        // Missing metadata = no description AND no cover image
+        const missingDescription = !title.description || title.description.trim() === '';
+        const missingCover = !title.coverImageUrl || title.coverImageUrl.trim() === '';
+        
+        return missingDescription && missingCover;
+    });
+}
+
+/**
+ * Find game titles with invalid or missing player counts.
+ * 
+ * **Player Count Logic:**
+ * - **Singleplayer-only games** (no multiplayer modes enabled): Always considered valid.
+ *   When no modes are enabled (supportsOnline=false, supportsLocal=false, supportsPhysical=false),
+ *   null overall player counts are treated as "implied 1 player" - this is not an issue.
+ * 
+ * - **Multiplayer games** (any mode enabled): Considered invalid if:
+ *   1. Overall max player count is null (unknown total player capacity)
+ *   2. Any enabled mode has null max player count (unknown mode-specific capacity)
+ * 
+ * This distinction helps users identify games that need metadata enrichment,
+ * while not flagging every singleplayer game as "missing" player info.
+ * 
+ * @param ownerId Owner user ID
+ * @param includeDismissed Whether to include dismissed items
+ * @returns Titles with invalid player counts (multiplayer games with unknown counts)
+ */
+export async function findTitlesWithInvalidPlayerCounts(
+    ownerId: number, 
+    includeDismissed = false
+): Promise<GameTitle[]> {
+    const repo = AppDataSource.getRepository(GameTitle);
+    
+    // Get all titles for owner
+    const titles = await repo.find({
+        where: {owner: {id: ownerId}},
+        relations: ['releases'],
+        order: {name: 'ASC'},
+    });
+    
+    // Filter to those with invalid player counts
+    return titles.filter(title => {
+        // Skip dismissed if not including them
+        if (!includeDismissed && title.dismissedInvalidPlayers) {
+            return false;
+        }
+        
+        // Check if this is a multiplayer game
+        const isMultiplayer = title.supportsOnline || title.supportsLocal || title.supportsPhysical;
+        
+        if (!isMultiplayer) {
+            // Singleplayer-only: no issue (null overall = implied 1 player)
+            return false;
+        }
+        
+        // Multiplayer game: check for missing counts
+        // Issue if overall max is null
+        if (title.overallMaxPlayers === null) {
+            return true;
+        }
+        
+        // Issue if mode is enabled but mode-specific max is null
+        if (title.supportsOnline && title.onlineMaxPlayers === null) {
+            return true;
+        }
+        if (title.supportsLocal && title.localMaxPlayers === null) {
+            return true;
+        }
+        if (title.supportsPhysical && title.physicalMaxPlayers === null) {
+            return true;
+        }
+        
+        return false;
+    });
+}
+
+// Note: 'similar' dismissal type is deprecated - similar titles now use per-pair dismissals
+// via SimilarTitlePairService. Keeping 'similar' for backwards compatibility but it's no-op.
+export type DismissalType = 'similar' | 'missing_metadata' | 'invalid_players';
+
+/**
+ * Dismiss a title from a specific issue type.
+ * Note: 'similar' type is deprecated, use SimilarTitlePairService.dismissPair() instead.
+ * 
+ * @param titleId Title ID to dismiss
+ * @param dismissalType Type of dismissal
+ */
+export async function dismissTitle(titleId: string, dismissalType: DismissalType): Promise<void> {
+    const repo = AppDataSource.getRepository(GameTitle);
+    
+    const updates: Partial<GameTitle> = {};
+    switch (dismissalType) {
+        case 'similar':
+            // Deprecated - similar titles now use per-pair dismissals
+            // Keep for backwards compatibility but do nothing
+            return;
+        case 'missing_metadata':
+            updates.dismissedMissingMetadata = true;
+            break;
+        case 'invalid_players':
+            updates.dismissedInvalidPlayers = true;
+            break;
+    }
+    
+    await repo.update({id: titleId}, updates as Record<string, unknown>);
+}
+
+/**
+ * Undismiss a title from a specific issue type.
+ * Note: 'similar' type is deprecated, use SimilarTitlePairService.undismissPair() instead.
+ * 
+ * @param titleId Title ID to undismiss
+ * @param dismissalType Type of dismissal to clear
+ */
+export async function undismissTitle(titleId: string, dismissalType: DismissalType): Promise<void> {
+    const repo = AppDataSource.getRepository(GameTitle);
+    
+    const updates: Partial<GameTitle> = {};
+    switch (dismissalType) {
+        case 'similar':
+            // Deprecated - similar titles now use per-pair dismissals
+            return;
+        case 'missing_metadata':
+            updates.dismissedMissingMetadata = false;
+            break;
+        case 'invalid_players':
+            updates.dismissedInvalidPlayers = false;
+            break;
+    }
+    
+    await repo.update({id: titleId}, updates as Record<string, unknown>);
+}
+
+/**
+ * Reset all dismissals for a user (global reset).
+ * Note: 'similar' dismissals are now handled by SimilarTitlePairService.resetSimilarDismissals()
+ * 
+ * @param ownerId Owner user ID
+ * @param dismissalType Optional specific type to reset, or all if not provided
+ * @returns Number of titles affected
+ */
+export async function resetDismissals(
+    ownerId: number, 
+    dismissalType?: DismissalType
+): Promise<number> {
+    const repo = AppDataSource.getRepository(GameTitle);
+    
+    const updates: Partial<GameTitle> = {};
+    // Note: 'similar' is deprecated - use SimilarTitlePairService.resetSimilarDismissals()
+    if (!dismissalType || dismissalType === 'missing_metadata') {
+        updates.dismissedMissingMetadata = false;
+    }
+    if (!dismissalType || dismissalType === 'invalid_players') {
+        updates.dismissedInvalidPlayers = false;
+    }
+    
+    // Only update if there are fields to update
+    if (Object.keys(updates).length === 0) {
+        return 0;
+    }
+    
+    const result = await repo
+        .createQueryBuilder()
+        .update()
+        .set(updates as Record<string, unknown>)
+        .where('owner_id = :ownerId', {ownerId})
+        .execute();
+    
+    return result.affected || 0;
+}
+
+/**
+ * Get counts for all metadata management issue types.
+ * Note: similarCount now uses the pre-computed SimilarTitlePairService data.
+ * 
+ * @param ownerId Owner user ID
+ * @returns Object with counts for each issue type
+ */
+export async function getMetadataIssueCounts(ownerId: number): Promise<{
+    similarCount: number;
+    missingMetadataCount: number;
+    invalidPlayersCount: number;
+    totalCount: number;
+}> {
+    // Import here to avoid circular dependency
+    const {getSimilarPairCount} = await import('./SimilarTitlePairService');
+    
+    const [similarCount, missingMetadata, invalidPlayers] = await Promise.all([
+        getSimilarPairCount(ownerId),
+        findTitlesMissingMetadata(ownerId, false),
+        findTitlesWithInvalidPlayerCounts(ownerId, false),
+    ]);
+    
+    return {
+        similarCount,
+        missingMetadataCount: missingMetadata.length,
+        invalidPlayersCount: invalidPlayers.length,
+        totalCount: similarCount + missingMetadata.length + invalidPlayers.length,
+    };
+}

@@ -80,13 +80,19 @@ router.post('/:id/fetch-metadata', asyncHandler(async (req: Request, res: Respon
     const id = req.params.id;
     const userId = req.session.user!.id;
     const searchQuery = req.body.searchQuery;
+    const returnUrl = req.body.return || req.query.return;
     const result = await gamesController.fetchMetadataForTitle(id, userId, searchQuery);
     if (result.updated) {
         req.flash('success', result.message);
     } else {
         req.flash('info', result.message);
     }
-    res.redirect(`/games/titles/${id}`);
+    // Redirect back to return URL if provided, otherwise to game title page
+    if (returnUrl && typeof returnUrl === 'string' && returnUrl.startsWith('/')) {
+        res.redirect(returnUrl);
+    } else {
+        res.redirect(`/games/titles/${id}`);
+    }
 }));
 
 // Search metadata options for a game title
@@ -94,8 +100,13 @@ router.get('/:id/search-metadata', asyncHandler(async (req: Request, res: Respon
     const id = req.params.id;
     const userId = req.session.user!.id;
     const searchQuery = req.query.q as string | undefined;
+    const returnUrl = req.query.return as string | undefined;
     const data = await gamesController.searchMetadataOptions(id, userId, searchQuery);
-    renderer.renderWithData(res, 'games/select-metadata', {...data, searchQuery: searchQuery || data.title.name});
+    renderer.renderWithData(res, 'games/select-metadata', {
+        ...data, 
+        searchQuery: searchQuery || data.title.name,
+        returnUrl: returnUrl && returnUrl.startsWith('/') ? returnUrl : null,
+    });
 }));
 
 // Apply selected metadata option to a game title
@@ -103,6 +114,7 @@ router.post('/:id/apply-metadata', asyncHandler(async (req: Request, res: Respon
     const id = req.params.id;
     const userId = req.session.user!.id;
     const {providerId, externalId} = req.body;
+    const returnUrl = req.body.return || req.query.return;
     if (!providerId || !externalId) {
         req.flash('error', 'Please select a metadata option');
         res.redirect(`/games/titles/${id}/search-metadata`);
@@ -114,7 +126,12 @@ router.post('/:id/apply-metadata', asyncHandler(async (req: Request, res: Respon
     } else {
         req.flash('info', result.message);
     }
-    res.redirect(`/games/titles/${id}`);
+    // Redirect back to return URL if provided, otherwise to game title page
+    if (returnUrl && typeof returnUrl === 'string' && returnUrl.startsWith('/')) {
+        res.redirect(returnUrl);
+    } else {
+        res.redirect(`/games/titles/${id}`);
+    }
 }));
 
 export default router;

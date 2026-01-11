@@ -89,8 +89,13 @@ jest.mock('../../src/modules/database/services/GameExternalMappingService');
 jest.mock('../../src/modules/database/services/LocationService');
 jest.mock('../../src/modules/database/services/PartyService');
 jest.mock('../../src/modules/games/GameSyncService');
+jest.mock('../../src/modules/database/services/SimilarTitlePairService');
+jest.mock('../../src/modules/database/services/SyncJobService');
 
 import * as gameTitleService from '../../src/modules/database/services/GameTitleService';
+import * as gameMappingService from '../../src/modules/database/services/GameExternalMappingService';
+import * as similarTitlePairService from '../../src/modules/database/services/SimilarTitlePairService';
+import * as syncJobService from '../../src/modules/database/services/SyncJobService';
 import * as itemService from '../../src/modules/database/services/ItemService';
 import * as loanService from '../../src/modules/database/services/LoanService';
 import * as gamesController from '../../src/controller/gamesController';
@@ -175,6 +180,103 @@ describe('gamesController', () => {
                 }, TEST_USER_ID),
                 'already on loan'
             );
+        });
+    });
+
+    describe('metadata management', () => {
+        // Setup mocks specific to metadata management tests
+        beforeEach(() => {
+            setupMock(gameMappingService.getPendingMappings as jest.Mock, []);
+            setupMock(gameTitleService.getAllGameTitles as jest.Mock, []);
+            if (similarTitlePairService.getSimilarPairsForDisplay) {
+                setupMock(similarTitlePairService.getSimilarPairsForDisplay as jest.Mock, []);
+            }
+            if (similarTitlePairService.getSimilarPairCount) {
+                setupMock(similarTitlePairService.getSimilarPairCount as jest.Mock, 0);
+            }
+            if (similarTitlePairService.resetSimilarDismissals) {
+                setupMock(similarTitlePairService.resetSimilarDismissals as jest.Mock, 0);
+            }
+            if (syncJobService.createSimilarityAnalysisJob) {
+                setupMock(syncJobService.createSimilarityAnalysisJob as jest.Mock, {id: 'job-1'});
+            }
+            setupMock(gameTitleService.findTitlesMissingMetadata as jest.Mock, []);
+            setupMock(gameTitleService.findTitlesWithInvalidPlayerCounts as jest.Mock, []);
+            setupMock(gameTitleService.getMetadataIssueCounts as jest.Mock, {
+                similarCount: 0,
+                missingMetadataCount: 0,
+                invalidPlayersCount: 0,
+                totalCount: 0,
+            });
+        });
+
+        describe('getMetadataManagementData', () => {
+            test('returns all metadata management data', async () => {
+                const result = await gamesController.getMetadataManagementData(TEST_USER_ID);
+                
+                expect(result).toBeDefined();
+                expect(result.counts).toBeDefined();
+                expect(result.similarPairs).toBeDefined();
+                expect(result.missingMetadata).toBeDefined();
+                expect(result.invalidPlayers).toBeDefined();
+                expect(result.mappings).toBeDefined();
+            });
+        });
+
+        describe('dismissTitle', () => {
+            test('throws error when title not found', async () => {
+                setupMock(gameTitleService.getGameTitleById as jest.Mock, null);
+
+                await verifyThrowsError(
+                    () => gamesController.dismissTitle('nonexistent', 'similar', TEST_USER_ID),
+                    'not found'
+                );
+            });
+
+            test('throws error when user does not own title', async () => {
+                const otherUserTitle = {
+                    id: 'title-1',
+                    name: 'Test Game',
+                    ownerId: 999, // Different owner
+                };
+                setupMock(gameTitleService.getGameTitleById as jest.Mock, otherUserTitle);
+
+                await verifyThrowsError(
+                    () => gamesController.dismissTitle('title-1', 'similar', TEST_USER_ID),
+                    'permission'
+                );
+            });
+        });
+
+        describe('undismissTitle', () => {
+            test('throws error when title not found', async () => {
+                setupMock(gameTitleService.getGameTitleById as jest.Mock, null);
+
+                await verifyThrowsError(
+                    () => gamesController.undismissTitle('nonexistent', 'similar', TEST_USER_ID),
+                    'not found'
+                );
+            });
+        });
+
+        describe('resetDismissals', () => {
+            test('calls service with correct parameters', async () => {
+                setupMock(gameTitleService.resetDismissals as jest.Mock, 5);
+
+                const result = await gamesController.resetDismissals(TEST_USER_ID, 'similar');
+                
+                expect(result).toBe(5);
+                expect(gameTitleService.resetDismissals).toHaveBeenCalledWith(TEST_USER_ID, 'similar');
+            });
+
+            test('can reset all dismissals', async () => {
+                setupMock(gameTitleService.resetDismissals as jest.Mock, 10);
+
+                const result = await gamesController.resetDismissals(TEST_USER_ID, undefined);
+                
+                expect(result).toBe(10);
+                expect(gameTitleService.resetDismissals).toHaveBeenCalledWith(TEST_USER_ID, undefined);
+            });
         });
     });
 });
