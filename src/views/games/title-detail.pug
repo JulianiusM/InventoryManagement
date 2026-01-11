@@ -35,10 +35,16 @@ block content
                         span.badge.text-bg-primary
                             i.bi.bi-globe.me-1
                             | Online
+                            //- Warning for multiplayer without specific player count
+                            if !title.onlineMaxPlayers
+                                i.bi.bi-exclamation-triangle.ms-1(title="Player count unknown - click Fetch Metadata to update")
                     if title.supportsLocal
                         span.badge.text-bg-success
                             i.bi.bi-display.me-1
                             | Local
+                            //- Warning for multiplayer without specific player count
+                            if !title.localMaxPlayers
+                                i.bi.bi-exclamation-triangle.ms-1(title="Player count unknown - click Fetch Metadata to update")
                     if title.supportsPhysical
                         span.badge.text-bg-warning.text-dark
                             i.bi.bi-dice-5.me-1

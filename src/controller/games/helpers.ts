@@ -2,8 +2,9 @@
  * Shared helpers for games controllers
  */
 
-// Minimum description length to be considered valid (shorter = placeholder)
-export const MIN_VALID_DESCRIPTION_LENGTH = 50;
+// Re-export MIN_VALID_DESCRIPTION_LENGTH from MetadataFetcher for backward compatibility
+// The canonical definition is now in MetadataFetcher (single source of truth)
+export {MIN_VALID_DESCRIPTION_LENGTH} from '../../modules/games/sync/MetadataFetcher';
 
 /**
  * Helper to parse checkbox boolean from form submissions

@@ -16,8 +16,11 @@
  * 
  * ARCHITECTURE:
  * - GameProcessor (./sync/GameProcessor.ts) - SINGLE implementation for game processing
- * - MetadataFetcher (./sync/MetadataFetcher.ts) - Centralized metadata fetching with rate limiting
- * - MetadataService (./metadata/MetadataService.ts) - Centralized metadata application
+ * - MetadataFetcher (./sync/MetadataFetcher.ts) - THE SINGLE centralized implementation for:
+ *   - Metadata fetching with rate limiting
+ *   - Metadata application to titles
+ *   - ExternalGame enrichment
+ *   - Manual and batch metadata operations
  * - Both fetch-style and push-style connectors use processGameBatch() from GameProcessor
  * - Metadata enrichment is handled asynchronously after batch processing
  */
@@ -242,8 +245,8 @@ export async function syncExternalAccount(
     }
 }
 
-// Import enrichGameWithMetadata from centralized MetadataService
-import {enrichGameWithMetadata} from './metadata/MetadataService';
+// Import enrichGameWithMetadata from centralized MetadataFetcher
+import {enrichGameWithMetadata} from './sync/MetadataFetcher';
 
 /**
  * Get sync status for an account

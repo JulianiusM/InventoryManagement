@@ -2,15 +2,18 @@
  * Game Title Controller
  * Business logic for game title operations
  * 
- * Metadata operations are delegated to the centralized MetadataService
+ * Metadata operations are delegated to the centralized MetadataFetcher
  * to maintain DRY and separation of concerns principles.
+ * 
+ * NOTE: There is ONE implementation for metadata operations in MetadataFetcher.
+ * This controller uses that implementation directly - no separate MetadataService.
  */
 
 import * as gameTitleService from '../../modules/database/services/GameTitleService';
 import * as gameReleaseService from '../../modules/database/services/GameReleaseService';
 import * as platformService from '../../modules/database/services/PlatformService';
 import * as syncJobService from '../../modules/database/services/SyncJobService';
-import * as metadataService from '../../modules/games/metadata/MetadataService';
+import {getMetadataFetcher, applyMetadataToTitle} from '../../modules/games/sync/MetadataFetcher';
 import {type MetadataSearchResult} from '../../modules/games/metadata/MetadataProviderInterface';
 import {validatePlayerProfile, PlayerProfileValidationError} from '../../modules/database/services/GameValidationService';
 import {ExpectedError} from '../../modules/lib/errors';
@@ -294,7 +297,7 @@ export async function mergeGameTitleAsRelease(
 
 /**
  * Fetch metadata for a single game title
- * Uses centralized MetadataService for consistency
+ * Uses centralized MetadataFetcher for consistency
  */
 export async function fetchMetadataForTitle(
     titleId: string,
@@ -309,15 +312,16 @@ export async function fetchMetadataForTitle(
     }
     checkOwnership(title, userId);
     
-    // Use centralized metadata service
-    const result = await metadataService.fetchMetadata(title, searchQuery);
+    // Use centralized metadata fetcher
+    const metadataFetcher = getMetadataFetcher();
+    const result = await metadataFetcher.fetchMetadataForTitle(title, searchQuery);
     
     if (!result.metadata) {
         return {updated: false, message: result.message};
     }
     
-    // Apply metadata using centralized service
-    const {fieldsUpdated} = await metadataService.applyMetadataToTitle(titleId, title, result.metadata);
+    // Apply metadata using centralized function
+    const {fieldsUpdated} = await applyMetadataToTitle(titleId, title, result.metadata);
     
     if (fieldsUpdated.length > 0) {
         return {
@@ -346,8 +350,9 @@ export async function searchMetadataOptions(
     }
     checkOwnership(title, userId);
     
-    // Use centralized metadata service
-    const options = await metadataService.searchMetadataOptions(title, searchQuery);
+    // Use centralized metadata fetcher
+    const metadataFetcher = getMetadataFetcher();
+    const options = await metadataFetcher.searchMetadataOptions(title, searchQuery);
     
     return {title, options};
 }
@@ -369,15 +374,16 @@ export async function applyMetadataOption(
     }
     checkOwnership(title, userId);
     
-    // Use centralized metadata service
-    const result = await metadataService.fetchMetadataFromProvider(providerId, externalId);
+    // Use centralized metadata fetcher
+    const metadataFetcher = getMetadataFetcher();
+    const result = await metadataFetcher.fetchMetadataFromProvider(providerId, externalId);
     
     if (!result.metadata) {
         return {updated: false, message: result.message};
     }
     
-    // Apply metadata using centralized service
-    const {fieldsUpdated} = await metadataService.applyMetadataToTitle(titleId, title, result.metadata);
+    // Apply metadata using centralized function
+    const {fieldsUpdated} = await applyMetadataToTitle(titleId, title, result.metadata);
     
     if (fieldsUpdated.length > 0) {
         return {

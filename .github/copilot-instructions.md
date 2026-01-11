@@ -134,14 +134,19 @@ The sync pipeline is **modular and unified**. All connectors (fetch-style and pu
 src/modules/games/
 ├── sync/
 │   ├── GameProcessor.ts       # SINGLE implementation for game processing
-│   └── MetadataFetcher.ts     # Centralized metadata fetching with rate limiting
+│   └── MetadataFetcher.ts     # THE SINGLE centralized implementation for ALL metadata operations:
+│                              #   - Rate limiting per provider
+│                              #   - Batch metadata fetching (sync)
+│                              #   - Single game metadata fetching (manual)
+│                              #   - Metadata application to titles
+│                              #   - ExternalGame enrichment
 ├── GameSyncService.ts         # Orchestration and scheduling
 ├── GameNameUtils.ts           # Edition extraction and title normalization
 ├── connectors/                # External connector implementations
-└── metadata/                  # Metadata provider implementations
+└── metadata/                  # Metadata provider implementations (providers only, no services)
 
 src/controller/games/          # Modular controller structure
-├── gameTitleController.ts     # Title operations and metadata
+├── gameTitleController.ts     # Title operations and metadata (uses MetadataFetcher)
 ├── gameReleaseController.ts   # Release operations
 ├── gameCopyController.ts      # Copy/item operations
 ├── gameAccountController.ts   # External account and sync operations
@@ -152,10 +157,11 @@ src/controller/games/          # Modular controller structure
 └── index.ts                   # Module exports
 ```
 
-**Critical Design Rule:** BOTH fetch-style and push-style connectors use `processGameBatch()` from `GameProcessor.ts`.
-- NO duplicate processing implementations
-- Edition extraction is ALWAYS performed in `createGameFromData()`
-- DRY principle enforced across all sync flows
+**Critical Design Rules:**
+1. BOTH fetch-style and push-style connectors use `processGameBatch()` from `GameProcessor.ts` - NO duplicate implementations
+2. ALL metadata operations use `MetadataFetcher.ts` - there is ONE implementation, not separate services
+3. Edition extraction is ALWAYS performed in `createGameFromData()`
+4. DRY principle enforced across all sync and metadata flows
 
 **Processing Flow:**
 ```
