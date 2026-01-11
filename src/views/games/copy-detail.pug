@@ -79,10 +79,16 @@ block content
                                     span.badge.text-bg-primary
                                         i.bi.bi-globe.me-1
                                         | Online
+                                        //- Warning for unknown player count
+                                        if !gameTitle.onlineMaxPlayers
+                                            i.bi.bi-exclamation-triangle.ms-1(title="Player count unknown")
                                 if gameTitle.supportsLocal
                                     span.badge.text-bg-success
                                         i.bi.bi-display.me-1
                                         | Local
+                                        //- Warning for unknown player count
+                                        if !gameTitle.localMaxPlayers
+                                            i.bi.bi-exclamation-triangle.ms-1(title="Player count unknown")
                             .mt-2
                                 a.btn.btn-sm.btn-outline-light.me-2(href=`/games/titles/${gameTitle.id}`)
                                     i.bi.bi-arrow-left.me-1

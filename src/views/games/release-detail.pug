@@ -53,15 +53,26 @@ block content
                                 if release.gameTitle.supportsOnline
                                     span.badge.text-bg-primary
                                         i.bi.bi-globe.me-1
-                                        | Online #{release.gameTitle.onlineMinPlayers || release.gameTitle.overallMinPlayers}-#{release.gameTitle.onlineMaxPlayers || release.gameTitle.overallMaxPlayers}
+                                        if release.gameTitle.onlineMaxPlayers
+                                            | Online #{release.gameTitle.onlineMinPlayers || 1}-#{release.gameTitle.onlineMaxPlayers}
+                                        else
+                                            | Online
+                                            i.bi.bi-exclamation-triangle.ms-1(title="Player count unknown")
                                 if release.gameTitle.supportsLocal
                                     span.badge.text-bg-success
                                         i.bi.bi-display.me-1
-                                        | Local #{release.gameTitle.localMinPlayers || release.gameTitle.overallMinPlayers}-#{release.gameTitle.localMaxPlayers || release.gameTitle.overallMaxPlayers}
+                                        if release.gameTitle.localMaxPlayers
+                                            | Local #{release.gameTitle.localMinPlayers || 1}-#{release.gameTitle.localMaxPlayers}
+                                        else
+                                            | Local
+                                            i.bi.bi-exclamation-triangle.ms-1(title="Player count unknown")
                                 if release.gameTitle.supportsPhysical
                                     span.badge.text-bg-warning.text-dark
                                         i.bi.bi-dice-5.me-1
-                                        | Physical #{release.gameTitle.physicalMinPlayers || release.gameTitle.overallMinPlayers}-#{release.gameTitle.physicalMaxPlayers || release.gameTitle.overallMaxPlayers}
+                                        if release.gameTitle.physicalMaxPlayers
+                                            | Physical #{release.gameTitle.physicalMinPlayers || 1}-#{release.gameTitle.physicalMaxPlayers}
+                                        else
+                                            | Physical
                             a.btn.btn-sm.btn-outline-light.mt-2(href=`/games/titles/${release.gameTitle.id}`)
                                 i.bi.bi-arrow-left.me-1
                                 | View Title Details

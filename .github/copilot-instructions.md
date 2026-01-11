@@ -263,6 +263,32 @@ Metadata providers are standardized with centralized rate limiting:
 - Two metadata runs: general info from primary provider, player counts from providers with `hasAccuratePlayerCounts` capability
 - Provider fallback uses capabilities (never hardcoded provider references)
 
+### Player Count Handling
+
+Player counts are handled with explicit "known" vs "unknown" distinction:
+
+**Design Principles:**
+1. **Singleplayer games**: Player count is implied as 1 (no special handling needed)
+2. **Multiplayer games**: Preserve `null` for unknown mode-specific counts
+3. **Never set defaults**: Do NOT set arbitrary defaults like 2 or 4 players
+4. **Invalid data = unknown**: Values ≤0, NaN, or Infinity are treated as "unknown" (null)
+
+**Data Model:**
+- `overallMinPlayers` / `overallMaxPlayers`: Required, always have values (default 1)
+- `onlineMaxPlayers` / `localMaxPlayers` / `physicalMaxPlayers`: Nullable
+  - `null` = player count unknown for this mode
+  - Valid number = known player count from metadata or user
+
+**UI Behavior:**
+- Multiplayer badges show warning icon (⚠️) when mode-specific count is unknown
+- Details section shows "Unknown (click Fetch Metadata to update)" text
+- Users can manually set correct values via the edit form
+
+**Key Code Locations:**
+- `GameProcessor.ts`: `createGameFromData()` preserves null for unknown counts
+- `MetadataPipeline.ts`: `applyPlayerInfoUpdates()` validates before applying
+- `GameValidationService.ts`: Allows null mode-specific counts when mode is supported
+
 ### Plugin Isolation Rules (CRITICAL)
 
 **Connectors and Metadata Providers are treated as external plugins.**

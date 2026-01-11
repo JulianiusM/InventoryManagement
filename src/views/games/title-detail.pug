@@ -88,21 +88,39 @@ block content
                                     i.bi.bi-globe.me-1
                                     | Online
                                 dd.col-sm-8
-                                    | #{title.onlineMinPlayers || title.overallMinPlayers} - #{title.onlineMaxPlayers || title.overallMaxPlayers} players
+                                    //- Show explicit "Unknown" when player count is not known
+                                    if title.onlineMaxPlayers
+                                        | #{title.onlineMinPlayers || 1} - #{title.onlineMaxPlayers} players
+                                    else
+                                        span.text-warning
+                                            i.bi.bi-exclamation-triangle.me-1
+                                            | Unknown (click "Fetch Metadata" to update)
                             
                             if title.supportsLocal
                                 dt.col-sm-4.text-success
                                     i.bi.bi-display.me-1
                                     | Local Co-op
                                 dd.col-sm-8
-                                    | #{title.localMinPlayers || title.overallMinPlayers} - #{title.localMaxPlayers || title.overallMaxPlayers} players
+                                    //- Show explicit "Unknown" when player count is not known
+                                    if title.localMaxPlayers
+                                        | #{title.localMinPlayers || 1} - #{title.localMaxPlayers} players
+                                    else
+                                        span.text-warning
+                                            i.bi.bi-exclamation-triangle.me-1
+                                            | Unknown (click "Fetch Metadata" to update)
                             
                             if title.supportsPhysical
                                 dt.col-sm-4.text-warning
                                     i.bi.bi-dice-5.me-1
                                     | Physical
                                 dd.col-sm-8
-                                    | #{title.physicalMinPlayers || title.overallMinPlayers} - #{title.physicalMaxPlayers || title.overallMaxPlayers} players
+                                    //- Show explicit "Unknown" when player count is not known
+                                    if title.physicalMaxPlayers
+                                        | #{title.physicalMinPlayers || 1} - #{title.physicalMaxPlayers} players
+                                    else
+                                        span.text-muted
+                                            i.bi.bi-question-circle.me-1
+                                            | Unknown
 
                     //- Edit form (collapsible)
                     #editDetailsForm.collapse

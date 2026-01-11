@@ -47,6 +47,14 @@ import settings from '../../settings';
 export const MIN_VALID_DESCRIPTION_LENGTH = 50;
 
 /**
+ * Validate player count: must be a positive finite integer
+ * Used throughout the pipeline to reject invalid values (0, negative, NaN, Infinity)
+ */
+export function isValidPlayerCount(count: number | undefined | null): count is number {
+    return count !== undefined && count !== null && Number.isFinite(count) && count > 0;
+}
+
+/**
  * Result of a metadata fetch/search operation
  */
 export interface MetadataFetchResult {
@@ -328,17 +336,21 @@ export class MetadataPipeline {
     
     /**
      * Apply player info updates (helper for applyToTitle)
+     * 
+     * IMPORTANT: Player count values from metadata providers must be validated.
+     * Invalid values (0, negative, NaN) are treated as "unknown" and not applied.
+     * This ensures we preserve the distinction between "known count" vs "unknown count".
      */
     private applyPlayerInfoUpdates(
         updates: Partial<GameTitle>,
         title: GameTitle,
         playerInfo: NonNullable<GameMetadata['playerInfo']>
     ): void {
-        // Overall player counts
-        if (playerInfo.overallMinPlayers) {
+        // Overall player counts - validate before applying
+        if (isValidPlayerCount(playerInfo.overallMinPlayers)) {
             updates.overallMinPlayers = playerInfo.overallMinPlayers;
         }
-        if (playerInfo.overallMaxPlayers) {
+        if (isValidPlayerCount(playerInfo.overallMaxPlayers)) {
             updates.overallMaxPlayers = playerInfo.overallMaxPlayers;
         }
         
@@ -351,7 +363,8 @@ export class MetadataPipeline {
             }
         }
         const willSupportOnline = updates.supportsOnline ?? title.supportsOnline;
-        if (willSupportOnline && playerInfo.onlineMaxPlayers !== undefined && playerInfo.onlineMaxPlayers !== null) {
+        // Only apply player counts if mode is supported AND value is valid
+        if (willSupportOnline && isValidPlayerCount(playerInfo.onlineMaxPlayers)) {
             updates.onlineMaxPlayers = playerInfo.onlineMaxPlayers;
         }
         
@@ -364,7 +377,8 @@ export class MetadataPipeline {
             }
         }
         const willSupportLocal = updates.supportsLocal ?? title.supportsLocal;
-        if (willSupportLocal && playerInfo.localMaxPlayers !== undefined && playerInfo.localMaxPlayers !== null) {
+        // Only apply player counts if mode is supported AND value is valid
+        if (willSupportLocal && isValidPlayerCount(playerInfo.localMaxPlayers)) {
             updates.localMaxPlayers = playerInfo.localMaxPlayers;
         }
         
@@ -383,7 +397,7 @@ export class MetadataPipeline {
         }
         
         const willSupportPhysical = updates.supportsPhysical ?? title.supportsPhysical;
-        if (willSupportPhysical && isBoardGame && playerInfo.physicalMaxPlayers !== undefined && playerInfo.physicalMaxPlayers !== null) {
+        if (willSupportPhysical && isBoardGame && isValidPlayerCount(playerInfo.physicalMaxPlayers)) {
             updates.physicalMaxPlayers = playerInfo.physicalMaxPlayers;
         }
     }
@@ -689,11 +703,12 @@ export function enrichGameWithMetadata(game: ExternalGame, metadata: GameMetadat
     }
     
     // Player info (without supportsPhysical for video games)
+    // IMPORTANT: Only apply player counts if they are valid (positive, finite numbers)
     if (metadata.playerInfo) {
-        if (enriched.overallMinPlayers === undefined) {
+        if (enriched.overallMinPlayers === undefined && isValidPlayerCount(metadata.playerInfo.overallMinPlayers)) {
             enriched.overallMinPlayers = metadata.playerInfo.overallMinPlayers;
         }
-        if (enriched.overallMaxPlayers === undefined) {
+        if (enriched.overallMaxPlayers === undefined && isValidPlayerCount(metadata.playerInfo.overallMaxPlayers)) {
             enriched.overallMaxPlayers = metadata.playerInfo.overallMaxPlayers;
         }
         if (enriched.supportsOnline === undefined) {
@@ -702,10 +717,11 @@ export function enrichGameWithMetadata(game: ExternalGame, metadata: GameMetadat
         if (enriched.supportsLocal === undefined) {
             enriched.supportsLocal = metadata.playerInfo.supportsLocal;
         }
-        if (enriched.onlineMaxPlayers === undefined) {
+        // Only apply mode-specific counts if valid (invalid -> keep as undefined = "unknown")
+        if (enriched.onlineMaxPlayers === undefined && isValidPlayerCount(metadata.playerInfo.onlineMaxPlayers)) {
             enriched.onlineMaxPlayers = metadata.playerInfo.onlineMaxPlayers;
         }
-        if (enriched.localMaxPlayers === undefined) {
+        if (enriched.localMaxPlayers === undefined && isValidPlayerCount(metadata.playerInfo.localMaxPlayers)) {
             enriched.localMaxPlayers = metadata.playerInfo.localMaxPlayers;
         }
         // Note: supportsPhysical intentionally NOT set for video games
