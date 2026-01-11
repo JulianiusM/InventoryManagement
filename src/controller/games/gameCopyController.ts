@@ -322,6 +322,24 @@ export async function mapBarcodeToGameCopy(
     return {success: true, message: 'Barcode mapped successfully'};
 }
 
+export async function deleteBarcodeFromGameCopy(
+    gameCopyId: string,
+    barcodeId: string,
+    userId: number
+): Promise<{success: boolean; message: string}> {
+    requireAuthenticatedUser(userId);
+    
+    const copy = await itemService.getItemById(gameCopyId);
+    if (!copy) {
+        throw new ExpectedError('Game copy not found', 'error', 404);
+    }
+    checkOwnership(copy, userId);
+    
+    // Delete the barcode
+    await barcodeService.deleteBarcode(barcodeId);
+    return {success: true, message: 'Barcode removed successfully'};
+}
+
 // ============ Manual Digital License Linking ============
 
 /**

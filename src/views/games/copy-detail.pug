@@ -239,6 +239,8 @@ block content
                                             div
                                                 code.text-info.fs-6 #{b.code}
                                                 span.badge.text-bg-secondary.ms-2 #{b.symbology}
+                                            button.btn.btn-sm.btn-outline-danger.barcode-delete(type="button" data-barcode-id=b.id title="Remove barcode")
+                                                i.bi.bi-trash
                             
                             h6.mb-2 Add Barcode
                             form#barcodeForm.row.g-2

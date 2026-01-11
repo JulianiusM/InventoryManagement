@@ -8,6 +8,15 @@ block content
 
     #liveAlerts
 
+    //- Breadcrumb navigation
+    nav.mb-2(aria-label="breadcrumb")
+        ol.breadcrumb.mb-0
+            li.breadcrumb-item
+                a.text-info(href="/") Home
+            li.breadcrumb-item
+                a.text-info(href="/games") Games
+            li.breadcrumb-item.active.text-white(aria-current="page") Platforms
+
     .d-flex.justify-content-between.align-items-center.mb-3.flex-wrap.gap-2
         h1.h3.mb-0.text-white
             i.bi.bi-cpu.me-2

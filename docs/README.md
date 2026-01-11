@@ -16,6 +16,7 @@ Welcome to the Inventory Management documentation. This directory contains compr
 - **[DATABASE.md](DATABASE.md)** - Database entities, migrations, and patterns
 - **[FRONTEND.md](FRONTEND.md)** - Frontend architecture and modular structure
 - **[UI_REDESIGN_SUMMARY.md](UI_REDESIGN_SUMMARY.md)** - UI redesign documentation and patterns
+- **[UX_IMPROVEMENTS_2026_01.md](UX_IMPROVEMENTS_2026_01.md)** - UX improvements and bug fixes (January 2026)
 
 #### Testing
 - **[TESTING_GUIDE.md](TESTING_GUIDE.md)** - Complete testing guide (data-driven & keyword-driven)

@@ -63,13 +63,54 @@ function initReturnModal(): void {
     const returnForm = document.getElementById('returnLoanForm') as HTMLFormElement | null;
     const returnItemName = document.getElementById('returnItemName');
     
+    if (!returnForm) return;
+    
+    let currentLoanId: string | null = null;
+    
+    // Set up modal data when button is clicked
     returnModalBtns.forEach(function(btn) {
         btn.addEventListener('click', function(this: HTMLElement) {
-            const loanId = this.dataset.loanId;
+            currentLoanId = this.dataset.loanId || null;
             const itemName = this.dataset.itemName;
-            if (returnForm) returnForm.action = '/api/loans/' + loanId + '/return';
             if (returnItemName) returnItemName.textContent = itemName || '';
         });
+    });
+    
+    // Handle form submission via AJAX
+    returnForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        
+        if (!currentLoanId) {
+            showInlineAlert('error', 'No loan selected');
+            return;
+        }
+        
+        const formData = new FormData(returnForm);
+        const conditionIn = formData.get('conditionIn') as string || '';
+        
+        try {
+            const response = await post(`/api/loans/${currentLoanId}/return`, {
+                conditionIn: conditionIn || null
+            });
+            
+            if (response.status === 'success') {
+                showInlineAlert('success', 'Loan marked as returned');
+                // Close modal and reload page after short delay
+                const modalEl = document.getElementById('returnModal');
+                if (modalEl) {
+                    const bootstrap = (window as any).bootstrap;
+                    if (bootstrap && bootstrap.Modal) {
+                        const modal = bootstrap.Modal.getInstance(modalEl);
+                        if (modal) modal.hide();
+                    }
+                }
+                setTimeout(() => window.location.reload(), 1000);
+            } else {
+                showInlineAlert('error', response.message || 'Failed to return loan');
+            }
+        } catch (err) {
+            showInlineAlert('error', 'Error returning loan');
+        }
     });
 }
 
