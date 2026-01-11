@@ -8,6 +8,7 @@
  * - Game titles: CRUD, metadata, merge operations
  * - Game releases: CRUD, merge operations
  * - Game copies: CRUD, lending, barcodes
+ * - Game suggestions: Random game selection based on criteria
  * - External accounts: CRUD, sync, devices
  * - Mapping queue: Pending mappings resolution
  * - Platforms: CRUD, merge operations
