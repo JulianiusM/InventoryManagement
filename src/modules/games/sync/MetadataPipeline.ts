@@ -515,7 +515,7 @@ export class MetadataPipeline {
     ): Promise<Map<string, GameMetadata>> {
         const metadataCache = new Map<string, GameMetadata>();
         const config = settings.value;
-        const timeoutMs = config.igdbQueryTimeoutMs || 300000;
+        const timeoutMs = config.igdbQueryTimeoutMs || games.length * 1000;
         const startTime = Date.now();
         
         console.log(`Starting batch metadata processing for ${games.length} games`);
@@ -607,7 +607,7 @@ export class MetadataPipeline {
     
     /**
      * Search for metadata options from all applicable providers
-     * Returns deduplicated, sorted list for user selection
+     * Returns sorted list for user selection
      */
     async searchOptions(
         gameName: string,
@@ -624,18 +624,9 @@ export class MetadataPipeline {
             allResults.push(...results);
         }
         
-        // Deduplicate by name
-        const seenNames = new Set<string>();
-        const uniqueResults = allResults.filter(r => {
-            const key = r.name.toLowerCase().trim();
-            if (seenNames.has(key)) return false;
-            seenNames.add(key);
-            return true;
-        });
-        
         // Sort by relevance
         const normalizedQuery = gameName.toLowerCase().trim();
-        uniqueResults.sort((a, b) => {
+        allResults.sort((a, b) => {
             const aName = a.name.toLowerCase().trim();
             const bName = b.name.toLowerCase().trim();
             
@@ -653,7 +644,7 @@ export class MetadataPipeline {
             return aName.length - bName.length;
         });
         
-        return uniqueResults.slice(0, 15);
+        return allResults.slice(0, 50);
     }
 }
 
