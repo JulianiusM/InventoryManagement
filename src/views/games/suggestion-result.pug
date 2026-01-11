@@ -1,0 +1,186 @@
+extends ../layout
+
+block meta
+    title Suggestion Result | Inventory Management
+
+block content
+    - const suggestion = (data && data.suggestion) ? data.suggestion : null
+    - const criteria = (data && data.criteria) ? data.criteria : {}
+    - const platforms = (data && data.platforms) ? data.platforms : []
+    - const gameTypes = (data && data.gameTypes) ? data.gameTypes : []
+    - const typeLabels = {video_game: 'Video Game', board_game: 'Board Game', card_game: 'Card Game', tabletop_rpg: 'Tabletop RPG', other_physical_game: 'Other Physical'}
+
+    #liveAlerts
+
+    //- Breadcrumb navigation
+    nav.mb-2(aria-label="breadcrumb")
+        ol.breadcrumb.mb-0
+            li.breadcrumb-item
+                a.text-info(href="/") Home
+            li.breadcrumb-item
+                a.text-info(href="/games") Games
+            li.breadcrumb-item
+                a.text-info(href="/games/suggest") Suggestion
+            li.breadcrumb-item.active.text-white(aria-current="page") Result
+
+    .row.justify-content-center
+        .col-lg-8
+            if suggestion
+                //- Success - Game Found
+                .card.text-bg-dark.border-success.mb-4
+                    .card-body.p-4
+                        .text-center.mb-4
+                            i.bi.bi-trophy.display-1.text-success.mb-3.d-block
+                            h2.text-white.mb-3 We suggest:
+                            h3.text-success.mb-4 #{suggestion.name}
+
+                        //- Game Details
+                        .row
+                            if suggestion.coverImageUrl
+                                .col-md-4.mb-3
+                                    img.img-fluid.rounded(src=suggestion.coverImageUrl alt=`${suggestion.name} cover` style="width: 100%; max-height: 300px; object-fit: cover;")
+                            .col-md(class=suggestion.coverImageUrl ? '8' : '12')
+                                .mb-3
+                                    span.badge.text-bg-info.me-2 #{typeLabels[suggestion.type] || suggestion.type}
+                                    //- Overall player count badge
+                                    if suggestion.overallMaxPlayers
+                                        span.badge.text-bg-secondary.me-2
+                                            i.bi.bi-people.me-1
+                                            | #{suggestion.overallMinPlayers || 1}-#{suggestion.overallMaxPlayers} players
+                                    else if suggestion.supportsOnline || suggestion.supportsLocal || suggestion.supportsPhysical
+                                        span.badge.text-bg-warning.text-dark.me-2
+                                            i.bi.bi-people.me-1
+                                            i.bi.bi-exclamation-triangle.me-1
+                                            | ? players
+                                    else
+                                        span.badge.text-bg-secondary.me-2
+                                            i.bi.bi-people.me-1
+                                            | 1 player
+                                
+                                //- Game modes
+                                .mb-3
+                                    if suggestion.supportsOnline
+                                        span.badge.text-bg-primary.me-2
+                                            i.bi.bi-globe.me-1
+                                            | Online
+                                    if suggestion.supportsLocal
+                                        span.badge.text-bg-success.me-2
+                                            i.bi.bi-display.me-1
+                                            | Local
+                                    if suggestion.supportsPhysical
+                                        span.badge.text-bg-warning.text-dark.me-2
+                                            i.bi.bi-dice-5.me-1
+                                            | Physical
+                                
+                                if suggestion.description
+                                    p.text-white-50.mb-3 #{suggestion.description}
+                                
+                                //- Platforms (from releases)
+                                if suggestion.releases && suggestion.releases.length > 0
+                                    .mb-3
+                                        label.small.text-white-50.d-block Available on:
+                                        each release in suggestion.releases
+                                            span.badge.text-bg-secondary.me-1 #{release.platform}
+
+                        //- Action Buttons
+                        .d-grid.gap-2.d-md-flex.justify-content-center.mt-4
+                            a.btn.btn-success.btn-lg(href=`/games/titles/${suggestion.id}`)
+                                i.bi.bi-eye.me-2
+                                | View Details
+                            form.d-inline(method="post" action="/games/suggest")
+                                //- Preserve criteria
+                                if criteria.playerCount
+                                    input(type="hidden" name="playerCount" value=criteria.playerCount)
+                                if criteria.includeOnline
+                                    input(type="hidden" name="includeOnline" value=criteria.includeOnline)
+                                if criteria.includeLocal
+                                    input(type="hidden" name="includeLocal" value=criteria.includeLocal)
+                                if criteria.includePhysical
+                                    input(type="hidden" name="includePhysical" value=criteria.includePhysical)
+                                if criteria.includePlatforms
+                                    - const includePlatformsArray = Array.isArray(criteria.includePlatforms) ? criteria.includePlatforms : [criteria.includePlatforms]
+                                    each platform in includePlatformsArray
+                                        input(type="hidden" name="includePlatforms" value=platform)
+                                if criteria.excludePlatforms
+                                    - const excludePlatformsArray = Array.isArray(criteria.excludePlatforms) ? criteria.excludePlatforms : [criteria.excludePlatforms]
+                                    each platform in excludePlatformsArray
+                                        input(type="hidden" name="excludePlatforms" value=platform)
+                                if criteria.gameTypes
+                                    - const gameTypesArray = Array.isArray(criteria.gameTypes) ? criteria.gameTypes : [criteria.gameTypes]
+                                    each type in gameTypesArray
+                                        input(type="hidden" name="gameTypes" value=type)
+                                button.btn.btn-primary.btn-lg(type="submit")
+                                    i.bi.bi-shuffle.me-2
+                                    | Suggest Another
+                            a.btn.btn-outline-light.btn-lg(href="/games/suggest")
+                                i.bi.bi-sliders.me-2
+                                | Change Criteria
+
+            else
+                //- No matches found
+                .card.text-bg-dark.border-warning
+                    .card-body.p-4.text-center
+                        i.bi.bi-emoji-frown.display-1.text-warning.mb-3.d-block
+                        h3.text-white.mb-3 No games found
+                        p.text-white-50.mb-4 We couldn't find any games matching your criteria. Try adjusting your filters.
+
+                        //- Show applied filters
+                        .alert.text-bg-dark.border-secondary.text-start.mb-4
+                            h6.text-white.mb-2
+                                i.bi.bi-funnel.me-2
+                                | Your filters:
+                            if criteria.playerCount
+                                p.mb-1.small
+                                    i.bi.bi-people.me-2
+                                    strong Player count:
+                                    |  #{criteria.playerCount}
+                            if criteria.includeOnline
+                                p.mb-1.small
+                                    i.bi.bi-globe.me-2
+                                    strong Online:
+                                    |  #{criteria.includeOnline === 'require' ? 'Required' : (criteria.includeOnline === 'exclude' ? 'Excluded' : 'Any')}
+                            if criteria.includeLocal
+                                p.mb-1.small
+                                    i.bi.bi-display.me-2
+                                    strong Local:
+                                    |  #{criteria.includeLocal === 'require' ? 'Required' : (criteria.includeLocal === 'exclude' ? 'Excluded' : 'Any')}
+                            if criteria.includePhysical
+                                p.mb-1.small
+                                    i.bi.bi-dice-5.me-2
+                                    strong Physical:
+                                    |  #{criteria.includePhysical === 'require' ? 'Required' : (criteria.includePhysical === 'exclude' ? 'Excluded' : 'Any')}
+                            if criteria.includePlatforms
+                                - const includePlatformsArray = Array.isArray(criteria.includePlatforms) ? criteria.includePlatforms : [criteria.includePlatforms]
+                                if includePlatformsArray.length > 0
+                                    p.mb-1.small
+                                        i.bi.bi-cpu.me-2
+                                        strong Include platforms:
+                                        |  #{includePlatformsArray.join(', ')}
+                            if criteria.excludePlatforms
+                                - const excludePlatformsArray = Array.isArray(criteria.excludePlatforms) ? criteria.excludePlatforms : [criteria.excludePlatforms]
+                                if excludePlatformsArray.length > 0
+                                    p.mb-1.small
+                                        i.bi.bi-cpu.me-2
+                                        strong Exclude platforms:
+                                        |  #{excludePlatformsArray.join(', ')}
+                            if criteria.gameTypes
+                                - const gameTypesArray = Array.isArray(criteria.gameTypes) ? criteria.gameTypes : [criteria.gameTypes]
+                                if gameTypesArray.length > 0
+                                    p.mb-1.small
+                                        i.bi.bi-grid.me-2
+                                        strong Game types:
+                                        |  #{gameTypesArray.map(t => typeLabels[t] || t).join(', ')}
+
+                        .d-grid.gap-2.d-md-flex.justify-content-center
+                            a.btn.btn-primary.btn-lg(href="/games/suggest")
+                                i.bi.bi-sliders.me-2
+                                | Change Criteria
+                            a.btn.btn-outline-light.btn-lg(href="/games")
+                                i.bi.bi-arrow-left.me-2
+                                | Back to Games
+
+            //- Back link
+            .text-center.mt-3
+                a.text-info(href="/games")
+                    i.bi.bi-arrow-left.me-1
+                    | Back to all games

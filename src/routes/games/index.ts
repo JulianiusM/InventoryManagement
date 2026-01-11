@@ -17,6 +17,7 @@ import mappingRoutes from './mappingRoutes';
 import platformRoutes from './platformRoutes';
 import jobRoutes from './jobRoutes';
 import loanRoutes from './loanRoutes';
+import suggestionRoutes from './suggestionRoutes';
 
 const router = express.Router();
 
@@ -26,6 +27,7 @@ router.use(requireAuth);
 // Mount sub-routers
 // Note: Order matters - more specific routes first
 
+router.use('/suggest', suggestionRoutes);
 router.use('/titles', titleRoutes);
 router.use('/releases', releaseRoutes);
 router.use('/copies', copyRoutes);

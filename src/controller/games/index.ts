@@ -22,6 +22,7 @@ export * from './gameAccountController';
 export * from './gameMappingController';
 export * from './gamePlatformController';
 export * from './gameJobsController';
+export * from './gameSuggestionController';
 
 // Re-export helpers for advanced use cases
 export * from './helpers';
