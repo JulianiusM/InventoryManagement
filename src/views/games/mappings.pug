@@ -190,14 +190,13 @@ block content
                                                                 title="Merge into first title"
                                                             )
                                                                 i.bi.bi-arrow-left-right
-                        //- Dismiss all pairs in this group
-                        if group.pairs && group.pairs.length > 0
+                        //- Dismiss button for this group (dismisses first pair to break the group)
+                        if group.pairs && group.pairs.length > 0 && group.pairs[0]
                             .card-footer.bg-transparent.border-secondary.d-flex.justify-content-end
-                                each pair in group.pairs.slice(0, 1)
-                                    form.d-inline(method="post" action=`/games/mappings/dismiss-pair/${pair.pairId}`)
-                                        button.btn.btn-sm.btn-outline-secondary(type="submit" title="Dismiss this similar pair")
-                                            i.bi.bi-x-lg.me-1
-                                            | Dismiss Group
+                                form.d-inline(method="post" action=`/games/mappings/dismiss-pair/${group.pairs[0].pairId}`)
+                                    button.btn.btn-sm.btn-outline-secondary(type="submit" title="Dismiss this similar group")
+                                        i.bi.bi-x-lg.me-1
+                                        | Dismiss
 
         //- Missing Metadata Panel
         #metadata-panel.tab-pane.fade(

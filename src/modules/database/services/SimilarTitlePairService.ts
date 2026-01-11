@@ -1,6 +1,8 @@
 import {AppDataSource} from '../dataSource';
 import {SimilarTitlePair} from '../entities/similarTitlePair/SimilarTitlePair';
 import {GameTitle} from '../entities/gameTitle/GameTitle';
+import {SyncJob} from '../entities/syncJob/SyncJob';
+import {SyncJobType, SyncStatus} from '../../../types/InventoryEnums';
 
 // ============ Similarity Algorithm Constants ============
 
@@ -407,12 +409,11 @@ export async function getSimilarPairCount(ownerId: number): Promise<number> {
  * Create a similarity analysis job.
  */
 export async function createSimilarityAnalysisJob(ownerId: number): Promise<string> {
-    const syncJobRepo = AppDataSource.getRepository('SyncJob');
-    const job = {
-        ownerId,
-        jobType: 'similarity_analysis',
-        status: 'pending',
-    };
+    const syncJobRepo = AppDataSource.getRepository(SyncJob);
+    const job = new SyncJob();
+    job.ownerId = ownerId;
+    job.jobType = SyncJobType.SIMILARITY_ANALYSIS;
+    job.status = SyncStatus.PENDING;
     const savedJob = await syncJobRepo.save(job);
     return savedJob.id;
 }

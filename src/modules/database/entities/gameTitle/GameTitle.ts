@@ -72,6 +72,9 @@ export class GameTitle {
 
     // Dismissal flags for metadata management page
     // When true, the title is hidden from the corresponding issue list
+    
+    // DEPRECATED: Similar title dismissals now use per-pair tracking via SimilarTitlePair entity
+    // This column is kept for backwards compatibility but is no longer used
     @Column("boolean", {name: "dismissed_similar", default: false})
     dismissedSimilar!: boolean;
 
