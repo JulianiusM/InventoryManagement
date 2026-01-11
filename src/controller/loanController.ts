@@ -5,6 +5,7 @@ import {ExpectedError} from '../modules/lib/errors';
 import {checkOwnership, requireAuthenticatedUser} from '../middleware/authMiddleware';
 import {Loan} from '../modules/database/entities/loan/Loan';
 import {ItemCondition, ItemType, LoanDirection, LoanStatus} from '../types/InventoryEnums';
+import settings from '../modules/settings';
 
 const validConditions = Object.values(ItemCondition) as string[];
 
@@ -23,7 +24,7 @@ export async function listLoans(ownerId: number, options?: {
     );
     
     const page = options?.page || 1;
-    const perPage = Math.min(options?.perPage || 30, 100);
+    const perPage = Math.min(options?.perPage || settings.value.paginationDefaultLoans, settings.value.paginationMaxPerPage);
     const tab = options?.tab || 'active';
     
     // Select which loans to paginate

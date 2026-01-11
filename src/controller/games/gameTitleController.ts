@@ -18,6 +18,7 @@ import {type MetadataSearchResult} from '../../modules/games/metadata/MetadataPr
 import {validatePlayerProfile, PlayerProfileValidationError} from '../../modules/database/services/GameValidationService';
 import {ExpectedError} from '../../modules/lib/errors';
 import {checkOwnership, requireAuthenticatedUser} from '../../middleware/authMiddleware';
+import settings from '../../modules/settings';
 import {GameTitle} from '../../modules/database/entities/gameTitle/GameTitle';
 import {GameType} from '../../types/InventoryEnums';
 import {CreateGameTitleBody, MergeGameTitlesBody} from '../../types/GamesTypes';
@@ -100,7 +101,7 @@ export async function listGameTitles(ownerId: number, options?: {
     return {
         titles,
         platforms,
-        perPage: options?.limit || 24,
+        perPage: options?.limit || settings.value.paginationDefaultGames,
         platformFilter: options?.platformFilter || '',
         modeFilter: options?.modeFilter || '',
         pagination: {

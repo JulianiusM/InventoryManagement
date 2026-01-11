@@ -3,6 +3,7 @@ import {SimilarTitlePair} from '../entities/similarTitlePair/SimilarTitlePair';
 import {GameTitle} from '../entities/gameTitle/GameTitle';
 import {SyncJob} from '../entities/syncJob/SyncJob';
 import {SyncJobType, SyncStatus} from '../../../types/InventoryEnums';
+import settings from '../../settings';
 
 // ============ Similarity Algorithm Constants ============
 
@@ -21,12 +22,6 @@ const SEQUEL_PATTERNS = [
     // Beta/alpha/demo markers
     ///^(beta|alpha|demo|trial|test|preview)$/i,
 ];
-
-// Minimum normalized length to consider for matching
-const MIN_NORMALIZED_LENGTH = 4;
-
-// Minimum similarity score to create a pair
-const MIN_SIMILARITY_SCORE = 50;
 
 /**
  * Aggressively normalize a title for comparison.
@@ -75,7 +70,7 @@ export function calculateSimilarity(nameA: string, nameB: string): {score: numbe
     }
     
     // Too short to match reliably
-    if (normA.length < MIN_NORMALIZED_LENGTH || normB.length < MIN_NORMALIZED_LENGTH) {
+    if (normA.length < settings.value.minNormalizedTitleLength || normB.length < settings.value.minNormalizedTitleLength) {
         return {score: 0, matchType: 'none'};
     }
     
@@ -356,7 +351,7 @@ export async function runSimilarityAnalysis(ownerId: number): Promise<{
         for (let j = i + 1; j < titles.length; j++) {
             const {score, matchType} = calculateSimilarity(titles[i].name, titles[j].name);
             
-            if (score >= MIN_SIMILARITY_SCORE) {
+            if (score >= settings.value.minSimilarityScore) {
                 // Ensure consistent ordering by ID
                 const [idA, idB] = [titles[i].id, titles[j].id].sort();
                 newPairs.push({

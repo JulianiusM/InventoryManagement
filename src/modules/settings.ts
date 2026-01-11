@@ -51,7 +51,31 @@ export type Settings = {
     boardGameAtlasClientId: string;
     
     // Metadata sync configuration
-    igdbQueryTimeoutMs: number;
+    metadataEnrichmentQueryTimeoutMs: number;
+
+    // Token expiration (in milliseconds)
+    tokenExpirationMs: number;
+
+    // Rate limiting configuration
+    rateLimitWindowMs: number;
+    rateLimitMaxPushConnector: number;
+    rateLimitMaxDeviceRegistration: number;
+
+    // Pagination defaults
+    paginationDefaultItems: number;
+    paginationDefaultLocations: number;
+    paginationDefaultGames: number;
+    paginationDefaultLoans: number;
+    paginationMaxPerPage: number;
+    paginationMaxTimezoneItems: number;
+
+    // Description length constraints
+    minValidDescriptionLength: number;
+    maxDescriptionLength: number;
+
+    // Similar title matching thresholds
+    minNormalizedTitleLength: number;
+    minSimilarityScore: number;
 
     initialized: boolean;
 };
@@ -101,7 +125,31 @@ const defaults: Settings = {
     boardGameAtlasClientId: "",
     
     // Metadata sync configuration
-    igdbQueryTimeoutMs: 3000000, // 5 minutes default for thorough metadata enrichment
+    metadataEnrichmentQueryTimeoutMs: 3000000, // 5 minutes default for thorough metadata enrichment
+
+    // Token expiration (1 hour in milliseconds)
+    tokenExpirationMs: 3600_000,
+
+    // Rate limiting configuration (1 hour window)
+    rateLimitWindowMs: 60 * 60 * 1000,
+    rateLimitMaxPushConnector: 10,
+    rateLimitMaxDeviceRegistration: 5,
+
+    // Pagination defaults
+    paginationDefaultItems: 30,
+    paginationDefaultLocations: 50,
+    paginationDefaultGames: 24,
+    paginationDefaultLoans: 30,
+    paginationMaxPerPage: 100,
+    paginationMaxTimezoneItems: 200,
+
+    // Description length constraints
+    minValidDescriptionLength: 50,
+    maxDescriptionLength: 250,
+
+    // Similar title matching thresholds
+    minNormalizedTitleLength: 4,
+    minSimilarityScore: 50,
 };
 
 // CSV_KEY -> settings key
@@ -136,7 +184,21 @@ const keyMap: Record<string, keyof Settings> = {
     TWITCH_CLIENT_ID: "twitchClientId",
     TWITCH_CLIENT_SECRET: "twitchClientSecret",
     BOARD_GAME_ATLAS_CLIENT_ID: "boardGameAtlasClientId",
-    IGDB_QUERY_TIMEOUT_MS: "igdbQueryTimeoutMs",
+    METADATA_ENRICHMENT_QUERY_TIMEOUT_MS: "metadataEnrichmentQueryTimeoutMs",
+    TOKEN_EXPIRATION_MS: "tokenExpirationMs",
+    RATE_LIMIT_WINDOW_MS: "rateLimitWindowMs",
+    RATE_LIMIT_MAX_PUSH_CONNECTOR: "rateLimitMaxPushConnector",
+    RATE_LIMIT_MAX_DEVICE_REGISTRATION: "rateLimitMaxDeviceRegistration",
+    PAGINATION_DEFAULT_ITEMS: "paginationDefaultItems",
+    PAGINATION_DEFAULT_LOCATIONS: "paginationDefaultLocations",
+    PAGINATION_DEFAULT_GAMES: "paginationDefaultGames",
+    PAGINATION_DEFAULT_LOANS: "paginationDefaultLoans",
+    PAGINATION_MAX_PER_PAGE: "paginationMaxPerPage",
+    PAGINATION_MAX_TIMEZONE_ITEMS: "paginationMaxTimezoneItems",
+    MIN_VALID_DESCRIPTION_LENGTH: "minValidDescriptionLength",
+    MAX_DESCRIPTION_LENGTH: "maxDescriptionLength",
+    MIN_NORMALIZED_TITLE_LENGTH: "minNormalizedTitleLength",
+    MIN_SIMILARITY_SCORE: "minSimilarityScore",
 };
 
 // per-field coercion
@@ -144,7 +206,21 @@ const coerce: Partial<Record<keyof Settings, (v: string) => any>> = {
     dbPort: (v) => Number(v),
     smtpPort: (v) => Number(v),
     appPort: (v) => Number(v),
-    igdbQueryTimeoutMs: (v) => Number(v),
+    metadataEnrichmentQueryTimeoutMs: (v) => Number(v),
+    tokenExpirationMs: (v) => Number(v),
+    rateLimitWindowMs: (v) => Number(v),
+    rateLimitMaxPushConnector: (v) => Number(v),
+    rateLimitMaxDeviceRegistration: (v) => Number(v),
+    paginationDefaultItems: (v) => Number(v),
+    paginationDefaultLocations: (v) => Number(v),
+    paginationDefaultGames: (v) => Number(v),
+    paginationDefaultLoans: (v) => Number(v),
+    paginationMaxPerPage: (v) => Number(v),
+    paginationMaxTimezoneItems: (v) => Number(v),
+    minValidDescriptionLength: (v) => Number(v),
+    maxDescriptionLength: (v) => Number(v),
+    minNormalizedTitleLength: (v) => Number(v),
+    minSimilarityScore: (v) => Number(v),
     smtpPool: (v) => /^(1|true|yes|on)$/i.test(v),
     smtpSecure: (v) => /^(1|true|yes|on)$/i.test(v),
     localLoginEnabled: (v) => /^(1|true|yes|on)$/i.test(v),

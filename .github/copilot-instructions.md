@@ -33,10 +33,34 @@ For comprehensive documentation:
 2. **Database**: Always create migrations, never use synchronize in production
 3. **Testing**: Use data-driven and keyword-driven approaches (see TESTING.md)
 4. **Security**: Never commit secrets, validate all input, hash passwords
-5. **Following Directions**: Always follow user directions. If you are not sure, make reasonable assumptions. Interpret requirements conservatively.
-6. **Generic approach**: If the user asks you to fix all tests, fix all tests including database and e2e tests. Fix all issues including those that are not influenced or caused by your changes.
-7. **Pre-commit requirement**: **ALWAYS run all tests (including database and E2E) before committing. All tests must pass. Fix all test failures, including unrelated ones.**
-8. **Dark theme**: All UI pages use Bootstrap dark theme (`text-bg-dark`, `table-dark`, `text-white`, `text-white-50` for muted)
+5. **Configuration**: Use the centralized settings module (`src/modules/settings.ts`) for all configuration constants. Never hardcode values like timeouts, limits, or thresholds.
+6. **Following Directions**: Always follow user directions. If you are not sure, make reasonable assumptions. Interpret requirements conservatively.
+7. **Generic approach**: If the user asks you to fix all tests, fix all tests including database and e2e tests. Fix all issues including those that are not influenced or caused by your changes.
+8. **Pre-commit requirement**: **ALWAYS run all tests (including database and E2E) before committing. All tests must pass. Fix all test failures, including unrelated ones.**
+9. **Dark theme**: All UI pages use Bootstrap dark theme (`text-bg-dark`, `table-dark`, `text-white`, `text-white-50` for muted)
+
+## Configuration Management
+
+All configuration constants are centralized in `src/modules/settings.ts`. This includes:
+- Token expiration times
+- Rate limiting parameters
+- Pagination defaults and limits
+- Description length constraints
+- Metadata scoring thresholds
+- Similar title matching parameters
+
+**Never hardcode these values in business logic**. Always use `settings.value.<propertyName>` to access them.
+
+Example:
+```typescript
+import settings from '../modules/settings';
+
+// Good
+const limit = options?.limit || settings.value.paginationDefaultGames;
+
+// Bad
+const limit = options?.limit || 24;  // Hardcoded constant
+```
 
 ## Testing Approach
 

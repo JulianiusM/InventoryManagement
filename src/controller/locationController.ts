@@ -4,6 +4,7 @@ import {ExpectedError} from '../modules/lib/errors';
 import {checkOwnership, requireAuthenticatedUser} from '../middleware/authMiddleware';
 import {Location} from '../modules/database/entities/location/Location';
 import {LocationKind} from '../types/InventoryEnums';
+import settings from '../modules/settings';
 
 export async function listLocations(ownerId: number, options?: {
     page?: number;
@@ -15,7 +16,7 @@ export async function listLocations(ownerId: number, options?: {
     let tree = await locationService.getLocationTree(ownerId);
     
     const page = options?.page || 1;
-    const perPage = Math.min(options?.perPage || 50, 100); // Max 100 locations per page
+    const perPage = Math.min(options?.perPage || settings.value.paginationDefaultLocations, settings.value.paginationMaxPerPage);
     
     // Apply search filter
     if (options?.search) {
