@@ -104,6 +104,18 @@ export async function getPendingJobs(): Promise<SyncJob[]> {
 }
 
 /**
+ * Create a similarity analysis job
+ */
+export async function createSimilarityAnalysisJob(ownerId: number): Promise<SyncJob> {
+    const repo = AppDataSource.getRepository(SyncJob);
+    const job = new SyncJob();
+    job.ownerId = ownerId;
+    job.jobType = SyncJobType.SIMILARITY_ANALYSIS;
+    job.status = SyncStatus.PENDING;
+    return await repo.save(job);
+}
+
+/**
  * Get all sync jobs for a user (across all their accounts + metadata resync jobs)
  * For the Jobs Overview page
  */

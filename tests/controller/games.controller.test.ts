@@ -89,9 +89,13 @@ jest.mock('../../src/modules/database/services/GameExternalMappingService');
 jest.mock('../../src/modules/database/services/LocationService');
 jest.mock('../../src/modules/database/services/PartyService');
 jest.mock('../../src/modules/games/GameSyncService');
+jest.mock('../../src/modules/database/services/SimilarTitlePairService');
+jest.mock('../../src/modules/database/services/SyncJobService');
 
 import * as gameTitleService from '../../src/modules/database/services/GameTitleService';
 import * as gameMappingService from '../../src/modules/database/services/GameExternalMappingService';
+import * as similarTitlePairService from '../../src/modules/database/services/SimilarTitlePairService';
+import * as syncJobService from '../../src/modules/database/services/SyncJobService';
 import * as itemService from '../../src/modules/database/services/ItemService';
 import * as loanService from '../../src/modules/database/services/LoanService';
 import * as gamesController from '../../src/controller/gamesController';
@@ -184,7 +188,10 @@ describe('gamesController', () => {
         beforeEach(() => {
             setupMock(gameMappingService.getPendingMappings as jest.Mock, []);
             setupMock(gameTitleService.getAllGameTitles as jest.Mock, []);
-            setupMock(gameTitleService.findSimilarTitles as jest.Mock, []);
+            setupMock(similarTitlePairService.getSimilarTitleGroups as jest.Mock, []);
+            setupMock(similarTitlePairService.getSimilarPairCount as jest.Mock, 0);
+            setupMock(similarTitlePairService.resetSimilarDismissals as jest.Mock, 0);
+            setupMock(syncJobService.createSimilarityAnalysisJob as jest.Mock, {id: 'job-1'});
             setupMock(gameTitleService.findTitlesMissingMetadata as jest.Mock, []);
             setupMock(gameTitleService.findTitlesWithInvalidPlayerCounts as jest.Mock, []);
             setupMock(gameTitleService.getMetadataIssueCounts as jest.Mock, {

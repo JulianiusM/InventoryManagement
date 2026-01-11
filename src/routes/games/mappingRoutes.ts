@@ -34,6 +34,34 @@ router.post('/bulk-ignore', asyncHandler(async (req: Request, res: Response) => 
     res.redirect('/games/mappings');
 }));
 
+// ============ Similarity Analysis Routes ============
+
+// Trigger similarity analysis background job
+router.post('/analyze-similar', asyncHandler(async (req: Request, res: Response) => {
+    const userId = req.session.user!.id;
+    const jobId = await gamesController.triggerSimilarityAnalysis(userId);
+    req.flash('success', `Similarity analysis started (job ${jobId.slice(0, 8)}...)`);
+    res.redirect('/games/mappings');
+}));
+
+// Dismiss a similar title pair
+router.post('/dismiss-pair/:pairId', asyncHandler(async (req: Request, res: Response) => {
+    const pairId = req.params.pairId;
+    const userId = req.session.user!.id;
+    await gamesController.dismissSimilarPair(pairId, userId);
+    req.flash('success', 'Similar pair dismissed');
+    res.redirect('/games/mappings');
+}));
+
+// Undismiss a similar title pair
+router.post('/undismiss-pair/:pairId', asyncHandler(async (req: Request, res: Response) => {
+    const pairId = req.params.pairId;
+    const userId = req.session.user!.id;
+    await gamesController.undismissSimilarPair(pairId, userId);
+    req.flash('success', 'Similar pair restored');
+    res.redirect('/games/mappings');
+}));
+
 // ============ Metadata Management Routes ============
 
 // Dismiss a title from an issue type
@@ -80,7 +108,7 @@ router.post('/reset-dismissals', asyncHandler(async (req: Request, res: Response
     }
 
     const affected = await gamesController.resetDismissals(userId, dismissalType);
-    req.flash('success', `Reset dismissals for ${affected} title(s)`);
+    req.flash('success', `Reset dismissals for ${affected} item(s)`);
     res.redirect('/games/mappings');
 }));
 

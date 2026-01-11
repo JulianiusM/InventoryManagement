@@ -13,10 +13,11 @@ import { Location } from "./entities/location/Location";
 import { Party } from "./entities/party/Party";
 import { Platform } from "./entities/platform/Platform";
 import { Session } from "./entities/session/Session";
+import { SimilarTitlePair } from "./entities/similarTitlePair/SimilarTitlePair";
 import { SyncJob } from "./entities/syncJob/SyncJob";
 import { User } from "./entities/user/User";
 
-export const entities = [Barcode, ConnectorDevice, ExternalAccount, ExternalLibraryEntry, GameExternalMapping, GameRelease, GameTitle, Item, ItemMovement, Loan, Location, Party, Platform, Session, SyncJob, User];
+export const entities = [Barcode, ConnectorDevice, ExternalAccount, ExternalLibraryEntry, GameExternalMapping, GameRelease, GameTitle, Item, ItemMovement, Loan, Location, Party, Platform, Session, SimilarTitlePair, SyncJob, User];
 
 export const migrations = [];
 

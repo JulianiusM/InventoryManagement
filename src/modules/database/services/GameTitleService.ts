@@ -337,173 +337,9 @@ export async function mergeGameTitleAsRelease(
 
 // ============ Metadata Management Functions ============
 
-export interface SimilarTitleGroup {
-    /** Base normalized name that groups these titles */
-    normalizedName: string;
-    /** Titles that share the similar normalized name */
-    titles: GameTitle[];
-}
-
-/**
- * Find game titles with similar names (potential merge candidates).
- * Groups titles by normalized name to find duplicates/editions.
- * 
- * @param ownerId Owner user ID
- * @param includeDismissed Whether to include dismissed items
- * @returns Groups of similar titles (2+ titles per group)
- */
-// Constants for similarity matching
-const MIN_SIMILARITY_LENGTH = 6; // Minimum normalized name length to consider for matching
-const MAX_TITLES_FOR_CONTAINMENT_CHECK = 1000; // Performance guard for O(n²) containment check
-
-/**
- * Aggressively normalize a title for similarity matching.
- * Removes all non-alphanumeric characters, converts to lowercase.
- * E.g., "Killing Floor 2" -> "killingfloor2", "KillingFloor2Beta" -> "killingfloor2beta"
- */
-function aggressiveNormalize(title: string): string {
-    return title
-        .toLowerCase()
-        .replace(/[^a-z0-9]/g, ''); // Keep only alphanumeric
-}
-
-/**
- * Check if two titles are similar using containment matching.
- * E.g., "killingfloor2" is contained in "killingfloor2beta"
- */
-function areTitlesSimilar(normA: string, normB: string): boolean {
-    if (normA === normB) return true;
-    // Check containment (one is prefix/suffix of the other with some overlap)
-    // Minimum overlap: at least MIN_SIMILARITY_LENGTH characters to avoid false positives
-    const minLength = Math.min(normA.length, normB.length);
-    if (minLength < MIN_SIMILARITY_LENGTH) return false;
-    
-    // Check if shorter is contained in longer
-    const shorter = normA.length <= normB.length ? normA : normB;
-    const longer = normA.length <= normB.length ? normB : normA;
-    
-    return longer.includes(shorter);
-}
-
-export async function findSimilarTitles(
-    ownerId: number, 
-    includeDismissed = false
-): Promise<SimilarTitleGroup[]> {
-    const repo = AppDataSource.getRepository(GameTitle);
-    
-    // Get all titles for owner
-    let titles = await repo.find({
-        where: {owner: {id: ownerId}},
-        relations: ['releases'],
-        order: {name: 'ASC'},
-    });
-    
-    // Filter out dismissed if needed
-    if (!includeDismissed) {
-        titles = titles.filter(t => !t.dismissedSimilar);
-    }
-    
-    // Pre-compute normalized names for all titles
-    const normalizedTitles: Array<{title: GameTitle; normalized: string; baseName: string}> = 
-        titles.map(t => {
-            const {baseName} = extractEdition(t.name);
-            return {
-                title: t,
-                normalized: aggressiveNormalize(baseName),
-                baseName,
-            };
-        });
-    
-    // First pass: group by exact normalized name (fast O(n))
-    const exactGroups = new Map<string, GameTitle[]>();
-    for (const {title, normalized} of normalizedTitles) {
-        if (!exactGroups.has(normalized)) {
-            exactGroups.set(normalized, []);
-        }
-        exactGroups.get(normalized)!.push(title);
-    }
-    
-    // Second pass: find containment matches (O(n²) but efficient with early exit)
-    // Use a union-find approach to group similar titles
-    const titleIndex = new Map<string, number>(); // title.id -> index
-    normalizedTitles.forEach((nt, idx) => titleIndex.set(nt.title.id, idx));
-    
-    const parent: number[] = normalizedTitles.map((_, i) => i);
-    
-    function find(i: number): number {
-        if (parent[i] !== i) {
-            parent[i] = find(parent[i]);
-        }
-        return parent[i];
-    }
-    
-    function union(i: number, j: number): void {
-        const pi = find(i);
-        const pj = find(j);
-        if (pi !== pj) {
-            parent[pi] = pj;
-        }
-    }
-    
-    // Union titles that match exactly (fast)
-    for (const [, groupTitles] of exactGroups) {
-        if (groupTitles.length >= 2) {
-            const firstIdx = titleIndex.get(groupTitles[0].id)!;
-            for (let i = 1; i < groupTitles.length; i++) {
-                union(firstIdx, titleIndex.get(groupTitles[i].id)!);
-            }
-        }
-    }
-    
-    // Union titles with containment relationship (O(n²) but with early termination)
-    // Limit to reasonable library size for performance
-    if (normalizedTitles.length <= MAX_TITLES_FOR_CONTAINMENT_CHECK) {
-        for (let i = 0; i < normalizedTitles.length; i++) {
-            for (let j = i + 1; j < normalizedTitles.length; j++) {
-                if (find(i) !== find(j) && 
-                    areTitlesSimilar(normalizedTitles[i].normalized, normalizedTitles[j].normalized)) {
-                    union(i, j);
-                }
-            }
-        }
-    }
-    
-    // Build final groups from union-find
-    const finalGroups = new Map<number, GameTitle[]>();
-    for (let i = 0; i < normalizedTitles.length; i++) {
-        const root = find(i);
-        if (!finalGroups.has(root)) {
-            finalGroups.set(root, []);
-        }
-        finalGroups.get(root)!.push(normalizedTitles[i].title);
-    }
-    
-    // Only return groups with 2+ titles
-    const result: SimilarTitleGroup[] = [];
-    for (const [rootIdx, groupTitles] of finalGroups) {
-        if (groupTitles.length >= 2) {
-            // Find the shortest normalized name in the group for display
-            let shortestNormalized = normalizedTitles[rootIdx].normalized;
-            for (const title of groupTitles) {
-                const titleIdx = normalizedTitles.findIndex(nt => nt.title.id === title.id);
-                if (titleIdx >= 0 && normalizedTitles[titleIdx].normalized.length < shortestNormalized.length) {
-                    shortestNormalized = normalizedTitles[titleIdx].normalized;
-                }
-            }
-            result.push({normalizedName: shortestNormalized, titles: groupTitles});
-        }
-    }
-    
-    // Sort by group size (largest first) then by name
-    result.sort((a, b) => {
-        if (b.titles.length !== a.titles.length) {
-            return b.titles.length - a.titles.length;
-        }
-        return a.normalizedName.localeCompare(b.normalizedName);
-    });
-    
-    return result;
-}
+// NOTE: Similar titles functionality has been moved to SimilarTitlePairService
+// which uses background jobs and per-pair dismissals.
+// The functions below handle missing metadata and invalid player counts only.
 
 /**
  * Find game titles that are missing essential metadata.
@@ -609,10 +445,13 @@ export async function findTitlesWithInvalidPlayerCounts(
     });
 }
 
+// Note: 'similar' dismissal type is deprecated - similar titles now use per-pair dismissals
+// via SimilarTitlePairService. Keeping 'similar' for backwards compatibility but it's no-op.
 export type DismissalType = 'similar' | 'missing_metadata' | 'invalid_players';
 
 /**
  * Dismiss a title from a specific issue type.
+ * Note: 'similar' type is deprecated, use SimilarTitlePairService.dismissPair() instead.
  * 
  * @param titleId Title ID to dismiss
  * @param dismissalType Type of dismissal
@@ -623,8 +462,9 @@ export async function dismissTitle(titleId: string, dismissalType: DismissalType
     const updates: Partial<GameTitle> = {};
     switch (dismissalType) {
         case 'similar':
-            updates.dismissedSimilar = true;
-            break;
+            // Deprecated - similar titles now use per-pair dismissals
+            // Keep for backwards compatibility but do nothing
+            return;
         case 'missing_metadata':
             updates.dismissedMissingMetadata = true;
             break;
@@ -638,6 +478,7 @@ export async function dismissTitle(titleId: string, dismissalType: DismissalType
 
 /**
  * Undismiss a title from a specific issue type.
+ * Note: 'similar' type is deprecated, use SimilarTitlePairService.undismissPair() instead.
  * 
  * @param titleId Title ID to undismiss
  * @param dismissalType Type of dismissal to clear
@@ -648,8 +489,8 @@ export async function undismissTitle(titleId: string, dismissalType: DismissalTy
     const updates: Partial<GameTitle> = {};
     switch (dismissalType) {
         case 'similar':
-            updates.dismissedSimilar = false;
-            break;
+            // Deprecated - similar titles now use per-pair dismissals
+            return;
         case 'missing_metadata':
             updates.dismissedMissingMetadata = false;
             break;
@@ -663,6 +504,7 @@ export async function undismissTitle(titleId: string, dismissalType: DismissalTy
 
 /**
  * Reset all dismissals for a user (global reset).
+ * Note: 'similar' dismissals are now handled by SimilarTitlePairService.resetSimilarDismissals()
  * 
  * @param ownerId Owner user ID
  * @param dismissalType Optional specific type to reset, or all if not provided
@@ -675,14 +517,17 @@ export async function resetDismissals(
     const repo = AppDataSource.getRepository(GameTitle);
     
     const updates: Partial<GameTitle> = {};
-    if (!dismissalType || dismissalType === 'similar') {
-        updates.dismissedSimilar = false;
-    }
+    // Note: 'similar' is deprecated - use SimilarTitlePairService.resetSimilarDismissals()
     if (!dismissalType || dismissalType === 'missing_metadata') {
         updates.dismissedMissingMetadata = false;
     }
     if (!dismissalType || dismissalType === 'invalid_players') {
         updates.dismissedInvalidPlayers = false;
+    }
+    
+    // Only update if there are fields to update
+    if (Object.keys(updates).length === 0) {
+        return 0;
     }
     
     const result = await repo
@@ -697,6 +542,7 @@ export async function resetDismissals(
 
 /**
  * Get counts for all metadata management issue types.
+ * Note: similarCount now uses the pre-computed SimilarTitlePairService data.
  * 
  * @param ownerId Owner user ID
  * @returns Object with counts for each issue type
@@ -707,14 +553,14 @@ export async function getMetadataIssueCounts(ownerId: number): Promise<{
     invalidPlayersCount: number;
     totalCount: number;
 }> {
-    const [similarGroups, missingMetadata, invalidPlayers] = await Promise.all([
-        findSimilarTitles(ownerId, false),
+    // Import here to avoid circular dependency
+    const {getSimilarPairCount} = await import('./SimilarTitlePairService');
+    
+    const [similarCount, missingMetadata, invalidPlayers] = await Promise.all([
+        getSimilarPairCount(ownerId),
         findTitlesMissingMetadata(ownerId, false),
         findTitlesWithInvalidPlayerCounts(ownerId, false),
     ]);
-    
-    // Similar count = number of titles in groups (not number of groups)
-    const similarCount = similarGroups.reduce((sum, g) => sum + g.titles.length, 0);
     
     return {
         similarCount,

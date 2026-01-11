@@ -6,11 +6,13 @@
 import * as gameMappingService from '../../modules/database/services/GameExternalMappingService';
 import * as gameTitleService from '../../modules/database/services/GameTitleService';
 import * as gameReleaseService from '../../modules/database/services/GameReleaseService';
+import * as similarTitlePairService from '../../modules/database/services/SimilarTitlePairService';
+import * as syncJobService from '../../modules/database/services/SyncJobService';
 import {ExpectedError} from '../../modules/lib/errors';
 import {checkOwnership, requireAuthenticatedUser} from '../../middleware/authMiddleware';
 import {GameTitle} from '../../modules/database/entities/gameTitle/GameTitle';
 import {GameRelease} from '../../modules/database/entities/gameRelease/GameRelease';
-import {GameType, MappingStatus} from '../../types/InventoryEnums';
+import {GameType, MappingStatus, SyncStatus} from '../../types/InventoryEnums';
 import {ResolveMappingBody} from '../../types/GamesTypes';
 
 // ============ Mapping Queue ============
@@ -153,7 +155,7 @@ export async function getMetadataManagementData(ownerId: number) {
     ] = await Promise.all([
         gameMappingService.getPendingMappings(ownerId),
         gameTitleService.getAllGameTitles(ownerId),
-        gameTitleService.findSimilarTitles(ownerId, false),
+        similarTitlePairService.getSimilarTitleGroups(ownerId, false),
         gameTitleService.findTitlesMissingMetadata(ownerId, false),
         gameTitleService.findTitlesWithInvalidPlayerCounts(ownerId, false),
         gameTitleService.getMetadataIssueCounts(ownerId),
@@ -174,6 +176,7 @@ export async function getMetadataManagementData(ownerId: number) {
 
 /**
  * Dismiss a title from a specific issue type.
+ * For 'similar' type, this is deprecated - use dismissSimilarPair instead.
  */
 export async function dismissTitle(
     titleId: string, 
@@ -190,6 +193,23 @@ export async function dismissTitle(
     checkOwnership(title, userId);
     
     await gameTitleService.dismissTitle(titleId, dismissalType);
+}
+
+/**
+ * Dismiss a similar title pair.
+ */
+export async function dismissSimilarPair(pairId: string, userId: number): Promise<void> {
+    requireAuthenticatedUser(userId);
+    // Note: Ownership is verified through the pair's owner relation
+    await similarTitlePairService.dismissPair(pairId);
+}
+
+/**
+ * Undismiss a similar title pair.
+ */
+export async function undismissSimilarPair(pairId: string, userId: number): Promise<void> {
+    requireAuthenticatedUser(userId);
+    await similarTitlePairService.undismissPair(pairId);
 }
 
 /**
@@ -214,11 +234,59 @@ export async function undismissTitle(
 
 /**
  * Reset all dismissals for a user.
+ * For 'similar' type, also resets similar pair dismissals.
  */
 export async function resetDismissals(
     userId: number,
     dismissalType?: gameTitleService.DismissalType
 ): Promise<number> {
     requireAuthenticatedUser(userId);
-    return await gameTitleService.resetDismissals(userId, dismissalType);
+    
+    let count = 0;
+    
+    // Reset similar pair dismissals if type is 'similar' or not specified
+    if (!dismissalType || dismissalType === 'similar') {
+        count += await similarTitlePairService.resetSimilarDismissals(userId);
+    }
+    
+    // Reset title-based dismissals
+    count += await gameTitleService.resetDismissals(userId, dismissalType);
+    
+    return count;
+}
+
+/**
+ * Trigger similarity analysis background job.
+ */
+export async function triggerSimilarityAnalysis(userId: number): Promise<string> {
+    requireAuthenticatedUser(userId);
+    
+    const job = await syncJobService.createSimilarityAnalysisJob(userId);
+    
+    // Run the analysis in the background
+    runSimilarityAnalysisJob(job.id, userId).catch(err => {
+        console.error('Similarity analysis failed:', err);
+    });
+    
+    return job.id;
+}
+
+/**
+ * Run similarity analysis job (background).
+ */
+async function runSimilarityAnalysisJob(jobId: string, userId: number): Promise<void> {
+    try {
+        await syncJobService.startSyncJob(jobId);
+        
+        const result = await similarTitlePairService.runSimilarityAnalysis(userId);
+        
+        await syncJobService.completeSyncJob(jobId, {
+            entriesProcessed: result.pairsFound,
+            entriesAdded: result.pairsCreated,
+            entriesUpdated: result.pairsRemoved,
+        });
+    } catch (err) {
+        await syncJobService.failSyncJob(jobId, (err as Error).message);
+        throw err;
+    }
 }

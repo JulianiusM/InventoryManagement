@@ -236,12 +236,30 @@ export async function syncExternalAccount(
             entriesUpdated: stats.entriesUpdated,
         });
         
+        // Trigger similarity analysis in background if new games were added
+        if (stats.entriesAdded > 0) {
+            triggerSimilarityAnalysisInBackground(ownerId);
+        }
+        
         return {success: true, stats, jobId: job.id};
         
     } catch (error) {
         const message = error instanceof Error ? error.message : 'Unknown error';
         await syncJobService.failSyncJob(job.id, message);
         return {success: false, error: message, jobId: job.id};
+    }
+}
+
+/**
+ * Trigger similarity analysis in background (fire and forget).
+ * This is called after successful syncs that add new games.
+ */
+async function triggerSimilarityAnalysisInBackground(ownerId: number): Promise<void> {
+    try {
+        const {runSimilarityAnalysis} = await import('../database/services/SimilarTitlePairService');
+        await runSimilarityAnalysis(ownerId);
+    } catch (error) {
+        console.error('Background similarity analysis failed:', error);
     }
 }
 

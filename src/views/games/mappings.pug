@@ -27,6 +27,11 @@ block content
                 span.badge.text-bg-success.ms-2.fs-6 All good
         
         .d-flex.gap-2.align-items-center
+            //- Analyze similar names button
+            form(method="post" action="/games/mappings/analyze-similar" style="display:inline")
+                button.btn.btn-outline-info(type="submit" title="Run similarity analysis to find similar game names")
+                    i.bi.bi-search.me-1
+                    | Analyze Similar
             //- Global reset button
             if counts.totalCount > 0
                 button.btn.btn-outline-secondary(type="button" data-bs-toggle="modal" data-bs-target="#resetDismissalsModal")
@@ -120,8 +125,21 @@ block content
                     .card-body.text-center.py-5
                         i.bi.bi-check-circle.display-1.text-success.mb-3.d-block
                         h4.text-white No similar names found
-                        p.text-white-50.mb-0 All your game titles are unique.
+                        p.text-white-50.mb-3 All your game titles are unique.
+                        form(method="post" action="/games/mappings/analyze-similar" style="display:inline")
+                            button.btn.btn-outline-info(type="submit")
+                                i.bi.bi-search.me-1
+                                | Run Similarity Analysis
             else
+                //- Explain how similarity works
+                .alert.alert-info.d-flex.align-items-start.mb-3
+                    i.bi.bi-info-circle.me-2.fs-5
+                    div
+                        | Similar names are detected using a heuristic algorithm that ignores common sequel/edition patterns.
+                        |  Use the 
+                        strong Merge
+                        |  action to combine duplicates or dismiss pairs that are intentionally different.
+                
                 each group in similarGroups
                     .card.text-bg-dark.border-secondary.mb-3
                         .card-header.d-flex.justify-content-between.align-items-center
@@ -129,6 +147,9 @@ block content
                                 i.bi.bi-diagram-3.me-2
                                 | "#{group.normalizedName}"
                                 span.badge.text-bg-info.ms-2 #{group.titles.length} titles
+                                if group.pairs && group.pairs.length > 0
+                                    - const avgScore = Math.round(group.pairs.reduce((s, p) => s + p.score, 0) / group.pairs.length)
+                                    span.badge.text-bg-secondary.ms-1 ~#{avgScore}% match
                             .btn-group.btn-group-sm
                                 a.btn.btn-outline-info(
                                     href=`/games/titles/${group.titles[0].id}`
@@ -145,7 +166,7 @@ block content
                                             th Releases
                                             th.text-end Actions
                                     tbody
-                                        each title in group.titles
+                                        each title, idx in group.titles
                                             tr
                                                 td
                                                     a.text-white.text-decoration-none(href=`/games/titles/${title.id}`)
@@ -163,10 +184,20 @@ block content
                                                     .btn-group.btn-group-sm
                                                         a.btn.btn-outline-light(href=`/games/titles/${title.id}` title="View/Edit")
                                                             i.bi.bi-pencil
-                                                        form.d-inline(method="post" action=`/games/mappings/dismiss/${title.id}`)
-                                                            input(type="hidden" name="type" value="similar")
-                                                            button.btn.btn-outline-secondary(type="submit" title="Dismiss (won't show again)")
-                                                                i.bi.bi-x-lg
+                                                        if idx > 0
+                                                            a.btn.btn-outline-success(
+                                                                href=`/games/titles/${title.id}?merge_into=${group.titles[0].id}`
+                                                                title="Merge into first title"
+                                                            )
+                                                                i.bi.bi-arrow-left-right
+                        //- Dismiss all pairs in this group
+                        if group.pairs && group.pairs.length > 0
+                            .card-footer.bg-transparent.border-secondary.d-flex.justify-content-end
+                                each pair in group.pairs.slice(0, 1)
+                                    form.d-inline(method="post" action=`/games/mappings/dismiss-pair/${pair.pairId}`)
+                                        button.btn.btn-sm.btn-outline-secondary(type="submit" title="Dismiss this similar pair")
+                                            i.bi.bi-x-lg.me-1
+                                            | Dismiss Group
 
         //- Missing Metadata Panel
         #metadata-panel.tab-pane.fade(

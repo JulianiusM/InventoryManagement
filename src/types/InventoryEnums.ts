@@ -110,6 +110,7 @@ export enum SyncJobType {
     ACCOUNT_SYNC = 'account_sync',
     METADATA_RESYNC = 'metadata_resync',
     PUSH_IMPORT = 'push_import',
+    SIMILARITY_ANALYSIS = 'similarity_analysis',
 }
 
 export enum MappingStatus {
