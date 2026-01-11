@@ -5,17 +5,17 @@ block meta
     title Inventory Management – Catalog, locate, and track your items
     meta(
         name="description"
-        content="Inventory Management helps you catalog items, track locations, scan barcodes, and manage lending workflows."
+        content="Inventory Management helps you catalog items, track locations, scan barcodes, manage lending workflows, and organize your game collection."
     )
     meta(
         name="keywords"
-        content="inventory, items, locations, barcodes, lending, tracking, catalog"
+        content="inventory, items, locations, barcodes, lending, tracking, catalog, games, collection"
     )
     meta(name="author" content="Inventory Management")
     meta(property="og:title" content="Inventory Management – Catalog, locate, and track your items")
     meta(
         property="og:description"
-        content="A single place to catalog things, know where they are, know who has them, and scan barcodes to add or locate items quickly."
+        content="A single place to catalog things, know where they are, know who has them, scan barcodes, and manage your game collection."
     )
     meta(property="og:image" content="/img/logo.png")
     meta(property="og:url" content=settings.rootUrl)
@@ -28,159 +28,246 @@ block title
         | Inventory Management
 
 block content
-    //- Intro block – signed-in focused
+    //- Hero section
     if user
         .text-center.mb-4
-            p.lead.mb-2
-                | Welcome back, #{user.name || user.username}.
-            ul.list-unstyled.small.d-inline-block.text-start.mb-0
-                li.mb-1
-                    i.bi.bi-check-circle-fill.me-2
-                    | Catalog your items with photos, notes, condition, and custom tags.
-                li.mb-1
-                    i.bi.bi-check-circle-fill.me-2
-                    | Organize with hierarchical locations (rooms, shelves, boxes).
-                li.mb-1
-                    i.bi.bi-check-circle-fill.me-2
-                    | Scan barcodes to quickly add or find items.
-                li
-                    i.bi.bi-check-circle-fill.me-2
-                    | Track lending and borrowing with due dates and reminders.
+            p.lead.mb-3
+                | Welcome back, 
+                span.text-info #{user.name || user.username}
+                | !
+            p.text-white-50.mb-4 Your complete inventory and collection management system.
 
-        .d-flex.flex-wrap.justify-content-center.gap-2.mb-4
-            a.btn.btn-primary.btn-lg.d-inline-flex.align-items-center.gap-2(href="/items")
-                i.bi.bi-box-seam
-                | View Items
-            a.btn.btn-outline-light.btn-lg.d-inline-flex.align-items-center.gap-2(href="/scan")
-                i.bi.bi-upc-scan
-                | Scan Barcode
+        //- Quick action buttons for logged-in users
+        .row.g-3.mb-5
+            .col-md-3.col-sm-6
+                a.card.text-bg-dark.border-primary.h-100.text-decoration-none.hover-lift(href="/items")
+                    .card-body.text-center.py-4
+                        i.bi.bi-box-seam.fs-1.text-primary.mb-3
+                        h3.h5.mb-2 Items
+                        p.small.text-white-50.mb-0 View & manage your inventory
+            .col-md-3.col-sm-6
+                a.card.text-bg-dark.border-success.h-100.text-decoration-none.hover-lift(href="/games/suggest")
+                    .card-body.text-center.py-4
+                        i.bi.bi-shuffle.fs-1.text-success.mb-3
+                        h3.h5.mb-2 Random Game
+                        p.small.text-white-50.mb-0 Can't decide what to play?
+            .col-md-3.col-sm-6
+                a.card.text-bg-dark.border-info.h-100.text-decoration-none.hover-lift(href="/scan")
+                    .card-body.text-center.py-4
+                        i.bi.bi-upc-scan.fs-1.text-info.mb-3
+                        h3.h5.mb-2 Scan
+                        p.small.text-white-50.mb-0 Quickly add or find items
+            .col-md-3.col-sm-6
+                a.card.text-bg-dark.border-warning.h-100.text-decoration-none.hover-lift(href="/games")
+                    .card-body.text-center.py-4
+                        i.bi.bi-controller.fs-1.text-warning.mb-3
+                        h3.h5.mb-2 Games
+                        p.small.text-white-50.mb-0 Browse your game library
 
     else
         .text-center.mb-4
-            p.lead.mb-2 Catalog, locate, and track your items in one place.
-            ul.list-unstyled.small.d-inline-block.text-start.mb-0
-                li.mb-1
-                    i.bi.bi-check-circle-fill.me-2
-                    | Catalog books, tools, electronics, collectibles, and more.
-                li.mb-1
-                    i.bi.bi-check-circle-fill.me-2
-                    | Know where everything is with hierarchical locations.
-                li.mb-1
-                    i.bi.bi-check-circle-fill.me-2
-                    | Scan barcodes and QR codes to quickly find or add items.
-                li
-                    i.bi.bi-check-circle-fill.me-2
-                    | Track who has borrowed your stuff and when it's due back.
+            p.lead.mb-3 
+                | Your all-in-one 
+                span.text-info inventory & collection
+                |  management system
+            p.text-white-50.mb-4
+                | Catalog items, track locations, scan barcodes, manage loans, and organize your game collection.
 
-        .d-flex.flex-wrap.justify-content-center.gap-2.mb-3
-            a.btn.btn-primary.btn-lg.d-inline-flex.align-items-center.gap-2(href="/users/register")
+        .d-flex.flex-wrap.justify-content-center.gap-3.mb-5
+            a.btn.btn-primary.btn-lg.px-4.d-inline-flex.align-items-center.gap-2(href="/users/register")
                 i.bi.bi-person-plus
-                | Create account
-            a.btn.btn-outline-light.btn-lg.d-inline-flex.align-items-center.gap-2(href="/users/login")
+                | Create Account
+            a.btn.btn-outline-light.btn-lg.px-4.d-inline-flex.align-items-center.gap-2(href="/users/login")
                 i.bi.bi-box-arrow-in-right
-                | Log in
+                | Log In
 
+    //- Divider
+    .position-relative.text-center.my-5
+        hr
+        span.position-absolute.top-50.start-50.translate-middle.px-3.bg-dark.rounded-pill.border.border-secondary.text-info.small
+            i.bi.bi-stars.me-1
+            | All Features
 
-    //- Divider with pill
-    .position-relative.text-center.my-4
+    //- Main feature grid
+    .row.row-cols-1.row-cols-md-2.row-cols-xl-3.g-4.mb-5
+        //- Items
+        .col
+            .card.h-100.text-bg-dark.border-secondary
+                .card-body
+                    .d-flex.align-items-center.mb-3
+                        .bg-primary.rounded-circle.p-3.me-3
+                            i.bi.bi-box-seam.fs-4.text-white
+                        div
+                            h2.h5.mb-0 Items
+                            p.small.text-white-50.mb-0 Comprehensive cataloging
+                    ul.small.mb-0.text-white-50
+                        li Name, description, condition, photos
+                        li Serial numbers & warranty info
+                        li Custom tags for filtering
+                        li Multiple barcodes per item
+                        li Track value and purchase date
+                    if user
+                        a.btn.btn-sm.btn-outline-primary.mt-3(href="/items") View Items →
+
+        //- Games Module
+        .col
+            .card.h-100.text-bg-dark.border-secondary
+                .card-body
+                    .d-flex.align-items-center.mb-3
+                        .bg-warning.rounded-circle.p-3.me-3
+                            i.bi.bi-controller.fs-4.text-dark
+                        div
+                            h2.h5.mb-0 Games Collection
+                            p.small.text-white-50.mb-0 Video, board & card games
+                    ul.small.mb-0.text-white-50
+                        li Track games across all platforms
+                        li Sync with Steam & external services
+                        li Player counts & multiplayer modes
+                        li Random game suggestions
+                        li Filter by platform, mode, players
+                    if user
+                        a.btn.btn-sm.btn-outline-warning.mt-3(href="/games") Browse Games →
+
+        //- Locations
+        .col
+            .card.h-100.text-bg-dark.border-secondary
+                .card-body
+                    .d-flex.align-items-center.mb-3
+                        .bg-info.rounded-circle.p-3.me-3
+                            i.bi.bi-geo-alt.fs-4.text-white
+                        div
+                            h2.h5.mb-0 Locations
+                            p.small.text-white-50.mb-0 Hierarchical organization
+                    ul.small.mb-0.text-white-50
+                        li Rooms, shelves, boxes, bins
+                        li Nested location trees
+                        li QR codes for quick navigation
+                        li See all items at any location
+                        li Movement history tracking
+                    if user
+                        a.btn.btn-sm.btn-outline-info.mt-3(href="/locations") Manage Locations →
+
+        //- Barcode Scanning
+        .col
+            .card.h-100.text-bg-dark.border-secondary
+                .card-body
+                    .d-flex.align-items-center.mb-3
+                        .bg-success.rounded-circle.p-3.me-3
+                            i.bi.bi-upc-scan.fs-4.text-white
+                        div
+                            h2.h5.mb-0 Barcode Scanning
+                            p.small.text-white-50.mb-0 Fast camera-based entry
+                    ul.small.mb-0.text-white-50
+                        li Scan EAN, UPC, QR, Code128
+                        li Instant lookup of items
+                        li Map barcodes to items
+                        li Print custom QR labels
+                        li Manual entry fallback
+                    if user
+                        a.btn.btn-sm.btn-outline-success.mt-3(href="/scan") Start Scanning →
+
+        //- Lending & Borrowing
+        .col
+            .card.h-100.text-bg-dark.border-secondary
+                .card-body
+                    .d-flex.align-items-center.mb-3
+                        .bg-danger.rounded-circle.p-3.me-3
+                            i.bi.bi-arrow-left-right.fs-4.text-white
+                        div
+                            h2.h5.mb-0 Lending
+                            p.small.text-white-50.mb-0 Track loans & borrowing
+                    ul.small.mb-0.text-white-50
+                        li Record who has what
+                        li Set due dates & reminders
+                        li Note condition at handoff
+                        li Complete loan history
+                        li Overdue tracking
+                    if user
+                        a.btn.btn-sm.btn-outline-danger.mt-3(href="/loans") Manage Loans →
+
+        //- Help & Documentation
+        .col
+            .card.h-100.text-bg-dark.border-secondary
+                .card-body
+                    .d-flex.align-items-center.mb-3
+                        .bg-secondary.rounded-circle.p-3.me-3
+                            i.bi.bi-question-circle.fs-4.text-white
+                        div
+                            h2.h5.mb-0 Help & Docs
+                            p.small.text-white-50.mb-0 Complete user guides
+                    ul.small.mb-0.text-white-50
+                        li Getting started guides
+                        li Feature documentation
+                        li Games module guide
+                        li Tips & best practices
+                        li Troubleshooting help
+                    a.btn.btn-sm.btn-outline-secondary.mt-3(href="/help") View Documentation →
+
+    //- Divider
+    .position-relative.text-center.my-5
         hr
         span.position-absolute.top-50.start-50.translate-middle.px-3.bg-dark.rounded-pill.border.border-secondary.text-white-50.small
-            | Core Features
+            | Supported Item Types
 
-    //- Feature overview
-    .row.row-cols-1.row-cols-md-2.row-cols-xl-4.g-4.mb-4
-        // Items
-        .col
-            .card.h-100.text-bg-dark.border-secondary
-                .card-body
-                    h2.h5.mb-1
-                        i.bi.bi-box-seam.me-2
-                        | Items
-                    p.mb-2.text-white-50
-                        | Catalog all your belongings with rich details.
-                    ul.small.mb-0
-                        li Name, description, condition, and photos.
-                        li Serial numbers and warranty info.
-                        li Custom tags for easy filtering.
-                        li Multiple barcodes per item.
-
-        // Locations
-        .col
-            .card.h-100.text-bg-dark.border-secondary
-                .card-body
-                    h2.h5.mb-1
-                        i.bi.bi-geo-alt.me-2
-                        | Locations
-                    p.mb-2.text-white-50
-                        | Organize with a hierarchical location tree.
-                    ul.small.mb-0
-                        li Rooms, shelves, boxes, bins, drawers.
-                        li Nested locations for precise organization.
-                        li QR codes for quick navigation.
-                        li See all items at any location.
-
-        // Scanning
-        .col
-            .card.h-100.text-bg-dark.border-secondary
-                .card-body
-                    h2.h5.mb-1
-                        i.bi.bi-upc-scan.me-2
-                        | Barcode Scanning
-                    p.mb-2.text-white-50
-                        | Fast entry using your camera.
-                    ul.small.mb-0
-                        li Scan EAN, UPC, QR, Code128.
-                        li Instant lookup of known items.
-                        li Map new barcodes to existing items.
-                        li Print custom labels for your bins.
-
-        // Lending
-        .col
-            .card.h-100.text-bg-dark.border-secondary
-                .card-body
-                    h2.h5.mb-1
-                        i.bi.bi-arrow-left-right.me-2
-                        | Lending
-                    p.mb-2.text-white-50
-                        | Track what you've lent or borrowed.
-                    ul.small.mb-0
-                        li Record who has what.
-                        li Set due dates and get reminders.
-                        li Note condition at handoff.
-                        li Complete loan history for audit.
-
-    //- Second divider
-    .position-relative.text-center.my-4
-        hr
-        span.position-absolute.top-50.start-50.translate-middle.px-3.bg-dark.rounded-pill.border.border-secondary.text-white-50.small
-            | Item Types
-
+    //- Item types showcase
     .row.row-cols-2.row-cols-md-4.row-cols-xl-7.g-3.mb-4.text-center
         .col
-            .card.text-bg-dark.border-secondary.py-3
-                i.bi.bi-book.fs-2.mb-2
+            .card.text-bg-dark.border-secondary.py-3.hover-scale
+                i.bi.bi-book.fs-2.mb-2.text-primary
                 .small Books
         .col
-            .card.text-bg-dark.border-secondary.py-3
-                i.bi.bi-tools.fs-2.mb-2
+            .card.text-bg-dark.border-secondary.py-3.hover-scale
+                i.bi.bi-tools.fs-2.mb-2.text-warning
                 .small Tools
         .col
-            .card.text-bg-dark.border-secondary.py-3
-                i.bi.bi-controller.fs-2.mb-2
+            .card.text-bg-dark.border-secondary.py-3.hover-scale
+                i.bi.bi-controller.fs-2.mb-2.text-success
                 .small Games
         .col
-            .card.text-bg-dark.border-secondary.py-3
-                i.bi.bi-cpu.fs-2.mb-2
+            .card.text-bg-dark.border-secondary.py-3.hover-scale
+                i.bi.bi-cpu.fs-2.mb-2.text-info
                 .small Electronics
         .col
-            .card.text-bg-dark.border-secondary.py-3
-                i.bi.bi-bag.fs-2.mb-2
+            .card.text-bg-dark.border-secondary.py-3.hover-scale
+                i.bi.bi-bag.fs-2.mb-2.text-danger
                 .small Clothing
         .col
-            .card.text-bg-dark.border-secondary.py-3
-                i.bi.bi-gem.fs-2.mb-2
+            .card.text-bg-dark.border-secondary.py-3.hover-scale
+                i.bi.bi-gem.fs-2.mb-2.text-primary
                 .small Collectibles
         .col
-            .card.text-bg-dark.border-secondary.py-3
-                i.bi.bi-three-dots.fs-2.mb-2
+            .card.text-bg-dark.border-secondary.py-3.hover-scale
+                i.bi.bi-three-dots.fs-2.mb-2.text-secondary
                 .small Other
+
+    if !user
+        //- Call to action for non-logged users
+        .text-center.mt-5.mb-4
+            .card.text-bg-dark.border-primary.p-4
+                h3.h4.mb-3
+                    i.bi.bi-rocket-takeoff.me-2
+                    | Ready to get organized?
+                p.text-white-50.mb-4 Join now and start managing your inventory in minutes.
+                .d-flex.flex-wrap.justify-content-center.gap-3
+                    a.btn.btn-primary.btn-lg.px-4(href="/users/register")
+                        i.bi.bi-person-plus.me-2
+                        | Create Free Account
+                    a.btn.btn-outline-light.btn-lg.px-4(href="/help")
+                        i.bi.bi-book.me-2
+                        | Learn More
+
+block scripts
+    style.
+        .hover-lift {
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+        }
+        .hover-lift:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 4px 12px rgba(0, 123, 255, 0.3);
+        }
+        .hover-scale {
+            transition: transform 0.2s ease;
+        }
+        .hover-scale:hover {
+            transform: scale(1.05);
+        }

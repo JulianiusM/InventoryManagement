@@ -5,6 +5,7 @@
  * 
  * Route structure:
  * - /games                    - Game titles list (titleRoutes)
+ * - /games/suggest            - Random game suggestion (suggestionRoutes)
  * - /games/titles/:id         - Title operations (titleRoutes)
  * - /games/releases/:id       - Release operations (releaseRoutes)
  * - /games/copies/:id         - Copy operations (copyRoutes)

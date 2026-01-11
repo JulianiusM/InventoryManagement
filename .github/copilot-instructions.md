@@ -370,6 +370,26 @@ return { games: [...], success: true };
 - All metadata providers: `src/modules/games/metadata/*.ts`
 - These folders could be moved to separate packages without breaking the app
 
+### Game Suggestion Feature
+
+Random game suggestion helps users decide what to play:
+- **Route**: `/games/suggest` - Wizard-style interface for quick game selection
+- **Service**: `GameSuggestionService.ts` - Filtering and random selection logic
+- **Controller**: `gameSuggestionController.ts` - Form data parsing and result formatting
+
+**Filtering Criteria:**
+- Player count (e.g., 1, 2, 4 players)
+- Platforms (whitelist/blacklist)
+- Game modes (online/local/physical - require/exclude/any)
+- Game types (video game, board game, card game, etc.)
+
+**Implementation Notes:**
+- Uses Fisher-Yates shuffle for unbiased randomization
+- Query builder filters applied at database level for performance
+- Platform filters applied client-side (requires checking releases)
+- Touch-friendly UI with large buttons for common options
+- Advanced options in collapsible section
+
 ### Key Entities
 - **GameTitle**: A game's core info (name, description, player counts)
 - **GameRelease**: Platform-specific release (PC, PS5, etc. with edition/region)
