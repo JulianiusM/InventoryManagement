@@ -21,11 +21,21 @@ import {
     MetadataSearchResult,
 } from './MetadataProviderInterface';
 import {truncateText} from '../../lib/htmlUtils';
-import settings from '../../settings';
 
 // Use REST API for search (new API, better than actions API)
 const WIKIDATA_REST_API = 'https://www.wikidata.org/w/rest.php/wikibase';
 const WIKIDATA_SPARQL_ENDPOINT = 'https://query.wikidata.org/sparql';
+
+// Scoring constants for search result ranking
+const EXACT_MATCH_SCORE = 500;
+const PREFIX_MATCH_SCORE = 150;
+const EXPANSION_MATCH_SCORE = 80;
+const CONTAINS_MATCH_SCORE = 50;
+const GAME_INDICATOR_BOOST = 100;
+const NO_GAME_INDICATOR_PENALTY = 50;
+const NAME_LENGTH_PENALTY_FACTOR = 0.5;
+const NON_GAME_PENALTY_SCORE = -1000;
+const MIN_ACCEPTABLE_SCORE = -500;
 
 const WIKIDATA_METADATA_MANIFEST: MetadataProviderManifest = {
     id: 'wikidata',
@@ -216,18 +226,18 @@ export class WikidataMetadataProvider extends BaseMetadataProvider {
             
             // Check if this is explicitly NOT a game
             if (this.isExplicitNonGame(desc)) {
-                return { item, score: settings.value.wikidataNonGamePenaltyScore };
+                return { item, score: NON_GAME_PENALTY_SCORE };
             }
             
             // Boost if description contains game-related terms
             const isLikelyGame = this.isLikelyGame(desc);
             if (isLikelyGame) {
-                score += settings.value.wikidataGameIndicatorBoost;
+                score += GAME_INDICATOR_BOOST;
             }
             
             // Exact match is best
             if (name === normalizedQuery) {
-                score += settings.value.wikidataExactMatchScore;
+                score += EXACT_MATCH_SCORE;
             }
             // Name starts with query (expansion/edition)
             else if (name.startsWith(normalizedQuery + ' ') || 
@@ -235,22 +245,22 @@ export class WikidataMetadataProvider extends BaseMetadataProvider {
                      name.startsWith(normalizedQuery + '-')) {
                 // Check if it's an expansion (penalize slightly)
                 if (desc.includes('expansion') || desc.includes('add-on') || desc.includes('supplement')) {
-                    score += settings.value.wikidataExpansionMatchScore;
+                    score += EXPANSION_MATCH_SCORE;
                 } else {
-                    score += settings.value.wikidataPrefixMatchScore;
+                    score += PREFIX_MATCH_SCORE;
                 }
             }
             // Query appears in name
             else if (name.includes(normalizedQuery)) {
-                score += settings.value.wikidataContainsMatchScore;
+                score += CONTAINS_MATCH_SCORE;
             }
             
             // Prefer shorter names (more likely to be the base game)
-            score -= name.length * settings.value.wikidataNameLengthPenaltyFactor;
+            score -= name.length * NAME_LENGTH_PENALTY_FACTOR;
             
             // If no game indicators and no exact match, penalize
             if (!isLikelyGame && name !== normalizedQuery) {
-                score -= settings.value.wikidataNoGameIndicatorPenalty;
+                score -= NO_GAME_INDICATOR_PENALTY;
             }
             
             return { item, score };
@@ -258,7 +268,7 @@ export class WikidataMetadataProvider extends BaseMetadataProvider {
         
         // Filter out explicit non-games and sort by score descending
         return scored
-            .filter(s => s.score > settings.value.wikidataMinAcceptableScore)
+            .filter(s => s.score > MIN_ACCEPTABLE_SCORE)
             .sort((a, b) => b.score - a.score)
             .map(s => s.item);
     }

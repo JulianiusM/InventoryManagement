@@ -51,7 +51,7 @@ export type Settings = {
     boardGameAtlasClientId: string;
     
     // Metadata sync configuration
-    igdbQueryTimeoutMs: number;
+    metadataEnrichmentQueryTimeoutMs: number;
 
     // Token expiration (in milliseconds)
     tokenExpirationMs: number;
@@ -76,17 +76,6 @@ export type Settings = {
     // Similar title matching thresholds
     minNormalizedTitleLength: number;
     minSimilarityScore: number;
-
-    // Wikidata metadata scoring
-    wikidataExactMatchScore: number;
-    wikidataPrefixMatchScore: number;
-    wikidataExpansionMatchScore: number;
-    wikidataContainsMatchScore: number;
-    wikidataGameIndicatorBoost: number;
-    wikidataNoGameIndicatorPenalty: number;
-    wikidataNameLengthPenaltyFactor: number;
-    wikidataNonGamePenaltyScore: number;
-    wikidataMinAcceptableScore: number;
 
     initialized: boolean;
 };
@@ -136,7 +125,7 @@ const defaults: Settings = {
     boardGameAtlasClientId: "",
     
     // Metadata sync configuration
-    igdbQueryTimeoutMs: 3000000, // 5 minutes default for thorough metadata enrichment
+    metadataEnrichmentQueryTimeoutMs: 3000000, // 5 minutes default for thorough metadata enrichment
 
     // Token expiration (1 hour in milliseconds)
     tokenExpirationMs: 3600_000,
@@ -161,17 +150,6 @@ const defaults: Settings = {
     // Similar title matching thresholds
     minNormalizedTitleLength: 4,
     minSimilarityScore: 50,
-
-    // Wikidata metadata scoring
-    wikidataExactMatchScore: 500,
-    wikidataPrefixMatchScore: 150,
-    wikidataExpansionMatchScore: 80,
-    wikidataContainsMatchScore: 50,
-    wikidataGameIndicatorBoost: 100,
-    wikidataNoGameIndicatorPenalty: 50,
-    wikidataNameLengthPenaltyFactor: 0.5,
-    wikidataNonGamePenaltyScore: -1000,
-    wikidataMinAcceptableScore: -500,
 };
 
 // CSV_KEY -> settings key
@@ -206,7 +184,7 @@ const keyMap: Record<string, keyof Settings> = {
     TWITCH_CLIENT_ID: "twitchClientId",
     TWITCH_CLIENT_SECRET: "twitchClientSecret",
     BOARD_GAME_ATLAS_CLIENT_ID: "boardGameAtlasClientId",
-    IGDB_QUERY_TIMEOUT_MS: "igdbQueryTimeoutMs",
+    METADATA_ENRICHMENT_QUERY_TIMEOUT_MS: "metadataEnrichmentQueryTimeoutMs",
     TOKEN_EXPIRATION_MS: "tokenExpirationMs",
     RATE_LIMIT_WINDOW_MS: "rateLimitWindowMs",
     RATE_LIMIT_MAX_PUSH_CONNECTOR: "rateLimitMaxPushConnector",
@@ -221,15 +199,6 @@ const keyMap: Record<string, keyof Settings> = {
     MAX_DESCRIPTION_LENGTH: "maxDescriptionLength",
     MIN_NORMALIZED_TITLE_LENGTH: "minNormalizedTitleLength",
     MIN_SIMILARITY_SCORE: "minSimilarityScore",
-    WIKIDATA_EXACT_MATCH_SCORE: "wikidataExactMatchScore",
-    WIKIDATA_PREFIX_MATCH_SCORE: "wikidataPrefixMatchScore",
-    WIKIDATA_EXPANSION_MATCH_SCORE: "wikidataExpansionMatchScore",
-    WIKIDATA_CONTAINS_MATCH_SCORE: "wikidataContainsMatchScore",
-    WIKIDATA_GAME_INDICATOR_BOOST: "wikidataGameIndicatorBoost",
-    WIKIDATA_NO_GAME_INDICATOR_PENALTY: "wikidataNoGameIndicatorPenalty",
-    WIKIDATA_NAME_LENGTH_PENALTY_FACTOR: "wikidataNameLengthPenaltyFactor",
-    WIKIDATA_NON_GAME_PENALTY_SCORE: "wikidataNonGamePenaltyScore",
-    WIKIDATA_MIN_ACCEPTABLE_SCORE: "wikidataMinAcceptableScore",
 };
 
 // per-field coercion
@@ -237,7 +206,7 @@ const coerce: Partial<Record<keyof Settings, (v: string) => any>> = {
     dbPort: (v) => Number(v),
     smtpPort: (v) => Number(v),
     appPort: (v) => Number(v),
-    igdbQueryTimeoutMs: (v) => Number(v),
+    metadataEnrichmentQueryTimeoutMs: (v) => Number(v),
     tokenExpirationMs: (v) => Number(v),
     rateLimitWindowMs: (v) => Number(v),
     rateLimitMaxPushConnector: (v) => Number(v),
@@ -252,15 +221,6 @@ const coerce: Partial<Record<keyof Settings, (v: string) => any>> = {
     maxDescriptionLength: (v) => Number(v),
     minNormalizedTitleLength: (v) => Number(v),
     minSimilarityScore: (v) => Number(v),
-    wikidataExactMatchScore: (v) => Number(v),
-    wikidataPrefixMatchScore: (v) => Number(v),
-    wikidataExpansionMatchScore: (v) => Number(v),
-    wikidataContainsMatchScore: (v) => Number(v),
-    wikidataGameIndicatorBoost: (v) => Number(v),
-    wikidataNoGameIndicatorPenalty: (v) => Number(v),
-    wikidataNameLengthPenaltyFactor: (v) => Number(v),
-    wikidataNonGamePenaltyScore: (v) => Number(v),
-    wikidataMinAcceptableScore: (v) => Number(v),
     smtpPool: (v) => /^(1|true|yes|on)$/i.test(v),
     smtpSecure: (v) => /^(1|true|yes|on)$/i.test(v),
     localLoginEnabled: (v) => /^(1|true|yes|on)$/i.test(v),

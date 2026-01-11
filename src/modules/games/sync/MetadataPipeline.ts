@@ -532,7 +532,7 @@ export class MetadataPipeline {
     ): Promise<Map<string, GameMetadata>> {
         const metadataCache = new Map<string, GameMetadata>();
         const config = settings.value;
-        const timeoutMs = config.igdbQueryTimeoutMs || games.length * 1000;
+        const timeoutMs = config.metadataEnrichmentQueryTimeoutMs || games.length * 1000;
         const startTime = Date.now();
         
         console.log(`Starting batch metadata processing for ${games.length} games`);
