@@ -187,6 +187,10 @@ export class PlayniteConnector extends BaseConnector implements PushConnector {
                 publisher: metadata.publisher,
                 coverImageUrl: metadata.coverImageUrl,
                 
+                // Multiplayer support from features/tags
+                supportsOnline: metadata.supportsOnline,
+                supportsLocal: metadata.supportsLocal,
+                
                 // Aggregator origin fields
                 originalProviderPluginId: game.originalProviderPluginId,
                 originalProviderName: game.originalProviderName,

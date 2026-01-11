@@ -231,6 +231,25 @@ Device Token → requirePushConnectorAuth → processPushImport()
                     └── softRemoveUnseenEntries()      ← Shared soft-removal
 ```
 
+### Connector Metadata Extraction
+
+Connectors extract as much metadata as possible from their sources:
+
+**Steam Connector:**
+- `name`, `playtimeMinutes`, `lastPlayedAt` from GetOwnedGames API
+- `coverImageUrl` generated from Steam CDN URL
+- `storeUrl` generated from app ID
+- Multiplayer info NOT available from GetOwnedGames API (requires metadata enrichment)
+
+**Playnite Connector:**
+- Basic fields: `name`, `playtimeSeconds`, `lastActivity`, `installed`
+- From `raw` data: `description`, `genres`, `releaseDate`, `developer`, `publisher`
+- Multiplayer support from `features`/`tags`/`categories`:
+  - Online: "online multiplayer", "online co-op", "mmo", etc.
+  - Local: "local multiplayer", "split screen", "couch co-op", etc.
+- Store URLs extracted from `raw.links` array (5-pass algorithm)
+- Cover images: Playnite uses local paths, so metadata providers fill this
+
 ### Platform Normalization
 
 Platforms are normalized to prevent duplicates (e.g., "PS5" → "PlayStation 5"):

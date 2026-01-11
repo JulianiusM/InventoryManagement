@@ -479,7 +479,48 @@ export function extractStoreUrlFromLinks(
 }
 
 /**
+ * Known feature names that indicate ONLINE multiplayer support
+ * Only includes features that specifically indicate ONLINE play
+ * Ambiguous terms like "multiplayer" or "co-op" are NOT included to avoid false positives
+ */
+const ONLINE_MULTIPLAYER_FEATURES = [
+    'online multiplayer', 'online pvp', 'online co-op', 'online coop',
+    'mmo', 'massively multiplayer', 'cross-platform multiplayer',
+    'online play', 'online mode', 'internet play'
+];
+
+const LOCAL_MULTIPLAYER_FEATURES = [
+    'local multiplayer', 'local co-op', 'local coop',
+    'split screen', 'splitscreen', 'shared screen',
+    'couch co-op', 'couch coop', 'hot seat', 'hotseat',
+    'same screen', 'local pvp', 'local play', 'local mode'
+];
+
+/**
+ * Check if a feature name indicates online multiplayer support
+ */
+function isOnlineMultiplayerFeature(feature: string): boolean {
+    const lower = feature.toLowerCase().trim();
+    return ONLINE_MULTIPLAYER_FEATURES.some(pattern => lower.includes(pattern));
+}
+
+/**
+ * Check if a feature name indicates local multiplayer support
+ */
+function isLocalMultiplayerFeature(feature: string): boolean {
+    const lower = feature.toLowerCase().trim();
+    return LOCAL_MULTIPLAYER_FEATURES.some(pattern => lower.includes(pattern));
+}
+
+/**
  * Extract extended metadata from Playnite's raw data
+ * 
+ * Extracts:
+ * - description: Game description text
+ * - genres: List of genres
+ * - releaseDate: Release date string
+ * - developer/publisher: First developer/publisher
+ * - supportsOnline/supportsLocal: Derived from features/tags
  * 
  * @param raw - The raw object from Playnite payload
  * @returns Extracted metadata fields
@@ -491,10 +532,18 @@ export function extractMetadataFromRaw(raw: PlayniteRawData | undefined): {
     developer?: string;
     publisher?: string;
     coverImageUrl?: string;
+    supportsOnline?: boolean;
+    supportsLocal?: boolean;
 } {
     if (!raw) {
         return {};
     }
+    
+    // Extract multiplayer support from features and tags
+    const allFeatures = [...(raw.features || []), ...(raw.tags || []), ...(raw.categories || [])];
+    // Use ternary to ensure undefined is returned when no match (not false)
+    const supportsOnline = allFeatures.some(isOnlineMultiplayerFeature) ? true : undefined;
+    const supportsLocal = allFeatures.some(isLocalMultiplayerFeature) ? true : undefined;
     
     return {
         description: raw.description || undefined,
@@ -505,6 +554,9 @@ export function extractMetadataFromRaw(raw: PlayniteRawData | undefined): {
         // Note: coverImage from Playnite is a local path, not a URL
         // We don't use it here - metadata providers should fill this
         coverImageUrl: undefined,
+        // Multiplayer support derived from features/tags
+        supportsOnline,
+        supportsLocal,
     };
 }
 

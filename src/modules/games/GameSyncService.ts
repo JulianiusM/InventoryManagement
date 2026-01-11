@@ -453,6 +453,11 @@ async function processMetadataEnrichmentAsync(
                     updateData.description = enrichedGame.description;
                 }
                 
+                // Apply cover image if not already set
+                if (enrichedGame.coverImageUrl && !gameTitle.coverImageUrl) {
+                    updateData.coverImageUrl = enrichedGame.coverImageUrl;
+                }
+                
                 // Handle player profile updates carefully to avoid validation errors
                 // We need to consider existing values from the game title and merge with new values
                 const existingSupportsOnline = gameTitle.supportsOnline ?? false;
