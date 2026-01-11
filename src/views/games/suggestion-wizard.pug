@@ -218,4 +218,42 @@ block scripts
                 allowClear: true,
                 width: '100%'
             });
+            
+            // Apply dark theme styling to Select2 dropdowns
+            const style = document.createElement('style');
+            style.textContent = `
+                .select2-container--bootstrap-5 .select2-selection {
+                    background-color: #212529 !important;
+                    border-color: #495057 !important;
+                    color: #fff !important;
+                }
+                .select2-container--bootstrap-5 .select2-selection--multiple .select2-selection__choice {
+                    background-color: #495057 !important;
+                    border-color: #6c757d !important;
+                    color: #fff !important;
+                }
+                .select2-container--bootstrap-5 .select2-selection--multiple .select2-selection__choice__remove {
+                    color: #fff !important;
+                }
+                .select2-container--bootstrap-5 .select2-selection--multiple .select2-selection__choice__remove:hover {
+                    color: #dc3545 !important;
+                }
+                .select2-container--bootstrap-5 .select2-dropdown {
+                    background-color: #212529 !important;
+                    border-color: #495057 !important;
+                }
+                .select2-container--bootstrap-5 .select2-results__option {
+                    color: #fff !important;
+                }
+                .select2-container--bootstrap-5 .select2-results__option--highlighted {
+                    background-color: #0d6efd !important;
+                    color: #fff !important;
+                }
+                .select2-container--bootstrap-5 .select2-search__field {
+                    background-color: #212529 !important;
+                    border-color: #495057 !important;
+                    color: #fff !important;
+                }
+            `;
+            document.head.appendChild(style);
         });

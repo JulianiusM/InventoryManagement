@@ -38,20 +38,79 @@ function applyFiltersToQuery(
     // Filter by player count
     if (criteria.playerCount !== undefined && criteria.playerCount > 0) {
         const count = criteria.playerCount;
-        query.andWhere(
-            `(
-                (title.overall_min_players IS NULL OR title.overall_min_players <= :count)
-                AND (title.overall_max_players IS NULL OR title.overall_max_players >= :count)
-            ) OR (
-                title.overall_min_players IS NULL 
-                AND title.overall_max_players IS NULL 
-                AND title.supports_online = 0 
-                AND title.supports_local = 0 
-                AND title.supports_physical = 0 
-                AND :count = 1
-            )`,
-            {count}
-        );
+        
+        // Build player count filter based on required modes
+        const requiresOnline = criteria.includeOnline === true;
+        const requiresLocal = criteria.includeLocal === true;
+        const requiresPhysical = criteria.includePhysical === true;
+        
+        if (requiresOnline || requiresLocal || requiresPhysical) {
+            // When specific modes are required, check mode-specific player counts
+            const modeConditions: string[] = [];
+            
+            if (requiresOnline) {
+                // For online mode: check online-specific count, fall back to overall if not specified
+                modeConditions.push(
+                    `(title.supports_online = 1 AND (
+                        (title.online_min_players IS NOT NULL AND title.online_max_players IS NOT NULL 
+                         AND title.online_min_players <= :count AND title.online_max_players >= :count)
+                        OR (title.online_min_players IS NULL AND title.online_max_players IS NULL 
+                            AND title.overall_min_players IS NOT NULL AND title.overall_max_players IS NOT NULL
+                            AND title.overall_min_players <= :count AND title.overall_max_players >= :count)
+                    ))`
+                );
+            }
+            
+            if (requiresLocal) {
+                // For local mode: check local-specific count, fall back to overall if not specified
+                modeConditions.push(
+                    `(title.supports_local = 1 AND (
+                        (title.local_min_players IS NOT NULL AND title.local_max_players IS NOT NULL 
+                         AND title.local_min_players <= :count AND title.local_max_players >= :count)
+                        OR (title.local_min_players IS NULL AND title.local_max_players IS NULL 
+                            AND title.overall_min_players IS NOT NULL AND title.overall_max_players IS NOT NULL
+                            AND title.overall_min_players <= :count AND title.overall_max_players >= :count)
+                    ))`
+                );
+            }
+            
+            if (requiresPhysical) {
+                // For physical mode: check physical-specific count, fall back to overall if not specified
+                modeConditions.push(
+                    `(title.supports_physical = 1 AND (
+                        (title.physical_min_players IS NOT NULL AND title.physical_max_players IS NOT NULL 
+                         AND title.physical_min_players <= :count AND title.physical_max_players >= :count)
+                        OR (title.physical_min_players IS NULL AND title.physical_max_players IS NULL 
+                            AND title.overall_min_players IS NOT NULL AND title.overall_max_players IS NOT NULL
+                            AND title.overall_min_players <= :count AND title.overall_max_players >= :count)
+                    ))`
+                );
+            }
+            
+            // All required modes must satisfy the player count
+            query.andWhere(`(${modeConditions.join(' AND ')})`, {count});
+        } else {
+            // No specific mode required - use overall player count with special handling for unknown counts
+            if (count === 1) {
+                // For player count 1: include games with unknown counts (implied singleplayer)
+                query.andWhere(
+                    `(
+                        (title.overall_min_players IS NOT NULL AND title.overall_max_players IS NOT NULL
+                         AND title.overall_min_players <= :count AND title.overall_max_players >= :count)
+                        OR (title.overall_min_players IS NULL AND title.overall_max_players IS NULL 
+                            AND title.supports_online = 0 AND title.supports_local = 0 AND title.supports_physical = 0)
+                    )`,
+                    {count}
+                );
+            } else {
+                // For player count > 1: only include games with known counts in range
+                query.andWhere(
+                    `(title.overall_min_players IS NOT NULL AND title.overall_max_players IS NOT NULL
+                     AND title.overall_min_players <= :count AND title.overall_max_players >= :count)`,
+                    {count}
+                );
+            }
+        }
     }
     
     // Filter by game modes
