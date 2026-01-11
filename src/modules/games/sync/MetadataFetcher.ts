@@ -34,7 +34,8 @@ import {GameType} from '../../../types/InventoryEnums';
 import settings from '../../settings';
 
 // Minimum length for a description to be considered valid (avoid placeholders)
-export const MIN_VALID_DESCRIPTION_LENGTH = 20;
+// Descriptions shorter than this are considered too short to be meaningful
+export const MIN_VALID_DESCRIPTION_LENGTH = 50;
 
 /**
  * Centralized metadata fetcher with rate limiting
@@ -694,8 +695,17 @@ export async function applyMetadataToTitle(
     if (metadata.shortDescription || metadata.description) {
         const rawDescription = metadata.shortDescription || metadata.description;
         const newDescription = normalizeDescription(rawDescription);
-        // Update if no existing description OR if existing one is very short/placeholder
-        if (newDescription && (!title.description || title.description.length < MIN_VALID_DESCRIPTION_LENGTH || title.description === title.name)) {
+        
+        // Determine if we should update the description:
+        // 1. No new description available → don't update
+        // 2. No existing description → update (first time)
+        // 3. Existing description is too short (placeholder) → update
+        // 4. Existing description equals the game name (auto-placeholder) → update
+        const hasNoDescription = !title.description;
+        const hasPlaceholderDescription = title.description && title.description.length < MIN_VALID_DESCRIPTION_LENGTH;
+        const hasNameAsDescription = title.description === title.name;
+        
+        if (newDescription && (hasNoDescription || hasPlaceholderDescription || hasNameAsDescription)) {
             updates.description = newDescription;
         }
     }
