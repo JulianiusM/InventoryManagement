@@ -334,3 +334,278 @@ export async function mergeGameTitleAsRelease(
     
     return newRelease.id;
 }
+
+// ============ Metadata Management Functions ============
+
+export interface SimilarTitleGroup {
+    /** Base normalized name that groups these titles */
+    normalizedName: string;
+    /** Titles that share the similar normalized name */
+    titles: GameTitle[];
+}
+
+/**
+ * Find game titles with similar names (potential merge candidates).
+ * Groups titles by normalized name to find duplicates/editions.
+ * 
+ * @param ownerId Owner user ID
+ * @param includeDismissed Whether to include dismissed items
+ * @returns Groups of similar titles (2+ titles per group)
+ */
+export async function findSimilarTitles(
+    ownerId: number, 
+    includeDismissed = false
+): Promise<SimilarTitleGroup[]> {
+    const repo = AppDataSource.getRepository(GameTitle);
+    
+    // Get all titles for owner
+    let titles = await repo.find({
+        where: {owner: {id: ownerId}},
+        relations: ['releases'],
+        order: {name: 'ASC'},
+    });
+    
+    // Filter out dismissed if needed
+    if (!includeDismissed) {
+        titles = titles.filter(t => !t.dismissedSimilar);
+    }
+    
+    // Group by normalized name
+    const groups = new Map<string, GameTitle[]>();
+    
+    for (const title of titles) {
+        const {baseName} = extractEdition(title.name);
+        const normalized = normalizeGameTitle(baseName);
+        
+        if (!groups.has(normalized)) {
+            groups.set(normalized, []);
+        }
+        groups.get(normalized)!.push(title);
+    }
+    
+    // Only return groups with 2+ titles (actual similar names)
+    const result: SimilarTitleGroup[] = [];
+    for (const [normalizedName, groupTitles] of groups) {
+        if (groupTitles.length >= 2) {
+            result.push({normalizedName, titles: groupTitles});
+        }
+    }
+    
+    // Sort by group size (largest first) then by name
+    result.sort((a, b) => {
+        if (b.titles.length !== a.titles.length) {
+            return b.titles.length - a.titles.length;
+        }
+        return a.normalizedName.localeCompare(b.normalizedName);
+    });
+    
+    return result;
+}
+
+/**
+ * Find game titles that are missing essential metadata.
+ * Missing metadata = no description AND no cover image.
+ * 
+ * @param ownerId Owner user ID
+ * @param includeDismissed Whether to include dismissed items
+ * @returns Titles missing metadata
+ */
+export async function findTitlesMissingMetadata(
+    ownerId: number, 
+    includeDismissed = false
+): Promise<GameTitle[]> {
+    const repo = AppDataSource.getRepository(GameTitle);
+    
+    // Get all titles for owner
+    const titles = await repo.find({
+        where: {owner: {id: ownerId}},
+        relations: ['releases'],
+        order: {name: 'ASC'},
+    });
+    
+    // Filter to those missing metadata
+    return titles.filter(title => {
+        // Skip dismissed if not including them
+        if (!includeDismissed && title.dismissedMissingMetadata) {
+            return false;
+        }
+        
+        // Missing metadata = no description AND no cover image
+        const missingDescription = !title.description || title.description.trim() === '';
+        const missingCover = !title.coverImageUrl || title.coverImageUrl.trim() === '';
+        
+        return missingDescription && missingCover;
+    });
+}
+
+/**
+ * Find game titles with invalid or missing player counts.
+ * Invalid = has multiplayer support but unknown overall or mode-specific player counts.
+ * 
+ * @param ownerId Owner user ID
+ * @param includeDismissed Whether to include dismissed items
+ * @returns Titles with invalid player counts
+ */
+export async function findTitlesWithInvalidPlayerCounts(
+    ownerId: number, 
+    includeDismissed = false
+): Promise<GameTitle[]> {
+    const repo = AppDataSource.getRepository(GameTitle);
+    
+    // Get all titles for owner
+    const titles = await repo.find({
+        where: {owner: {id: ownerId}},
+        relations: ['releases'],
+        order: {name: 'ASC'},
+    });
+    
+    // Filter to those with invalid player counts
+    return titles.filter(title => {
+        // Skip dismissed if not including them
+        if (!includeDismissed && title.dismissedInvalidPlayers) {
+            return false;
+        }
+        
+        // Check if this is a multiplayer game
+        const isMultiplayer = title.supportsOnline || title.supportsLocal || title.supportsPhysical;
+        
+        if (!isMultiplayer) {
+            // Singleplayer-only: no issue (null overall = implied 1 player)
+            return false;
+        }
+        
+        // Multiplayer game: check for missing counts
+        // Issue if overall max is null
+        if (title.overallMaxPlayers === null) {
+            return true;
+        }
+        
+        // Issue if mode is enabled but mode-specific max is null
+        if (title.supportsOnline && title.onlineMaxPlayers === null) {
+            return true;
+        }
+        if (title.supportsLocal && title.localMaxPlayers === null) {
+            return true;
+        }
+        if (title.supportsPhysical && title.physicalMaxPlayers === null) {
+            return true;
+        }
+        
+        return false;
+    });
+}
+
+export type DismissalType = 'similar' | 'missing_metadata' | 'invalid_players';
+
+/**
+ * Dismiss a title from a specific issue type.
+ * 
+ * @param titleId Title ID to dismiss
+ * @param dismissalType Type of dismissal
+ */
+export async function dismissTitle(titleId: string, dismissalType: DismissalType): Promise<void> {
+    const repo = AppDataSource.getRepository(GameTitle);
+    
+    const updates: Partial<GameTitle> = {};
+    switch (dismissalType) {
+        case 'similar':
+            updates.dismissedSimilar = true;
+            break;
+        case 'missing_metadata':
+            updates.dismissedMissingMetadata = true;
+            break;
+        case 'invalid_players':
+            updates.dismissedInvalidPlayers = true;
+            break;
+    }
+    
+    await repo.update({id: titleId}, updates as Record<string, unknown>);
+}
+
+/**
+ * Undismiss a title from a specific issue type.
+ * 
+ * @param titleId Title ID to undismiss
+ * @param dismissalType Type of dismissal to clear
+ */
+export async function undismissTitle(titleId: string, dismissalType: DismissalType): Promise<void> {
+    const repo = AppDataSource.getRepository(GameTitle);
+    
+    const updates: Partial<GameTitle> = {};
+    switch (dismissalType) {
+        case 'similar':
+            updates.dismissedSimilar = false;
+            break;
+        case 'missing_metadata':
+            updates.dismissedMissingMetadata = false;
+            break;
+        case 'invalid_players':
+            updates.dismissedInvalidPlayers = false;
+            break;
+    }
+    
+    await repo.update({id: titleId}, updates as Record<string, unknown>);
+}
+
+/**
+ * Reset all dismissals for a user (global reset).
+ * 
+ * @param ownerId Owner user ID
+ * @param dismissalType Optional specific type to reset, or all if not provided
+ * @returns Number of titles affected
+ */
+export async function resetDismissals(
+    ownerId: number, 
+    dismissalType?: DismissalType
+): Promise<number> {
+    const repo = AppDataSource.getRepository(GameTitle);
+    
+    const updates: Partial<GameTitle> = {};
+    if (!dismissalType || dismissalType === 'similar') {
+        updates.dismissedSimilar = false;
+    }
+    if (!dismissalType || dismissalType === 'missing_metadata') {
+        updates.dismissedMissingMetadata = false;
+    }
+    if (!dismissalType || dismissalType === 'invalid_players') {
+        updates.dismissedInvalidPlayers = false;
+    }
+    
+    const result = await repo
+        .createQueryBuilder()
+        .update()
+        .set(updates as Record<string, unknown>)
+        .where('owner_id = :ownerId', {ownerId})
+        .execute();
+    
+    return result.affected || 0;
+}
+
+/**
+ * Get counts for all metadata management issue types.
+ * 
+ * @param ownerId Owner user ID
+ * @returns Object with counts for each issue type
+ */
+export async function getMetadataIssueCounts(ownerId: number): Promise<{
+    similarCount: number;
+    missingMetadataCount: number;
+    invalidPlayersCount: number;
+    totalCount: number;
+}> {
+    const [similarGroups, missingMetadata, invalidPlayers] = await Promise.all([
+        findSimilarTitles(ownerId, false),
+        findTitlesMissingMetadata(ownerId, false),
+        findTitlesWithInvalidPlayerCounts(ownerId, false),
+    ]);
+    
+    // Similar count = number of titles in groups (not number of groups)
+    const similarCount = similarGroups.reduce((sum, g) => sum + g.titles.length, 0);
+    
+    return {
+        similarCount,
+        missingMetadataCount: missingMetadata.length,
+        invalidPlayersCount: invalidPlayers.length,
+        totalCount: similarCount + missingMetadata.length + invalidPlayers.length,
+    };
+}

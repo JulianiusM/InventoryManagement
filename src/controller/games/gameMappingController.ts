@@ -133,3 +133,92 @@ export async function bulkIgnoreMappings(userId: number): Promise<number> {
     
     return ignored;
 }
+
+// ============ Metadata Management ============
+
+/**
+ * Get all metadata management data for the mappings page.
+ * Includes pending mappings, similar titles, missing metadata, and invalid player counts.
+ */
+export async function getMetadataManagementData(ownerId: number) {
+    requireAuthenticatedUser(ownerId);
+    
+    const [
+        mappings,
+        titles,
+        similarGroups,
+        missingMetadata,
+        invalidPlayers,
+        counts,
+    ] = await Promise.all([
+        gameMappingService.getPendingMappings(ownerId),
+        gameTitleService.getAllGameTitles(ownerId),
+        gameTitleService.findSimilarTitles(ownerId, false),
+        gameTitleService.findTitlesMissingMetadata(ownerId, false),
+        gameTitleService.findTitlesWithInvalidPlayerCounts(ownerId, false),
+        gameTitleService.getMetadataIssueCounts(ownerId),
+    ]);
+    
+    return {
+        mappings,
+        titles,
+        similarGroups,
+        missingMetadata,
+        invalidPlayers,
+        counts: {
+            ...counts,
+            pendingMappings: mappings.length,
+        },
+    };
+}
+
+/**
+ * Dismiss a title from a specific issue type.
+ */
+export async function dismissTitle(
+    titleId: string, 
+    dismissalType: gameTitleService.DismissalType,
+    userId: number
+): Promise<void> {
+    requireAuthenticatedUser(userId);
+    
+    // Verify ownership
+    const title = await gameTitleService.getGameTitleById(titleId);
+    if (!title) {
+        throw new ExpectedError('Game title not found', 'error', 404);
+    }
+    checkOwnership(title, userId);
+    
+    await gameTitleService.dismissTitle(titleId, dismissalType);
+}
+
+/**
+ * Undismiss a title from a specific issue type.
+ */
+export async function undismissTitle(
+    titleId: string, 
+    dismissalType: gameTitleService.DismissalType,
+    userId: number
+): Promise<void> {
+    requireAuthenticatedUser(userId);
+    
+    // Verify ownership
+    const title = await gameTitleService.getGameTitleById(titleId);
+    if (!title) {
+        throw new ExpectedError('Game title not found', 'error', 404);
+    }
+    checkOwnership(title, userId);
+    
+    await gameTitleService.undismissTitle(titleId, dismissalType);
+}
+
+/**
+ * Reset all dismissals for a user.
+ */
+export async function resetDismissals(
+    userId: number,
+    dismissalType?: gameTitleService.DismissalType
+): Promise<number> {
+    requireAuthenticatedUser(userId);
+    return await gameTitleService.resetDismissals(userId, dismissalType);
+}
