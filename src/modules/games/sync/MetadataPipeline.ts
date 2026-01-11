@@ -340,6 +340,11 @@ export class MetadataPipeline {
      * IMPORTANT: Player count values from metadata providers must be validated.
      * Invalid values (0, negative, NaN) are treated as "unknown" and not applied.
      * This ensures we preserve the distinction between "known count" vs "unknown count".
+     * 
+     * Player counts can be null (unknown):
+     * - null = we don't know the player count
+     * - For singleplayer-only games, null = implied 1 player
+     * - For multiplayer games, null = UI will show warning
      */
     private applyPlayerInfoUpdates(
         updates: Partial<GameTitle>,

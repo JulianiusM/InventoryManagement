@@ -27,16 +27,12 @@ import {GameTitle} from '../../database/entities/gameTitle/GameTitle';
 import {GameRelease} from '../../database/entities/gameRelease/GameRelease';
 import {GameType, MappingStatus, GameCopyType} from '../../../types/InventoryEnums';
 
-// NOTE: We intentionally do NOT set default values for player counts.
-// When player counts are unknown, we keep them as null/undefined.
-// This allows the UI to distinguish between "known to be X players" vs "unknown".
-// For singleplayer games (no multiplayer modes), player count is implied as 1.
-
-// Minimum overall max players for multiplayer games (ensures overall max >= 2 for multiplayer)
-const MIN_MULTIPLAYER_OVERALL_MAX = 2;
-
-// Default player counts for overall values (not mode-specific)
-const DEFAULT_SINGLEPLAYER_MAX = 1;
+// NOTE: Player counts can be null to indicate "unknown".
+// We preserve this distinction throughout the pipeline:
+// - null = we don't know the player count
+// - For singleplayer-only games (no modes enabled), null overall count = implied 1 player
+// - For multiplayer games, null = UI shows warning that count is unknown
+// This is critical for accurate search functionality.
 
 // Map provider to default platform
 const providerPlatformDefaults: Record<string, string> = {
@@ -126,70 +122,73 @@ function hasMultiplayerSupport(game: ExternalGame): boolean {
 }
 
 /**
+ * Validate a player count value - returns undefined if invalid
+ * Valid: positive finite integer
+ * Invalid: 0, negative, NaN, Infinity -> returns undefined (unknown)
+ */
+function validatePlayerCount(value: number | undefined): number | undefined {
+    if (value === undefined) return undefined;
+    if (value <= 0 || !Number.isFinite(value)) return undefined;
+    return value;
+}
+
+/**
  * Clamp player profile values to ensure they pass validation.
  * 
  * Key principles:
  * 1. Mode-specific values (online/local max) take PRECEDENCE over overall values
  * 2. If mode-specific values exist but supportsX is false, enable supportsX
  * 3. Overall max is EXTENDED to accommodate mode max values (not clamped down)
- * 4. PRESERVE null/undefined for unknown mode-specific counts - do NOT set defaults
- * 5. Invalid values (0 or negative) are treated as "unknown" (set to undefined)
+ * 4. PRESERVE null/undefined for unknown counts - do NOT set defaults
+ * 5. Invalid values (0, negative, NaN) are treated as "unknown" (set to undefined)
+ * 6. Overall counts can be null (unknown) - this is valid
  */
 function clampPlayerProfileValues(game: ExternalGame): ExternalGame {
     const clamped: ExternalGame = {...game};
     
     // Step 1: Validate mode-specific values - treat invalid values as "unknown"
-    // Invalid means: 0, negative, or NaN
+    clamped.onlineMaxPlayers = validatePlayerCount(clamped.onlineMaxPlayers);
+    clamped.localMaxPlayers = validatePlayerCount(clamped.localMaxPlayers);
+    clamped.onlineMinPlayers = validatePlayerCount(clamped.onlineMinPlayers);
+    clamped.localMinPlayers = validatePlayerCount(clamped.localMinPlayers);
+    
+    // If mode-specific values are valid, enable support
     if (clamped.onlineMaxPlayers !== undefined) {
-        if (clamped.onlineMaxPlayers <= 0 || !Number.isFinite(clamped.onlineMaxPlayers)) {
-            clamped.onlineMaxPlayers = undefined; // Invalid -> unknown
-        } else {
-            clamped.supportsOnline = true; // Valid value implies support
-        }
+        clamped.supportsOnline = true;
     }
     if (clamped.localMaxPlayers !== undefined) {
-        if (clamped.localMaxPlayers <= 0 || !Number.isFinite(clamped.localMaxPlayers)) {
-            clamped.localMaxPlayers = undefined; // Invalid -> unknown
-        } else {
-            clamped.supportsLocal = true; // Valid value implies support
-        }
-    }
-    if (clamped.onlineMinPlayers !== undefined) {
-        if (clamped.onlineMinPlayers <= 0 || !Number.isFinite(clamped.onlineMinPlayers)) {
-            clamped.onlineMinPlayers = undefined;
-        }
-    }
-    if (clamped.localMinPlayers !== undefined) {
-        if (clamped.localMinPlayers <= 0 || !Number.isFinite(clamped.localMinPlayers)) {
-            clamped.localMinPlayers = undefined;
-        }
+        clamped.supportsLocal = true;
     }
     
-    // Step 2: Find the maximum player count across all modes (mode values take precedence)
-    let derivedMaxPlayers = clamped.overallMaxPlayers ?? 1;
+    // Step 2: Validate overall counts - treat invalid values as "unknown"
+    clamped.overallMinPlayers = validatePlayerCount(clamped.overallMinPlayers);
+    clamped.overallMaxPlayers = validatePlayerCount(clamped.overallMaxPlayers);
+    
+    // Step 3: If we have valid mode-specific counts, derive overall from them
+    // This ONLY sets overall if mode counts are known, otherwise keeps as unknown
+    let hasKnownMax = false;
+    let derivedMaxPlayers = clamped.overallMaxPlayers ?? 0;
     
     if (clamped.supportsOnline && clamped.onlineMaxPlayers !== undefined) {
         derivedMaxPlayers = Math.max(derivedMaxPlayers, clamped.onlineMaxPlayers);
+        hasKnownMax = true;
     }
     if (clamped.supportsLocal && clamped.localMaxPlayers !== undefined) {
         derivedMaxPlayers = Math.max(derivedMaxPlayers, clamped.localMaxPlayers);
+        hasKnownMax = true;
     }
     
-    // Step 3: Ensure overall max is at least 1 and accommodates all mode maxes
-    clamped.overallMaxPlayers = Math.max(1, derivedMaxPlayers);
-    
-    // For multiplayer games with unknown mode-specific counts, set overall max to 2+
-    // to indicate multiplayer, while keeping mode-specific counts as unknown
-    if ((clamped.supportsOnline || clamped.supportsLocal) && clamped.overallMaxPlayers < MIN_MULTIPLAYER_OVERALL_MAX) {
-        clamped.overallMaxPlayers = MIN_MULTIPLAYER_OVERALL_MAX;
+    // Only update overall max if we have known values from modes
+    if (hasKnownMax) {
+        clamped.overallMaxPlayers = derivedMaxPlayers;
     }
+    // Otherwise, keep overall max as is (could be null/undefined = unknown)
     
-    // Step 4: Ensure overall min is at least 1 and <= overall max
-    if (!clamped.overallMinPlayers || clamped.overallMinPlayers < 1) {
-        clamped.overallMinPlayers = 1;
-    }
-    if (clamped.overallMinPlayers > clamped.overallMaxPlayers) {
-        clamped.overallMinPlayers = clamped.overallMaxPlayers;
+    // Step 4: Validate min/max relationship for overall if both are known
+    if (clamped.overallMinPlayers !== undefined && clamped.overallMaxPlayers !== undefined) {
+        if (clamped.overallMinPlayers > clamped.overallMaxPlayers) {
+            clamped.overallMinPlayers = clamped.overallMaxPlayers;
+        }
     }
     
     // Step 5: Clear mode-specific values if mode is not supported (validation requires this)
@@ -251,30 +250,27 @@ async function createGameFromData(
     // Determine multiplayer support from game data
     const supportsOnline = game.supportsOnline ?? false;
     const supportsLocal = game.supportsLocal ?? false;
-    const hasMultiplayer = hasMultiplayerSupport(game);
     
     // Normalize description in the shared pipeline (handles HTML, length, etc.)
     const normalizedDescription = normalizeDescription(game.description);
     
-    // Determine overall player counts:
-    // - For singleplayer: 1-1 (implied)
-    // - For multiplayer: if known, use it; otherwise 1-2 (minimum for multiplayer)
-    // The actual mode-specific counts remain null if unknown
-    const overallMax = game.overallMaxPlayers ?? (hasMultiplayer ? MIN_MULTIPLAYER_OVERALL_MAX : DEFAULT_SINGLEPLAYER_MAX);
+    // KEY DESIGN DECISION: Player counts are preserved as-is (including null).
+    // null = "we don't know the player count" - this is critical for search functionality.
+    // We NEVER set default values that would obscure unknown data.
+    //
+    // For singleplayer-only games (no multiplayer modes): null overall = implied 1 player
+    // For multiplayer games: null overall = we don't know (UI will show warning)
     
     // Get or create game title (merges with existing titles with same normalized name)
     // The title uses the BASE NAME (without edition)
-    // 
-    // KEY DESIGN DECISION: Mode-specific counts (onlineMaxPlayers, localMaxPlayers) are
-    // PRESERVED AS NULL when unknown. We only set them if we have actual data.
-    // This allows the UI to show "player count unknown" warnings for multiplayer games.
     const {title, isNew: titleCreated} = await gameTitleService.getOrCreateGameTitle({
         name: baseName, // Use base name WITHOUT edition
         type: GameType.VIDEO_GAME,
         description: normalizedDescription || null,
         coverImageUrl: game.coverImageUrl || null,
-        overallMinPlayers: game.overallMinPlayers ?? 1,
-        overallMaxPlayers: overallMax,
+        // Overall player counts: preserve as-is (null = unknown)
+        overallMinPlayers: game.overallMinPlayers ?? null,
+        overallMaxPlayers: game.overallMaxPlayers ?? null,
         supportsOnline,
         supportsLocal,
         supportsPhysical: game.supportsPhysical ?? false,

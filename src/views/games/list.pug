@@ -139,9 +139,22 @@ block content
                                     span.badge.text-bg-info #{typeLabels[title.type] || title.type}
                                 
                                 .d-flex.flex-wrap.gap-1.mb-2
-                                    span.badge.text-bg-secondary
-                                        i.bi.bi-people.me-1
-                                        | #{title.overallMinPlayers}-#{title.overallMaxPlayers} players
+                                    //- Overall player count badge - handle null (unknown) values
+                                    if title.overallMaxPlayers
+                                        span.badge.text-bg-secondary
+                                            i.bi.bi-people.me-1
+                                            | #{title.overallMinPlayers || 1}-#{title.overallMaxPlayers} players
+                                    else if title.supportsOnline || title.supportsLocal || title.supportsPhysical
+                                        //- Multiplayer game with unknown overall count
+                                        span.badge.text-bg-warning.text-dark
+                                            i.bi.bi-people.me-1
+                                            i.bi.bi-exclamation-triangle.me-1
+                                            | ? players
+                                    else
+                                        //- Singleplayer game (implied 1 player)
+                                        span.badge.text-bg-secondary
+                                            i.bi.bi-people.me-1
+                                            | 1 player
                                     if title.supportsOnline
                                         span.badge.text-bg-primary
                                             i.bi.bi-globe.me-1
@@ -236,13 +249,14 @@ block content
                         h6.text-white
                             i.bi.bi-people.me-1
                             | Player Profile
+                            small.text-white-50.ms-2 (leave empty if unknown)
                         
                         .col-md-6
-                            label.form-label Overall Min Players *
-                            input.form-control.text-bg-dark(type="number" name="overallMinPlayers" value="1" min="1" required)
+                            label.form-label Overall Min Players
+                            input.form-control.text-bg-dark(type="number" name="overallMinPlayers" min="1" placeholder="Leave empty if unknown")
                         .col-md-6
-                            label.form-label Overall Max Players *
-                            input.form-control.text-bg-dark(type="number" name="overallMaxPlayers" value="1" min="1" required)
+                            label.form-label Overall Max Players
+                            input.form-control.text-bg-dark(type="number" name="overallMaxPlayers" min="1" placeholder="Leave empty if unknown")
                         
                         .col-12
                             label.form-label Multiplayer Support

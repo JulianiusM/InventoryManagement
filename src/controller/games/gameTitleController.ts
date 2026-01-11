@@ -56,9 +56,13 @@ export async function listGameTitles(ownerId: number, options?: {
     
     if (options?.playersFilter) {
         const count = options.playersFilter;
-        titles = titles.filter(t => 
-            count >= t.overallMinPlayers && count <= t.overallMaxPlayers
-        );
+        titles = titles.filter(t => {
+            // Handle null (unknown) player counts - include games with unknown counts in search
+            // For games with null overall counts, only match if player count is 1 (implied singleplayer)
+            const min = t.overallMinPlayers ?? 1;
+            const max = t.overallMaxPlayers ?? 1;
+            return count >= min && count <= max;
+        });
     }
     
     // Get all platforms for filter dropdown

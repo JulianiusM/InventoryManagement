@@ -72,9 +72,20 @@ block content
                             if gameTitle.description
                                 p.text-white-50.mb-2.small #{gameTitle.description.substring(0, 200)}#{gameTitle.description.length > 200 ? '...' : ''}
                             .d-flex.flex-wrap.gap-2.align-items-center
-                                span.badge.text-bg-secondary
-                                    i.bi.bi-people.me-1
-                                    | #{gameTitle.overallMinPlayers}-#{gameTitle.overallMaxPlayers} players
+                                //- Overall player count - handle null (unknown) values
+                                if gameTitle.overallMaxPlayers
+                                    span.badge.text-bg-secondary
+                                        i.bi.bi-people.me-1
+                                        | #{gameTitle.overallMinPlayers || 1}-#{gameTitle.overallMaxPlayers} players
+                                else if gameTitle.supportsOnline || gameTitle.supportsLocal || gameTitle.supportsPhysical
+                                    span.badge.text-bg-warning.text-dark
+                                        i.bi.bi-people.me-1
+                                        i.bi.bi-exclamation-triangle.me-1
+                                        | ? players
+                                else
+                                    span.badge.text-bg-secondary
+                                        i.bi.bi-people.me-1
+                                        | 1 player
                                 if gameTitle.supportsOnline
                                     span.badge.text-bg-primary
                                         i.bi.bi-globe.me-1

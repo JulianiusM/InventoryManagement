@@ -22,6 +22,9 @@ export interface ExternalGame {
     platform?: string;
     
     // Player profile metadata (provided by connector when available)
+    // All player counts are optional/nullable: undefined/null = "unknown"
+    // For singleplayer-only games (no modes), undefined overall = implied 1 player
+    // For multiplayer games, undefined/null = we don't know (UI shows warning)
     overallMinPlayers?: number;
     overallMaxPlayers?: number;
     supportsOnline?: boolean;

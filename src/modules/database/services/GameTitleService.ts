@@ -14,11 +14,13 @@ export interface CreateGameTitleData {
     type?: GameType;
     description?: string | null;
     coverImageUrl?: string | null;
-    overallMinPlayers: number;
-    overallMaxPlayers: number;
+    // Overall player counts - null means "unknown"
+    overallMinPlayers?: number | null;
+    overallMaxPlayers?: number | null;
     supportsOnline: boolean;
     supportsLocal: boolean;
     supportsPhysical: boolean;
+    // Mode-specific counts - null means "unknown for this mode"
     onlineMinPlayers?: number | null;
     onlineMaxPlayers?: number | null;
     localMinPlayers?: number | null;
@@ -38,8 +40,9 @@ export async function createGameTitle(data: CreateGameTitleData): Promise<GameTi
     title.type = data.type || GameType.VIDEO_GAME;
     title.description = data.description ?? null;
     title.coverImageUrl = data.coverImageUrl ?? null;
-    title.overallMinPlayers = data.overallMinPlayers;
-    title.overallMaxPlayers = data.overallMaxPlayers;
+    // Player counts: null means "unknown" - preserve this distinction
+    title.overallMinPlayers = data.overallMinPlayers ?? null;
+    title.overallMaxPlayers = data.overallMaxPlayers ?? null;
     title.supportsOnline = data.supportsOnline;
     title.supportsLocal = data.supportsLocal;
     title.supportsPhysical = data.supportsPhysical;

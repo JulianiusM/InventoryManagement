@@ -1,14 +1,21 @@
 /**
  * Game player profile validation service
  * Implements validation rules for player counts and multiplayer modes
+ * 
+ * IMPORTANT: Player count fields can be null to indicate "unknown".
+ * - For singleplayer-only games (no modes enabled): null = implied 1 player
+ * - For multiplayer games: null = we don't know the actual player count
+ * - This distinction is critical for accurate search functionality
  */
 
 export interface PlayerProfile {
-    overallMinPlayers: number;
-    overallMaxPlayers: number;
+    // Overall player counts - null means "unknown"
+    overallMinPlayers?: number | null;
+    overallMaxPlayers?: number | null;
     supportsOnline: boolean;
     supportsLocal: boolean;
     supportsPhysical: boolean;
+    // Mode-specific counts - null means "unknown for this mode"
     onlineMinPlayers?: number | null;
     onlineMaxPlayers?: number | null;
     localMinPlayers?: number | null;
@@ -33,16 +40,28 @@ function isDefined<T>(value: T | null | undefined): value is T {
 
 /**
  * Validate player profile data
+ * 
+ * Player counts can be null (meaning "unknown"):
+ * - null overall counts are valid - they indicate we don't know the player count
+ * - For singleplayer-only games, null = implied 1 player
+ * - For multiplayer games, null = unknown (UI will show warning)
+ * 
  * @throws PlayerProfileValidationError if validation fails
  */
 export function validatePlayerProfile(profile: PlayerProfile): void {
-    // Validate overall player counts
-    if (profile.overallMinPlayers < 1) {
-        throw new PlayerProfileValidationError('Overall minimum players must be at least 1');
+    // Validate overall player counts (only if provided)
+    // null is allowed - it means "unknown"
+    if (isDefined(profile.overallMinPlayers)) {
+        if (profile.overallMinPlayers < 1) {
+            throw new PlayerProfileValidationError('Overall minimum players must be at least 1');
+        }
     }
     
-    if (profile.overallMaxPlayers < profile.overallMinPlayers) {
-        throw new PlayerProfileValidationError('Overall maximum players must be >= minimum players');
+    // If both are provided, validate their relationship
+    if (isDefined(profile.overallMinPlayers) && isDefined(profile.overallMaxPlayers)) {
+        if (profile.overallMaxPlayers < profile.overallMinPlayers) {
+            throw new PlayerProfileValidationError('Overall maximum players must be >= minimum players');
+        }
     }
     
     // Validate online mode
@@ -103,16 +122,24 @@ export function validatePlayerProfile(profile: PlayerProfile): void {
 
 /**
  * Validate mode-specific player counts against overall range
+ * Note: overall counts may be null (unknown), in which case we skip the range validation
  */
 function validateModePlayerCounts(
     modeName: string,
     modeMin: number | null | undefined,
     modeMax: number | null | undefined,
-    overallMin: number,
-    overallMax: number
+    overallMin: number | null | undefined,
+    overallMax: number | null | undefined
 ): void {
-    // If provided, validate constraints: overallMin <= modeMin <= modeMax <= overallMax
-    if (isDefined(modeMin)) {
+    // If provided, validate basic constraints
+    if (isDefined(modeMin) && modeMin < 1) {
+        throw new PlayerProfileValidationError(
+            `${modeName} min players (${modeMin}) must be at least 1`
+        );
+    }
+    
+    // If overall counts are known, validate mode counts are within range
+    if (isDefined(modeMin) && isDefined(overallMin)) {
         if (modeMin < overallMin) {
             throw new PlayerProfileValidationError(
                 `${modeName} min players (${modeMin}) must be >= overall min (${overallMin})`
@@ -120,7 +147,7 @@ function validateModePlayerCounts(
         }
     }
     
-    if (isDefined(modeMax)) {
+    if (isDefined(modeMax) && isDefined(overallMax)) {
         if (modeMax > overallMax) {
             throw new PlayerProfileValidationError(
                 `${modeName} max players (${modeMax}) must be <= overall max (${overallMax})`
@@ -139,29 +166,32 @@ function validateModePlayerCounts(
 
 /**
  * Get effective player counts for a mode, falling back to overall if not specified
+ * Returns null if either:
+ * - The mode is not supported
+ * - Both mode and overall counts are unknown (null)
  */
 export function getEffectivePlayerCounts(
     profile: PlayerProfile,
     mode: 'online' | 'local' | 'physical'
-): {min: number; max: number} | null {
+): {min: number | null; max: number | null} | null {
     switch (mode) {
         case 'online':
             if (!profile.supportsOnline) return null;
             return {
-                min: profile.onlineMinPlayers ?? profile.overallMinPlayers,
-                max: profile.onlineMaxPlayers ?? profile.overallMaxPlayers,
+                min: profile.onlineMinPlayers ?? profile.overallMinPlayers ?? null,
+                max: profile.onlineMaxPlayers ?? profile.overallMaxPlayers ?? null,
             };
         case 'local':
             if (!profile.supportsLocal) return null;
             return {
-                min: profile.localMinPlayers ?? profile.overallMinPlayers,
-                max: profile.localMaxPlayers ?? profile.overallMaxPlayers,
+                min: profile.localMinPlayers ?? profile.overallMinPlayers ?? null,
+                max: profile.localMaxPlayers ?? profile.overallMaxPlayers ?? null,
             };
         case 'physical':
             if (!profile.supportsPhysical) return null;
             return {
-                min: profile.physicalMinPlayers ?? profile.overallMinPlayers,
-                max: profile.physicalMaxPlayers ?? profile.overallMaxPlayers,
+                min: profile.physicalMinPlayers ?? profile.overallMinPlayers ?? null,
+                max: profile.physicalMaxPlayers ?? profile.overallMaxPlayers ?? null,
             };
     }
 }

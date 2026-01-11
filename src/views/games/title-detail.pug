@@ -28,9 +28,22 @@ block content
                     | #{title.name}
                 .d-flex.flex-wrap.gap-2.align-items-center
                     span.badge.text-bg-info #{typeLabels[title.type] || title.type}
-                    span.badge.text-bg-secondary
-                        i.bi.bi-people.me-1
-                        | #{title.overallMinPlayers}-#{title.overallMaxPlayers} players
+                    //- Overall player count badge - handle null (unknown) values
+                    if title.overallMaxPlayers
+                        span.badge.text-bg-secondary
+                            i.bi.bi-people.me-1
+                            | #{title.overallMinPlayers || 1}-#{title.overallMaxPlayers} players
+                    else if title.supportsOnline || title.supportsLocal || title.supportsPhysical
+                        //- Multiplayer game with unknown overall count
+                        span.badge.text-bg-warning.text-dark
+                            i.bi.bi-people.me-1
+                            i.bi.bi-exclamation-triangle.me-1
+                            | ? players
+                    else
+                        //- Singleplayer game with unknown count - implied 1 player
+                        span.badge.text-bg-secondary
+                            i.bi.bi-people.me-1
+                            | 1 player
                     if title.supportsOnline
                         span.badge.text-bg-primary
                             i.bi.bi-globe.me-1
@@ -81,7 +94,18 @@ block content
                             dt.col-sm-4
                                 i.bi.bi-people.me-1
                                 | Overall Players
-                            dd.col-sm-8 #{title.overallMinPlayers} - #{title.overallMaxPlayers}
+                            dd.col-sm-8
+                                //- Handle null (unknown) overall player counts
+                                if title.overallMaxPlayers
+                                    | #{title.overallMinPlayers || 1} - #{title.overallMaxPlayers} players
+                                else if title.supportsOnline || title.supportsLocal || title.supportsPhysical
+                                    //- Multiplayer game with unknown overall count
+                                    span.text-warning
+                                        i.bi.bi-exclamation-triangle.me-1
+                                        | Unknown (click "Fetch Metadata" to update)
+                                else
+                                    //- Singleplayer game with unknown count - implied 1 player
+                                    | 1 player (singleplayer)
                             
                             if title.supportsOnline
                                 dt.col-sm-4.text-primary
@@ -145,13 +169,17 @@ block content
                                 h6.text-white
                                     i.bi.bi-people.me-1
                                     | Player Settings
+                                    if !title.overallMaxPlayers && (title.supportsOnline || title.supportsLocal)
+                                        span.badge.text-bg-warning.ms-2
+                                            i.bi.bi-exclamation-triangle.me-1
+                                            | Player counts unknown
                                     
                                 .col-md-6
                                     label.form-label Overall Min Players
-                                    input.form-control.text-bg-dark(type="number" name="overallMinPlayers" value=title.overallMinPlayers min="1" required)
+                                    input.form-control.text-bg-dark(type="number" name="overallMinPlayers" value=title.overallMinPlayers || '' min="1" placeholder="Leave empty if unknown")
                                 .col-md-6
                                     label.form-label Overall Max Players
-                                    input.form-control.text-bg-dark(type="number" name="overallMaxPlayers" value=title.overallMaxPlayers min="1" required)
+                                    input.form-control.text-bg-dark(type="number" name="overallMaxPlayers" value=title.overallMaxPlayers || '' min="1" placeholder="Leave empty if unknown")
                                 
                                 .col-12
                                     label.form-label Multiplayer Modes

@@ -268,26 +268,33 @@ Metadata providers are standardized with centralized rate limiting:
 Player counts are handled with explicit "known" vs "unknown" distinction:
 
 **Design Principles:**
-1. **Singleplayer games**: Player count is implied as 1 (no special handling needed)
-2. **Multiplayer games**: Preserve `null` for unknown mode-specific counts
-3. **Never set defaults**: Do NOT set arbitrary defaults like 2 or 4 players
+1. **Singleplayer games**: Player count is implied as 1 (no modes enabled = 1 player)
+2. **Multiplayer games**: ALL counts (including overall) can be null = "unknown"
+3. **Never set defaults**: Do NOT set arbitrary defaults that would obscure unknown data
 4. **Invalid data = unknown**: Values ≤0, NaN, or Infinity are treated as "unknown" (null)
+5. **Preserve provider data**: We never change values we get from providers; if invalid, we just don't apply them
 
 **Data Model:**
-- `overallMinPlayers` / `overallMaxPlayers`: Required, always have values (default 1)
-- `onlineMaxPlayers` / `localMaxPlayers` / `physicalMaxPlayers`: Nullable
+- `overallMinPlayers` / `overallMaxPlayers`: **NULLABLE**
+  - `null` = player count unknown
+  - For singleplayer-only games (no modes), null = implied 1 player
+  - For multiplayer games, null = we don't know (UI shows warning)
+- `onlineMaxPlayers` / `localMaxPlayers` / `physicalMaxPlayers`: **NULLABLE**
   - `null` = player count unknown for this mode
   - Valid number = known player count from metadata or user
 
 **UI Behavior:**
-- Multiplayer badges show warning icon (⚠️) when mode-specific count is unknown
+- Overall badge: shows "? players" with warning for multiplayer games with null count
+- Singleplayer-only games (no modes): shows "1 player" even if overall is null
+- Mode badges (Online/Local): show warning icon (⚠️) when mode-specific count is null
 - Details section shows "Unknown (click Fetch Metadata to update)" text
-- Users can manually set correct values via the edit form
+- Edit form allows leaving player counts empty (= unknown)
 
 **Key Code Locations:**
 - `GameProcessor.ts`: `createGameFromData()` preserves null for unknown counts
-- `MetadataPipeline.ts`: `applyPlayerInfoUpdates()` validates before applying
-- `GameValidationService.ts`: Allows null mode-specific counts when mode is supported
+- `MetadataPipeline.ts`: `applyPlayerInfoUpdates()` only applies valid values
+- `GameValidationService.ts`: Allows null for all player counts
+- `GameTitleService.ts`: Interface allows nullable overall counts
 
 ### Plugin Isolation Rules (CRITICAL)
 
