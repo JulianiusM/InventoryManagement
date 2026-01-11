@@ -24,11 +24,25 @@ function initSelect2(): void {
             dropdownParent: $('#mergeModal')
         });
         
-        // Platform dropdown
-        $('select[name="platform"]').select2({
+        // Platform dropdown in Add Release modal
+        $('#addReleaseModal select[name="platform"]').select2({
             theme: 'bootstrap-5',
             placeholder: 'Select platform...',
             dropdownParent: $('#addReleaseModal')
+        });
+        
+        // Target and Platform dropdowns in Merge as Release modal
+        $('#mergeAsReleaseModal select[name="targetId"]').select2({
+            theme: 'bootstrap-5',
+            placeholder: 'Search target game...',
+            allowClear: true,
+            dropdownParent: $('#mergeAsReleaseModal')
+        });
+        
+        $('#mergeAsReleaseModal select[name="platform"]').select2({
+            theme: 'bootstrap-5',
+            placeholder: 'Select platform...',
+            dropdownParent: $('#mergeAsReleaseModal')
         });
     });
 }

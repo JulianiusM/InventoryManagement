@@ -65,6 +65,19 @@ router.post('/copies/:id/barcode', asyncHandler(async (req: Request, res: Respon
     }
 }));
 
+// Delete barcode from game copy
+router.delete('/copies/:id/barcode/:barcodeId', asyncHandler(async (req: Request, res: Response) => {
+    const copyId = req.params.id;
+    const barcodeId = req.params.barcodeId;
+    const userId = req.session.user!.id;
+    const result = await gamesController.deleteBarcodeFromGameCopy(copyId, barcodeId, userId);
+    if (result.success) {
+        renderer.respondWithSuccessJson(res, result.message);
+    } else {
+        renderer.respondWithErrorJson(res, result.message);
+    }
+}));
+
 // ============ Sync Status ============
 
 // Get sync status for account
