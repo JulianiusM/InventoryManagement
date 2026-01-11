@@ -34,15 +34,6 @@ router.post('/bulk-ignore', asyncHandler(async (req: Request, res: Response) => 
     res.redirect('/games/mappings');
 }));
 
-// Resolve mapping
-router.post('/:id', asyncHandler(async (req: Request, res: Response) => {
-    const id = req.params.id;
-    const userId = req.session.user!.id;
-    await gamesController.resolveMappings(id, req.body, userId);
-    req.flash('success', 'Mapping resolved');
-    res.redirect('/games/mappings');
-}));
-
 // ============ Metadata Management Routes ============
 
 // Dismiss a title from an issue type
@@ -50,12 +41,12 @@ router.post('/dismiss/:titleId', asyncHandler(async (req: Request, res: Response
     const titleId = req.params.titleId;
     const userId = req.session.user!.id;
     const dismissalType = req.body.type as DismissalType;
-    
+
     if (!['similar', 'missing_metadata', 'invalid_players'].includes(dismissalType)) {
         req.flash('error', 'Invalid dismissal type');
         return res.redirect('/games/mappings');
     }
-    
+
     await gamesController.dismissTitle(titleId, dismissalType, userId);
     req.flash('success', 'Title dismissed');
     res.redirect('/games/mappings');
@@ -66,12 +57,12 @@ router.post('/undismiss/:titleId', asyncHandler(async (req: Request, res: Respon
     const titleId = req.params.titleId;
     const userId = req.session.user!.id;
     const dismissalType = req.body.type as DismissalType;
-    
+
     if (!['similar', 'missing_metadata', 'invalid_players'].includes(dismissalType)) {
         req.flash('error', 'Invalid dismissal type');
         return res.redirect('/games/mappings');
     }
-    
+
     await gamesController.undismissTitle(titleId, dismissalType, userId);
     req.flash('success', 'Title restored');
     res.redirect('/games/mappings');
@@ -81,15 +72,24 @@ router.post('/undismiss/:titleId', asyncHandler(async (req: Request, res: Respon
 router.post('/reset-dismissals', asyncHandler(async (req: Request, res: Response) => {
     const userId = req.session.user!.id;
     const dismissalType = req.body.type as DismissalType | undefined;
-    
+
     // Validate type if provided
     if (dismissalType && !['similar', 'missing_metadata', 'invalid_players'].includes(dismissalType)) {
         req.flash('error', 'Invalid dismissal type');
         return res.redirect('/games/mappings');
     }
-    
+
     const affected = await gamesController.resetDismissals(userId, dismissalType);
     req.flash('success', `Reset dismissals for ${affected} title(s)`);
+    res.redirect('/games/mappings');
+}));
+
+// Resolve mapping
+router.post('/:id', asyncHandler(async (req: Request, res: Response) => {
+    const id = req.params.id;
+    const userId = req.session.user!.id;
+    await gamesController.resolveMappings(id, req.body, userId);
+    req.flash('success', 'Mapping resolved');
     res.redirect('/games/mappings');
 }));
 
