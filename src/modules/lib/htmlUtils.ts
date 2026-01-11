@@ -3,6 +3,8 @@
  * Provides functions for handling HTML content
  */
 
+import settings from '../settings';
+
 /**
  * Decode HTML entities using a safe approach
  * Decodes entities in the correct order to prevent double-decoding issues
@@ -82,8 +84,6 @@ export function stripHtml(html: string): string {
  * @param maxLength Maximum length
  * @returns Truncated text
  */
-import settings from '../settings';
-
 export function truncateText(text: string, maxLength: number): string {
     if (!text || text.length <= maxLength) return text;
     return text.slice(0, maxLength - 3) + '...';

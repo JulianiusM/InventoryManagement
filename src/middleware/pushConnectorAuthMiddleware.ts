@@ -89,7 +89,7 @@ export const pushConnectorImportRateLimiter = rateLimit({
  */
 export const deviceRegistrationRateLimiter = rateLimit({
     windowMs: settings.value.rateLimitWindowMs,
-    max: settings.value.rateLimitMaxPushConnector,
+    max: settings.value.rateLimitMaxDeviceRegistration,
     message: {
         status: 'error',
         message: 'Too many device registration requests. Please wait before trying again.',

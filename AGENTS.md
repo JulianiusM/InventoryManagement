@@ -47,7 +47,20 @@ Inventory Management is a TypeScript-based item cataloging and tracking applicat
    - Interfaces over types
    - Always create migrations for database changes
    - Data-driven testing for all new tests
+   - Use centralized settings module for all configuration constants
    - NEVER commit anything included in .gitignore, especially not generated files (like __index__.ts, *.gen.js, ...)
+
+## Configuration Management
+
+All configuration constants are centralized in `src/modules/settings.ts`:
+- Token expiration times
+- Rate limiting parameters
+- Pagination defaults and limits
+- Description length constraints
+- Metadata scoring thresholds
+- Similar title matching parameters
+
+**Always use** `settings.value.<propertyName>` instead of hardcoded values.
 
 ## Key Directories
 
