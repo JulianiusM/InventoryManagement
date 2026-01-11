@@ -148,14 +148,14 @@ export async function getMetadataManagementData(ownerId: number) {
     const [
         mappings,
         titles,
-        similarGroups,
+        similarPairs,
         missingMetadata,
         invalidPlayers,
         counts,
     ] = await Promise.all([
         gameMappingService.getPendingMappings(ownerId),
         gameTitleService.getAllGameTitles(ownerId),
-        similarTitlePairService.getSimilarTitleGroups(ownerId, false),
+        similarTitlePairService.getSimilarPairsForDisplay(ownerId, false),
         gameTitleService.findTitlesMissingMetadata(ownerId, false),
         gameTitleService.findTitlesWithInvalidPlayerCounts(ownerId, false),
         gameTitleService.getMetadataIssueCounts(ownerId),
@@ -164,7 +164,7 @@ export async function getMetadataManagementData(ownerId: number) {
     return {
         mappings,
         titles,
-        similarGroups,
+        similarPairs,
         missingMetadata,
         invalidPlayers,
         counts: {
@@ -280,6 +280,7 @@ async function runSimilarityAnalysisJob(jobId: string, userId: number): Promise<
         
         const result = await similarTitlePairService.runSimilarityAnalysis(userId);
         
+        // Note: Using entriesUpdated for pairsRemoved since SyncJob doesn't have a separate field for removals
         await syncJobService.completeSyncJob(jobId, {
             entriesProcessed: result.pairsFound,
             entriesAdded: result.pairsCreated,

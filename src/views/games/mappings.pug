@@ -6,12 +6,13 @@ block meta
 block content
     - const mappings = (data && data.mappings) ? data.mappings : []
     - const titles = (data && data.titles) ? data.titles : []
-    - const similarGroups = (data && data.similarGroups) ? data.similarGroups : []
+    - const similarPairs = (data && data.similarPairs) ? data.similarPairs : []
     - const missingMetadata = (data && data.missingMetadata) ? data.missingMetadata : []
     - const invalidPlayers = (data && data.invalidPlayers) ? data.invalidPlayers : []
     - const counts = (data && data.counts) ? data.counts : {pendingMappings: 0, similarCount: 0, missingMetadataCount: 0, invalidPlayersCount: 0, totalCount: 0}
     - const providerLabels = {steam: 'Steam', epic: 'Epic Games', gog: 'GOG', xbox: 'Xbox', playstation: 'PlayStation', nintendo: 'Nintendo', origin: 'Origin', ubisoft: 'Ubisoft', playnite: 'Playnite', other: 'Other'}
     - const typeLabels = {video_game: 'Video Game', board_game: 'Board Game', card_game: 'Card Game', tabletop_rpg: 'Tabletop RPG', other_physical_game: 'Other Physical'}
+    - const matchTypeLabels = {exact: 'Exact Match', prefix: 'Prefix Match', suffix: 'Suffix Match', contains: 'Contains', fuzzy: 'Similar Tokens'}
 
     #liveAlerts
 
@@ -65,7 +66,7 @@ block content
     ul.nav.nav-tabs.mb-3(role="tablist")
         li.nav-item(role="presentation")
             button.nav-link.text-bg-dark.border-secondary#similar-tab(
-                class=similarGroups.length > 0 ? 'active' : ''
+                class=similarPairs.length > 0 ? 'active' : ''
                 data-bs-toggle="tab" 
                 data-bs-target="#similar-panel" 
                 type="button" 
@@ -77,7 +78,7 @@ block content
                     span.badge.text-bg-warning.ms-2 #{counts.similarCount}
         li.nav-item(role="presentation")
             button.nav-link.text-bg-dark.border-secondary#metadata-tab(
-                class=(similarGroups.length === 0 && missingMetadata.length > 0) ? 'active' : ''
+                class=(similarPairs.length === 0 && missingMetadata.length > 0) ? 'active' : ''
                 data-bs-toggle="tab" 
                 data-bs-target="#metadata-panel" 
                 type="button" 
@@ -89,7 +90,7 @@ block content
                     span.badge.text-bg-warning.ms-2 #{counts.missingMetadataCount}
         li.nav-item(role="presentation")
             button.nav-link.text-bg-dark.border-secondary#players-tab(
-                class=(similarGroups.length === 0 && missingMetadata.length === 0 && invalidPlayers.length > 0) ? 'active' : ''
+                class=(similarPairs.length === 0 && missingMetadata.length === 0 && invalidPlayers.length > 0) ? 'active' : ''
                 data-bs-toggle="tab" 
                 data-bs-target="#players-panel" 
                 type="button" 
@@ -101,7 +102,7 @@ block content
                     span.badge.text-bg-warning.ms-2 #{counts.invalidPlayersCount}
         li.nav-item(role="presentation")
             button.nav-link.text-bg-dark.border-secondary#mappings-tab(
-                class=(similarGroups.length === 0 && missingMetadata.length === 0 && invalidPlayers.length === 0) ? 'active' : ''
+                class=(similarPairs.length === 0 && missingMetadata.length === 0 && invalidPlayers.length === 0) ? 'active' : ''
                 data-bs-toggle="tab" 
                 data-bs-target="#mappings-panel" 
                 type="button" 
@@ -117,10 +118,10 @@ block content
 
         //- Similar Names Panel
         #similar-panel.tab-pane.fade(
-            class=similarGroups.length > 0 ? 'show active' : ''
+            class=similarPairs.length > 0 ? 'show active' : ''
             role="tabpanel"
         )
-            if similarGroups.length === 0
+            if similarPairs.length === 0
                 .card.text-bg-dark.border-secondary
                     .card-body.text-center.py-5
                         i.bi.bi-check-circle.display-1.text-success.mb-3.d-block
@@ -135,72 +136,80 @@ block content
                 .alert.alert-info.d-flex.align-items-start.mb-3
                     i.bi.bi-info-circle.me-2.fs-5
                     div
-                        | Similar names are detected using a heuristic algorithm that ignores common sequel/edition patterns.
-                        |  Use the 
+                        | Each card below shows a pair of games detected as similar. 
+                        | Use 
                         strong Merge
-                        |  action to combine duplicates or dismiss pairs that are intentionally different.
+                        |  to combine them or 
+                        strong Dismiss
+                        |  if they are intentionally different.
                 
-                each group in similarGroups
+                //- Show each pair as a separate card
+                each pair in similarPairs
                     .card.text-bg-dark.border-secondary.mb-3
                         .card-header.d-flex.justify-content-between.align-items-center
-                            span.text-white
-                                i.bi.bi-diagram-3.me-2
-                                | "#{group.normalizedName}"
-                                span.badge.text-bg-info.ms-2 #{group.titles.length} titles
-                                if group.pairs && group.pairs.length > 0
-                                    - const avgScore = Math.round(group.pairs.reduce((s, p) => s + p.score, 0) / group.pairs.length)
-                                    span.badge.text-bg-secondary.ms-1 ~#{avgScore}% match
+                            .d-flex.align-items-center.flex-wrap.gap-2
+                                span.badge.text-bg-info #{pair.score}% match
+                                span.badge.text-bg-secondary #{matchTypeLabels[pair.matchType] || pair.matchType}
                             .btn-group.btn-group-sm
-                                a.btn.btn-outline-info(
-                                    href=`/games/titles/${group.titles[0].id}`
-                                    title="View first title"
+                                //- Merge button: merge B into A
+                                a.btn.btn-outline-success(
+                                    href=`/games/titles/${pair.titleB.id}?merge_into=${pair.titleA.id}`
+                                    title="Merge second game into first"
                                 )
-                                    i.bi.bi-eye
-                        .card-body.p-0
-                            .table-responsive
-                                table.table.table-dark.table-hover.align-middle.mb-0
-                                    thead
-                                        tr
-                                            th Name
-                                            th Type
-                                            th Releases
-                                            th.text-end Actions
-                                    tbody
-                                        each title, idx in group.titles
-                                            tr
-                                                td
-                                                    a.text-white.text-decoration-none(href=`/games/titles/${title.id}`)
-                                                        if title.coverImageUrl
-                                                            img.me-2(src=title.coverImageUrl alt="" style="width:32px;height:32px;object-fit:cover;border-radius:4px;")
-                                                        | #{title.name}
-                                                td
-                                                    span.badge.text-bg-secondary #{typeLabels[title.type] || title.type}
-                                                td
-                                                    if title.releases && title.releases.length > 0
-                                                        | #{title.releases.length} release(s)
-                                                    else
-                                                        span.text-white-50 None
-                                                td.text-end
-                                                    .btn-group.btn-group-sm
-                                                        a.btn.btn-outline-light(href=`/games/titles/${title.id}` title="View/Edit")
-                                                            i.bi.bi-pencil
-                                                        if idx > 0
-                                                            a.btn.btn-outline-success(
-                                                                href=`/games/titles/${title.id}?merge_into=${group.titles[0].id}`
-                                                                title="Merge into first title"
-                                                            )
-                                                                i.bi.bi-arrow-left-right
-                        //- Dismiss button for this group (dismisses first pair to break the group)
-                        if group.pairs && group.pairs.length > 0 && group.pairs[0]
-                            .card-footer.bg-transparent.border-secondary.d-flex.justify-content-end
-                                form.d-inline(method="post" action=`/games/mappings/dismiss-pair/${group.pairs[0].pairId}`)
-                                    button.btn.btn-sm.btn-outline-secondary(type="submit" title="Dismiss this similar group")
+                                    i.bi.bi-arrow-left-right.me-1
+                                    | Merge
+                                //- Dismiss button
+                                form.d-inline(method="post" action=`/games/mappings/dismiss-pair/${pair.pairId}`)
+                                    button.btn.btn-outline-secondary(type="submit" title="Dismiss this pair - they are intentionally different")
                                         i.bi.bi-x-lg.me-1
                                         | Dismiss
+                        .card-body.p-0
+                            .row.g-0
+                                //- Title A (left side)
+                                .col-md-6.p-3.border-end.border-secondary
+                                    .d-flex.align-items-start
+                                        if pair.titleA.coverImageUrl
+                                            img.me-3(src=pair.titleA.coverImageUrl alt="" style="width:64px;height:64px;object-fit:cover;border-radius:4px;")
+                                        else
+                                            .me-3.d-flex.align-items-center.justify-content-center.bg-secondary(style="width:64px;height:64px;border-radius:4px;")
+                                                i.bi.bi-controller.text-muted
+                                        div
+                                            h5.mb-1
+                                                a.text-white.text-decoration-none(href=`/games/titles/${pair.titleA.id}`)
+                                                    | #{pair.titleA.name}
+                                            p.mb-1.text-white-50.small
+                                                span.badge.text-bg-secondary.me-1 #{typeLabels[pair.titleA.type] || pair.titleA.type}
+                                                if pair.titleA.releases && pair.titleA.releases.length > 0
+                                                    span.me-2 #{pair.titleA.releases.length} release(s)
+                                            .btn-group.btn-group-sm.mt-2
+                                                a.btn.btn-outline-light.btn-sm(href=`/games/titles/${pair.titleA.id}` title="View/Edit")
+                                                    i.bi.bi-pencil.me-1
+                                                    | Edit
+                                
+                                //- Title B (right side)
+                                .col-md-6.p-3
+                                    .d-flex.align-items-start
+                                        if pair.titleB.coverImageUrl
+                                            img.me-3(src=pair.titleB.coverImageUrl alt="" style="width:64px;height:64px;object-fit:cover;border-radius:4px;")
+                                        else
+                                            .me-3.d-flex.align-items-center.justify-content-center.bg-secondary(style="width:64px;height:64px;border-radius:4px;")
+                                                i.bi.bi-controller.text-muted
+                                        div
+                                            h5.mb-1
+                                                a.text-white.text-decoration-none(href=`/games/titles/${pair.titleB.id}`)
+                                                    | #{pair.titleB.name}
+                                            p.mb-1.text-white-50.small
+                                                span.badge.text-bg-secondary.me-1 #{typeLabels[pair.titleB.type] || pair.titleB.type}
+                                                if pair.titleB.releases && pair.titleB.releases.length > 0
+                                                    span.me-2 #{pair.titleB.releases.length} release(s)
+                                            .btn-group.btn-group-sm.mt-2
+                                                a.btn.btn-outline-light.btn-sm(href=`/games/titles/${pair.titleB.id}` title="View/Edit")
+                                                    i.bi.bi-pencil.me-1
+                                                    | Edit
 
         //- Missing Metadata Panel
         #metadata-panel.tab-pane.fade(
-            class=(similarGroups.length === 0 && missingMetadata.length > 0) ? 'show active' : ''
+            class=(similarPairs.length === 0 && missingMetadata.length > 0) ? 'show active' : ''
             role="tabpanel"
         )
             if missingMetadata.length === 0
@@ -260,7 +269,7 @@ block content
 
         //- Invalid Players Panel
         #players-panel.tab-pane.fade(
-            class=(similarGroups.length === 0 && missingMetadata.length === 0 && invalidPlayers.length > 0) ? 'show active' : ''
+            class=(similarPairs.length === 0 && missingMetadata.length === 0 && invalidPlayers.length > 0) ? 'show active' : ''
             role="tabpanel"
         )
             if invalidPlayers.length === 0
@@ -343,7 +352,7 @@ block content
 
         //- Pending Mappings Panel
         #mappings-panel.tab-pane.fade(
-            class=(similarGroups.length === 0 && missingMetadata.length === 0 && invalidPlayers.length === 0) ? 'show active' : ''
+            class=(similarPairs.length === 0 && missingMetadata.length === 0 && invalidPlayers.length === 0) ? 'show active' : ''
             role="tabpanel"
         )
             if mappings.length === 0

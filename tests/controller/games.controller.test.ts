@@ -188,10 +188,18 @@ describe('gamesController', () => {
         beforeEach(() => {
             setupMock(gameMappingService.getPendingMappings as jest.Mock, []);
             setupMock(gameTitleService.getAllGameTitles as jest.Mock, []);
-            setupMock(similarTitlePairService.getSimilarTitleGroups as jest.Mock, []);
-            setupMock(similarTitlePairService.getSimilarPairCount as jest.Mock, 0);
-            setupMock(similarTitlePairService.resetSimilarDismissals as jest.Mock, 0);
-            setupMock(syncJobService.createSimilarityAnalysisJob as jest.Mock, {id: 'job-1'});
+            if (similarTitlePairService.getSimilarPairsForDisplay) {
+                setupMock(similarTitlePairService.getSimilarPairsForDisplay as jest.Mock, []);
+            }
+            if (similarTitlePairService.getSimilarPairCount) {
+                setupMock(similarTitlePairService.getSimilarPairCount as jest.Mock, 0);
+            }
+            if (similarTitlePairService.resetSimilarDismissals) {
+                setupMock(similarTitlePairService.resetSimilarDismissals as jest.Mock, 0);
+            }
+            if (syncJobService.createSimilarityAnalysisJob) {
+                setupMock(syncJobService.createSimilarityAnalysisJob as jest.Mock, {id: 'job-1'});
+            }
             setupMock(gameTitleService.findTitlesMissingMetadata as jest.Mock, []);
             setupMock(gameTitleService.findTitlesWithInvalidPlayerCounts as jest.Mock, []);
             setupMock(gameTitleService.getMetadataIssueCounts as jest.Mock, {
@@ -208,7 +216,7 @@ describe('gamesController', () => {
                 
                 expect(result).toBeDefined();
                 expect(result.counts).toBeDefined();
-                expect(result.similarGroups).toBeDefined();
+                expect(result.similarPairs).toBeDefined();
                 expect(result.missingMetadata).toBeDefined();
                 expect(result.invalidPlayers).toBeDefined();
                 expect(result.mappings).toBeDefined();

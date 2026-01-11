@@ -167,6 +167,18 @@ export interface SimilarTitleGroup {
 }
 
 /**
+ * Information about a single similar pair for UI display.
+ */
+export interface SimilarPairInfo {
+    pairId: string;
+    titleA: GameTitle;
+    titleB: GameTitle;
+    score: number;
+    matchType: string;
+    dismissed: boolean;
+}
+
+/**
  * Get all similar title pairs for a user.
  */
 export async function getSimilarPairs(
@@ -188,6 +200,26 @@ export async function getSimilarPairs(
     }
     
     return await query.getMany();
+}
+
+/**
+ * Get similar pairs in a flat format suitable for UI display.
+ * Each pair is shown individually with both titles visible.
+ */
+export async function getSimilarPairsForDisplay(
+    ownerId: number,
+    includeDismissed = false
+): Promise<SimilarPairInfo[]> {
+    const pairs = await getSimilarPairs(ownerId, includeDismissed);
+    
+    return pairs.map(pair => ({
+        pairId: pair.id,
+        titleA: pair.titleA,
+        titleB: pair.titleB,
+        score: pair.similarityScore,
+        matchType: pair.matchType,
+        dismissed: pair.dismissed,
+    }));
 }
 
 /**

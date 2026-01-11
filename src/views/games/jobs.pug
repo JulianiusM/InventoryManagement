@@ -100,6 +100,10 @@ block content
                                                 span.badge.text-bg-secondary
                                                     i.bi.bi-cloud-upload.me-1
                                                     | Push Import
+                                            when 'similarity_analysis'
+                                                span.badge.text-bg-warning.text-dark
+                                                    i.bi.bi-diagram-3.me-1
+                                                    | Similarity Analysis
                                             default
                                                 span.badge.text-bg-secondary #{job.jobType || 'Account Sync'}
                                     td
