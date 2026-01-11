@@ -99,18 +99,6 @@ import * as gamesController from '../../src/controller/gamesController';
 describe('gamesController', () => {
     beforeEach(() => {
         jest.clearAllMocks();
-        // Setup default mocks for metadata management tests
-        setupMock(gameMappingService.getPendingMappings as jest.Mock, []);
-        setupMock(gameTitleService.getAllGameTitles as jest.Mock, []);
-        setupMock(gameTitleService.findSimilarTitles as jest.Mock, []);
-        setupMock(gameTitleService.findTitlesMissingMetadata as jest.Mock, []);
-        setupMock(gameTitleService.findTitlesWithInvalidPlayerCounts as jest.Mock, []);
-        setupMock(gameTitleService.getMetadataIssueCounts as jest.Mock, {
-            similarCount: 0,
-            missingMetadataCount: 0,
-            invalidPlayersCount: 0,
-            totalCount: 0,
-        });
     });
 
     describe('createGameTitle', () => {
@@ -192,11 +180,23 @@ describe('gamesController', () => {
     });
 
     describe('metadata management', () => {
+        // Setup mocks specific to metadata management tests
+        beforeEach(() => {
+            setupMock(gameMappingService.getPendingMappings as jest.Mock, []);
+            setupMock(gameTitleService.getAllGameTitles as jest.Mock, []);
+            setupMock(gameTitleService.findSimilarTitles as jest.Mock, []);
+            setupMock(gameTitleService.findTitlesMissingMetadata as jest.Mock, []);
+            setupMock(gameTitleService.findTitlesWithInvalidPlayerCounts as jest.Mock, []);
+            setupMock(gameTitleService.getMetadataIssueCounts as jest.Mock, {
+                similarCount: 0,
+                missingMetadataCount: 0,
+                invalidPlayersCount: 0,
+                totalCount: 0,
+            });
+        });
+
         describe('getMetadataManagementData', () => {
             test('returns all metadata management data', async () => {
-                // Setup mocks for all the service calls
-                setupMock(gameTitleService.getAllGameTitles as jest.Mock, []);
-                
                 const result = await gamesController.getMetadataManagementData(TEST_USER_ID);
                 
                 expect(result).toBeDefined();

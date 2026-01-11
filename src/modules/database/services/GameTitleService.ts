@@ -440,11 +440,22 @@ export async function findTitlesMissingMetadata(
 
 /**
  * Find game titles with invalid or missing player counts.
- * Invalid = has multiplayer support but unknown overall or mode-specific player counts.
+ * 
+ * **Player Count Logic:**
+ * - **Singleplayer-only games** (no multiplayer modes enabled): Always considered valid.
+ *   When no modes are enabled (supportsOnline=false, supportsLocal=false, supportsPhysical=false),
+ *   null overall player counts are treated as "implied 1 player" - this is not an issue.
+ * 
+ * - **Multiplayer games** (any mode enabled): Considered invalid if:
+ *   1. Overall max player count is null (unknown total player capacity)
+ *   2. Any enabled mode has null max player count (unknown mode-specific capacity)
+ * 
+ * This distinction helps users identify games that need metadata enrichment,
+ * while not flagging every singleplayer game as "missing" player info.
  * 
  * @param ownerId Owner user ID
  * @param includeDismissed Whether to include dismissed items
- * @returns Titles with invalid player counts
+ * @returns Titles with invalid player counts (multiplayer games with unknown counts)
  */
 export async function findTitlesWithInvalidPlayerCounts(
     ownerId: number, 

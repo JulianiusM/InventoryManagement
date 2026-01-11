@@ -149,7 +149,7 @@ src/controller/games/          # Modular controller structure
 ├── gameReleaseController.ts   # Release operations
 ├── gameCopyController.ts      # Copy/item operations
 ├── gameAccountController.ts   # External account and sync operations
-├── gameMappingController.ts   # Mapping queue operations
+├── gameMappingController.ts   # Mapping queue and metadata management operations
 ├── gamePlatformController.ts  # Platform operations
 ├── gameJobsController.ts      # Job listing operations
 ├── helpers.ts                 # Shared utility functions
@@ -161,6 +161,21 @@ src/controller/games/          # Modular controller structure
 2. ALL metadata operations use the unified `MetadataPipeline.ts` - ONE implementation with modular, composable steps
 3. Edition extraction is ALWAYS performed in `createGameFromData()`
 4. DRY principle enforced: batch processing is just multiple single-game operations with shared state
+
+**Metadata Management Features:**
+The `/games/mappings` route provides a comprehensive metadata management interface with four tabs:
+1. **Similar Names**: Finds game titles with similar normalized names (potential merge candidates)
+2. **Missing Metadata**: Games without description AND cover image
+3. **Invalid Players**: Multiplayer games with unknown player counts
+4. **Pending Mappings**: Unresolved external game imports from connectors
+
+Each issue type supports:
+- Individual dismissal (per-title)
+- Global reset of dismissals
+- Quick actions (merge, edit, fetch metadata)
+
+Dismissal state is tracked via boolean columns on GameTitle entity:
+- `dismissedSimilar`, `dismissedMissingMetadata`, `dismissedInvalidPlayers`
 
 **Metadata Pipeline Architecture:**
 ```
