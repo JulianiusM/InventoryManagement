@@ -24,8 +24,10 @@ export interface CreateGameTitleData {
     // Mode-specific counts - null means "unknown for this mode"
     onlineMinPlayers?: number | null;
     onlineMaxPlayers?: number | null;
-    localMinPlayers?: number | null;
-    localMaxPlayers?: number | null;
+    couchMinPlayers?: number | null;
+    couchMaxPlayers?: number | null;
+    lanMinPlayers?: number | null;
+    lanMaxPlayers?: number | null;
     physicalMinPlayers?: number | null;
     physicalMaxPlayers?: number | null;
     ownerId: number;
@@ -50,8 +52,10 @@ export async function createGameTitle(data: CreateGameTitleData): Promise<GameTi
     title.supportsPhysical = data.supportsPhysical;
     title.onlineMinPlayers = data.onlineMinPlayers ?? null;
     title.onlineMaxPlayers = data.onlineMaxPlayers ?? null;
-    title.localMinPlayers = data.localMinPlayers ?? null;
-    title.localMaxPlayers = data.localMaxPlayers ?? null;
+    title.couchMinPlayers = data.couchMinPlayers ?? null;
+    title.couchMaxPlayers = data.couchMaxPlayers ?? null;
+    title.lanMinPlayers = data.lanMinPlayers ?? null;
+    title.lanMaxPlayers = data.lanMaxPlayers ?? null;
     title.physicalMinPlayers = data.physicalMinPlayers ?? null;
     title.physicalMaxPlayers = data.physicalMaxPlayers ?? null;
     title.owner = {id: data.ownerId} as User;
@@ -97,8 +101,10 @@ export async function updateGameTitle(id: string, data: Partial<Omit<GameTitle, 
                 supportsPhysical: merged.supportsPhysical,
                 onlineMinPlayers: merged.onlineMinPlayers,
                 onlineMaxPlayers: merged.onlineMaxPlayers,
-                localMinPlayers: merged.localMinPlayers,
-                localMaxPlayers: merged.localMaxPlayers,
+                couchMinPlayers: merged.couchMinPlayers,
+                couchMaxPlayers: merged.couchMaxPlayers,
+                lanMinPlayers: merged.lanMinPlayers,
+                lanMaxPlayers: merged.lanMaxPlayers,
                 physicalMinPlayers: merged.physicalMinPlayers,
                 physicalMaxPlayers: merged.physicalMaxPlayers,
             });
@@ -438,7 +444,10 @@ export async function findTitlesWithInvalidPlayerCounts(
         if (title.supportsOnline && title.onlineMaxPlayers === null) {
             return true;
         }
-        if ((title.supportsLocalCouch || title.supportsLocalLAN) && title.localMaxPlayers === null) {
+        if (title.supportsLocalCouch && title.couchMaxPlayers === null) {
+            return true;
+        }
+        if (title.supportsLocalLAN && title.lanMaxPlayers === null) {
             return true;
         }
         if (title.supportsPhysical && title.physicalMaxPlayers === null) {

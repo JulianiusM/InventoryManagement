@@ -19,8 +19,10 @@ export interface PlayerProfile {
     // Mode-specific counts - null means "unknown for this mode"
     onlineMinPlayers?: number | null;
     onlineMaxPlayers?: number | null;
-    localMinPlayers?: number | null;
-    localMaxPlayers?: number | null;
+    couchMinPlayers?: number | null;
+    couchMaxPlayers?: number | null;
+    lanMinPlayers?: number | null;
+    lanMaxPlayers?: number | null;
     physicalMinPlayers?: number | null;
     physicalMaxPlayers?: number | null;
 }
@@ -84,22 +86,39 @@ export function validatePlayerProfile(profile: PlayerProfile): void {
         }
     }
     
-    // Validate local modes (shared player counts)
-    const supportsAnyLocal = profile.supportsLocalCouch || profile.supportsLocalLAN;
-    if (supportsAnyLocal) {
+    // Validate couch mode
+    if (profile.supportsLocalCouch) {
         validateModePlayerCounts(
-            'Local',
-            profile.localMinPlayers,
-            profile.localMaxPlayers,
+            'Couch',
+            profile.couchMinPlayers,
+            profile.couchMaxPlayers,
             profile.overallMinPlayers,
             profile.overallMaxPlayers
         );
     } else {
-        if (isDefined(profile.localMinPlayers)) {
-            throw new PlayerProfileValidationError('Local min players must be null when no local mode is supported');
+        if (isDefined(profile.couchMinPlayers)) {
+            throw new PlayerProfileValidationError('Couch min players must be null when couch mode is not supported');
         }
-        if (isDefined(profile.localMaxPlayers)) {
-            throw new PlayerProfileValidationError('Local max players must be null when no local mode is supported');
+        if (isDefined(profile.couchMaxPlayers)) {
+            throw new PlayerProfileValidationError('Couch max players must be null when couch mode is not supported');
+        }
+    }
+    
+    // Validate LAN mode
+    if (profile.supportsLocalLAN) {
+        validateModePlayerCounts(
+            'LAN',
+            profile.lanMinPlayers,
+            profile.lanMaxPlayers,
+            profile.overallMinPlayers,
+            profile.overallMaxPlayers
+        );
+    } else {
+        if (isDefined(profile.lanMinPlayers)) {
+            throw new PlayerProfileValidationError('LAN min players must be null when LAN mode is not supported');
+        }
+        if (isDefined(profile.lanMaxPlayers)) {
+            throw new PlayerProfileValidationError('LAN max players must be null when LAN mode is not supported');
         }
     }
     
@@ -174,7 +193,7 @@ function validateModePlayerCounts(
  */
 export function getEffectivePlayerCounts(
     profile: PlayerProfile,
-    mode: 'online' | 'local' | 'physical'
+    mode: 'online' | 'couch' | 'lan' | 'physical'
 ): {min: number | null; max: number | null} | null {
     switch (mode) {
         case 'online':
@@ -183,11 +202,17 @@ export function getEffectivePlayerCounts(
                 min: profile.onlineMinPlayers ?? profile.overallMinPlayers ?? null,
                 max: profile.onlineMaxPlayers ?? profile.overallMaxPlayers ?? null,
             };
-        case 'local':
-            if (!profile.supportsLocalCouch && !profile.supportsLocalLAN) return null;
+        case 'couch':
+            if (!profile.supportsLocalCouch) return null;
             return {
-                min: profile.localMinPlayers ?? profile.overallMinPlayers ?? null,
-                max: profile.localMaxPlayers ?? profile.overallMaxPlayers ?? null,
+                min: profile.couchMinPlayers ?? profile.overallMinPlayers ?? null,
+                max: profile.couchMaxPlayers ?? profile.overallMaxPlayers ?? null,
+            };
+        case 'lan':
+            if (!profile.supportsLocalLAN) return null;
+            return {
+                min: profile.lanMinPlayers ?? profile.overallMinPlayers ?? null,
+                max: profile.lanMaxPlayers ?? profile.overallMaxPlayers ?? null,
             };
         case 'physical':
             if (!profile.supportsPhysical) return null;

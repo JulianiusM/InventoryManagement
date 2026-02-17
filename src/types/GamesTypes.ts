@@ -15,8 +15,10 @@ export interface CreateGameTitleBody {
     supportsPhysical?: boolean;
     onlineMinPlayers?: number;
     onlineMaxPlayers?: number;
-    localMinPlayers?: number;
-    localMaxPlayers?: number;
+    couchMinPlayers?: number;
+    couchMaxPlayers?: number;
+    lanMinPlayers?: number;
+    lanMaxPlayers?: number;
     physicalMinPlayers?: number;
     physicalMaxPlayers?: number;
 }
@@ -36,8 +38,10 @@ export interface CreateGameReleaseBody {
     overrideSupportsPhysical?: boolean;
     overrideOnlineMin?: number;
     overrideOnlineMax?: number;
-    overrideLocalMin?: number;
-    overrideLocalMax?: number;
+    overrideCouchMin?: number;
+    overrideCouchMax?: number;
+    overrideLanMin?: number;
+    overrideLanMax?: number;
     overridePhysicalMin?: number;
     overridePhysicalMax?: number;
 }

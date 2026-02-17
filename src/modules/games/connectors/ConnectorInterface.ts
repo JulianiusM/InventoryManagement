@@ -33,8 +33,10 @@ export interface ExternalGame {
     supportsPhysical?: boolean;
     onlineMinPlayers?: number;
     onlineMaxPlayers?: number;
-    localMinPlayers?: number;
-    localMaxPlayers?: number;
+    couchMinPlayers?: number;
+    couchMaxPlayers?: number;
+    lanMinPlayers?: number;
+    lanMaxPlayers?: number;
     
     // Additional metadata
     description?: string;
