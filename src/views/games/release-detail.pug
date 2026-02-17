@@ -193,7 +193,7 @@ block content
                                             | #{release.overrideLocalMin || '?'} - #{release.overrideLocalMax || '?'} players
                                         else
                                             span.text-white-50 Enabled (uses overall)
-                                else if release.overrideSupportsLocalCouch === false && release.overrideSupportsLocalLAN === false
+                                else if release.overrideSupportsLocalCouch === false || release.overrideSupportsLocalLAN === false
                                     dt.col-sm-5.text-white-50
                                         i.bi.bi-display.me-1
                                         | Local
