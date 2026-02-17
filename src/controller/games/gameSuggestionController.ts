@@ -12,9 +12,7 @@ export interface SuggestionFormData {
     playerCount?: string;
     includePlatforms?: string | string[];
     excludePlatforms?: string | string[];
-    includeOnline?: string;
-    includeLocal?: string;
-    includePhysical?: string;
+    selectedModes?: string | string[];
     gameTypes?: string | string[];
 }
 
@@ -65,27 +63,12 @@ export async function getGameSuggestion(formData: SuggestionFormData, userId: nu
         ? (Array.isArray(formData.gameTypes) ? formData.gameTypes : [formData.gameTypes])
         : [];
     
-    // Parse mode filters (true = must have, false = must not have, undefined = don't care)
-    let includeOnline: boolean | undefined;
-    if (formData.includeOnline === 'require') {
-        includeOnline = true;
-    } else if (formData.includeOnline === 'exclude') {
-        includeOnline = false;
-    }
-    
-    let includeLocal: boolean | undefined;
-    if (formData.includeLocal === 'require') {
-        includeLocal = true;
-    } else if (formData.includeLocal === 'exclude') {
-        includeLocal = false;
-    }
-    
-    let includePhysical: boolean | undefined;
-    if (formData.includePhysical === 'require') {
-        includePhysical = true;
-    } else if (formData.includePhysical === 'exclude') {
-        includePhysical = false;
-    }
+    // Parse selected modes (can be string or array from form)
+    const selectedModes = formData.selectedModes
+        ? (Array.isArray(formData.selectedModes) ? formData.selectedModes : [formData.selectedModes])
+            .filter((m): m is 'online' | 'couch' | 'lan' | 'physical' => 
+                ['online', 'couch', 'lan', 'physical'].includes(m))
+        : undefined;
     
     // Build criteria
     const criteria = {
@@ -93,9 +76,7 @@ export async function getGameSuggestion(formData: SuggestionFormData, userId: nu
         playerCount: playerCount && !isNaN(playerCount) ? playerCount : undefined,
         includePlatforms: includePlatforms.length > 0 ? includePlatforms : undefined,
         excludePlatforms: excludePlatforms.length > 0 ? excludePlatforms : undefined,
-        includeOnline,
-        includeLocal,
-        includePhysical,
+        selectedModes: selectedModes && selectedModes.length > 0 ? selectedModes : undefined,
         gameTypes: gameTypes.length > 0 ? gameTypes : undefined,
     };
     

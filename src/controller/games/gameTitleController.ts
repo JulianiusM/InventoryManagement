@@ -32,7 +32,7 @@ export async function listGameTitles(ownerId: number, options?: {
     typeFilter?: string;
     platformFilter?: string;
     playersFilter?: number;
-    modeFilter?: string;  // online, local, physical
+    modeFilter?: string;  // online, couch, lan, local, physical
     page?: number;
     limit?: number | 'all';
 }) {
@@ -61,7 +61,9 @@ export async function listGameTitles(ownerId: number, options?: {
         const mode = options.modeFilter;
         titles = titles.filter(t => {
             if (mode === 'online') return t.supportsOnline;
-            if (mode === 'local') return t.supportsLocal;
+            if (mode === 'couch') return t.supportsLocalCouch;
+            if (mode === 'lan') return t.supportsLocalLAN;
+            if (mode === 'local') return t.supportsLocalCouch || t.supportsLocalLAN;
             if (mode === 'physical') return t.supportsPhysical;
             return true;
         });
@@ -74,7 +76,7 @@ export async function listGameTitles(ownerId: number, options?: {
             // For games with null overall counts, only match if player count is 1 (implied singleplayer)
             if (t.overallMinPlayers === null && t.overallMaxPlayers === null) {
                 // Singleplayer-only games (no multiplayer modes)
-                if (!t.supportsOnline && !t.supportsLocal && !t.supportsPhysical) {
+                if (!t.supportsOnline && !t.supportsLocalCouch && !t.supportsLocalLAN && !t.supportsPhysical) {
                     return count === 1;
                 }
                 // Multiplayer games with unknown counts - don't include in filter
@@ -147,7 +149,8 @@ export async function createGameTitle(body: CreateGameTitleBody, ownerId: number
         overallMinPlayers: Number(body.overallMinPlayers) || 1,
         overallMaxPlayers: Number(body.overallMaxPlayers) || 1,
         supportsOnline: parseCheckboxBoolean(body.supportsOnline),
-        supportsLocal: parseCheckboxBoolean(body.supportsLocal),
+        supportsLocalCouch: parseCheckboxBoolean(body.supportsLocalCouch),
+        supportsLocalLAN: parseCheckboxBoolean(body.supportsLocalLAN),
         supportsPhysical: parseCheckboxBoolean(body.supportsPhysical),
         onlineMinPlayers: body.onlineMinPlayers ? Number(body.onlineMinPlayers) : null,
         onlineMaxPlayers: body.onlineMaxPlayers ? Number(body.onlineMaxPlayers) : null,
@@ -205,7 +208,8 @@ export async function updateGameTitle(
     if (body.overallMinPlayers !== undefined) updates.overallMinPlayers = Number(body.overallMinPlayers);
     if (body.overallMaxPlayers !== undefined) updates.overallMaxPlayers = Number(body.overallMaxPlayers);
     if (body.supportsOnline !== undefined) updates.supportsOnline = Boolean(body.supportsOnline);
-    if (body.supportsLocal !== undefined) updates.supportsLocal = Boolean(body.supportsLocal);
+    if (body.supportsLocalCouch !== undefined) updates.supportsLocalCouch = Boolean(body.supportsLocalCouch);
+    if (body.supportsLocalLAN !== undefined) updates.supportsLocalLAN = Boolean(body.supportsLocalLAN);
     if (body.supportsPhysical !== undefined) updates.supportsPhysical = Boolean(body.supportsPhysical);
     if (body.onlineMinPlayers !== undefined) updates.onlineMinPlayers = Number(body.onlineMinPlayers) || null;
     if (body.onlineMaxPlayers !== undefined) updates.onlineMaxPlayers = Number(body.onlineMaxPlayers) || null;
