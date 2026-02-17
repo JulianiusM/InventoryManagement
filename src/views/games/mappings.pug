@@ -319,8 +319,10 @@ block content
                                             td
                                                 if title.supportsOnline
                                                     span.badge.text-bg-primary.me-1 Online
-                                                if title.supportsLocalCouch || title.supportsLocalLAN
-                                                    span.badge.text-bg-success.me-1 Local
+                                                if title.supportsLocalCouch
+                                                    span.badge.text-bg-success.me-1 Couch
+                                                if title.supportsLocalLAN
+                                                    span.badge.text-bg-info.me-1 LAN
                                                 if title.supportsPhysical
                                                     span.badge.text-bg-warning.text-dark Physical
                                             td

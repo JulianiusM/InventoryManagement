@@ -93,10 +93,17 @@ block content
                                         //- Warning for unknown player count
                                         if !gameTitle.onlineMaxPlayers
                                             i.bi.bi-exclamation-triangle.ms-1(title="Player count unknown")
-                                if gameTitle.supportsLocal
+                                if gameTitle.supportsLocalCouch
                                     span.badge.text-bg-success
                                         i.bi.bi-display.me-1
-                                        | Local
+                                        | Couch Co-op
+                                        //- Warning for unknown player count
+                                        if !gameTitle.localMaxPlayers
+                                            i.bi.bi-exclamation-triangle.ms-1(title="Player count unknown")
+                                if gameTitle.supportsLocalLAN
+                                    span.badge.text-bg-info
+                                        i.bi.bi-hdd-network.me-1
+                                        | LAN
                                         //- Warning for unknown player count
                                         if !gameTitle.localMaxPlayers
                                             i.bi.bi-exclamation-triangle.ms-1(title="Player count unknown")
