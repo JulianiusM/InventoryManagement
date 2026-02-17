@@ -122,7 +122,8 @@ export interface GameMetadata {
         overallMinPlayers?: number;
         overallMaxPlayers?: number;
         supportsOnline?: boolean;
-        supportsLocal?: boolean;
+        supportsLocalCouch?: boolean;
+        supportsLocalLAN?: boolean;
         supportsPhysical?: boolean;
         onlineMaxPlayers?: number;
         localMaxPlayers?: number;

@@ -45,8 +45,11 @@ export class GameTitle {
     @Column("boolean", {name: "supports_online", default: false})
     supportsOnline!: boolean;
 
-    @Column("boolean", {name: "supports_local", default: false})
-    supportsLocal!: boolean;
+    @Column("boolean", {name: "supports_local_couch", default: false})
+    supportsLocalCouch!: boolean;
+
+    @Column("boolean", {name: "supports_local_lan", default: false})
+    supportsLocalLAN!: boolean;
 
     @Column("boolean", {name: "supports_physical", default: false})
     supportsPhysical!: boolean;

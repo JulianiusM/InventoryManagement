@@ -28,7 +28,8 @@ export interface ExternalGame {
     overallMinPlayers?: number;
     overallMaxPlayers?: number;
     supportsOnline?: boolean;
-    supportsLocal?: boolean;
+    supportsLocalCouch?: boolean;
+    supportsLocalLAN?: boolean;
     supportsPhysical?: boolean;
     onlineMinPlayers?: number;
     onlineMaxPlayers?: number;

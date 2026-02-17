@@ -10,7 +10,8 @@ export interface CreateGameTitleBody {
     overallMinPlayers: number;
     overallMaxPlayers: number;
     supportsOnline?: boolean;
-    supportsLocal?: boolean;
+    supportsLocalCouch?: boolean;
+    supportsLocalLAN?: boolean;
     supportsPhysical?: boolean;
     onlineMinPlayers?: number;
     onlineMaxPlayers?: number;
@@ -30,7 +31,8 @@ export interface CreateGameReleaseBody {
     playersOverrideMax?: number;
     // Mode-specific overrides
     overrideSupportsOnline?: boolean;
-    overrideSupportsLocal?: boolean;
+    overrideSupportsLocalCouch?: boolean;
+    overrideSupportsLocalLAN?: boolean;
     overrideSupportsPhysical?: boolean;
     overrideOnlineMin?: number;
     overrideOnlineMax?: number;
