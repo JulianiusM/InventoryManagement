@@ -58,7 +58,7 @@ block content
                                         else
                                             | Online
                                             i.bi.bi-exclamation-triangle.ms-1(title="Player count unknown")
-                                if release.gameTitle.supportsLocal
+                                if release.gameTitle.supportsLocalCouch || release.gameTitle.supportsLocalLAN
                                     span.badge.text-bg-success
                                         i.bi.bi-display.me-1
                                         if release.gameTitle.localMaxPlayers
@@ -153,7 +153,7 @@ block content
                             dd.col-sm-7 #{release.releaseDate || '—'}
 
                 //- Player Override Card (Issue 7: Show release-specific overrides)
-                - const hasPlayerOverride = release.playersOverrideMin || release.playersOverrideMax || release.overrideSupportsOnline !== null || release.overrideSupportsLocal !== null || release.overrideSupportsPhysical !== null
+                - const hasPlayerOverride = release.playersOverrideMin || release.playersOverrideMax || release.overrideSupportsOnline !== null || release.overrideSupportsLocalCouch !== null || release.overrideSupportsLocalLAN !== null || release.overrideSupportsPhysical !== null
                 if hasPlayerOverride
                     .card.text-bg-dark.border-secondary.mb-3
                         .card-header
@@ -184,7 +184,7 @@ block content
                                         | Online
                                     dd.col-sm-7.text-white-50 Disabled
                                 
-                                if release.overrideSupportsLocal
+                                if release.overrideSupportsLocalCouch || release.overrideSupportsLocalLAN
                                     dt.col-sm-5.text-success
                                         i.bi.bi-display.me-1
                                         | Local
@@ -193,7 +193,7 @@ block content
                                             | #{release.overrideLocalMin || '?'} - #{release.overrideLocalMax || '?'} players
                                         else
                                             span.text-white-50 Enabled (uses overall)
-                                else if release.overrideSupportsLocal === false
+                                else if release.overrideSupportsLocalCouch === false && release.overrideSupportsLocalLAN === false
                                     dt.col-sm-5.text-white-50
                                         i.bi.bi-display.me-1
                                         | Local
@@ -382,10 +382,16 @@ block content
                                         | Online
                             .col-md-4
                                 .form-check
-                                    input.form-check-input(type="checkbox" name="overrideSupportsLocal" value="true" id="editOverrideLocal" checked=release.overrideSupportsLocal)
-                                    label.form-check-label.text-success(for="editOverrideLocal")
+                                    input.form-check-input(type="checkbox" name="overrideSupportsLocalCouch" value="true" id="editOverrideLocalCouch" checked=release.overrideSupportsLocalCouch)
+                                    label.form-check-label.text-success(for="editOverrideLocalCouch")
                                         i.bi.bi-display.me-1
-                                        | Local
+                                        | Local Couch
+                            .col-md-4
+                                .form-check
+                                    input.form-check-input(type="checkbox" name="overrideSupportsLocalLAN" value="true" id="editOverrideLocalLAN" checked=release.overrideSupportsLocalLAN)
+                                    label.form-check-label.text-success(for="editOverrideLocalLAN")
+                                        i.bi.bi-ethernet.me-1
+                                        | Local LAN
                             .col-md-4
                                 .form-check
                                     input.form-check-input(type="checkbox" name="overrideSupportsPhysical" value="true" id="editOverridePhysical" checked=release.overrideSupportsPhysical)

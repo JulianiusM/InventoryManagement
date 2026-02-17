@@ -36,7 +36,8 @@ export async function createGameRelease(body: CreateGameReleaseBody, ownerId: nu
         playersOverrideMax: body.playersOverrideMax ? Number(body.playersOverrideMax) : null,
         // Mode-specific overrides
         overrideSupportsOnline: parseOptionalCheckboxBoolean(body.overrideSupportsOnline),
-        overrideSupportsLocal: parseOptionalCheckboxBoolean(body.overrideSupportsLocal),
+        overrideSupportsLocalCouch: parseOptionalCheckboxBoolean(body.overrideSupportsLocalCouch),
+        overrideSupportsLocalLAN: parseOptionalCheckboxBoolean(body.overrideSupportsLocalLAN),
         overrideSupportsPhysical: parseOptionalCheckboxBoolean(body.overrideSupportsPhysical),
         overrideOnlineMin: body.overrideOnlineMin ? Number(body.overrideOnlineMin) : null,
         overrideOnlineMax: body.overrideOnlineMax ? Number(body.overrideOnlineMax) : null,
@@ -99,7 +100,8 @@ export async function updateGameRelease(
     
     // Mode-specific overrides
     if (body.overrideSupportsOnline !== undefined) updates.overrideSupportsOnline = parseOptionalCheckboxBoolean(body.overrideSupportsOnline);
-    if (body.overrideSupportsLocal !== undefined) updates.overrideSupportsLocal = parseOptionalCheckboxBoolean(body.overrideSupportsLocal);
+    if (body.overrideSupportsLocalCouch !== undefined) updates.overrideSupportsLocalCouch = parseOptionalCheckboxBoolean(body.overrideSupportsLocalCouch);
+    if (body.overrideSupportsLocalLAN !== undefined) updates.overrideSupportsLocalLAN = parseOptionalCheckboxBoolean(body.overrideSupportsLocalLAN);
     if (body.overrideSupportsPhysical !== undefined) updates.overrideSupportsPhysical = parseOptionalCheckboxBoolean(body.overrideSupportsPhysical);
     if (body.overrideOnlineMin !== undefined) updates.overrideOnlineMin = body.overrideOnlineMin ? Number(body.overrideOnlineMin) : null;
     if (body.overrideOnlineMax !== undefined) updates.overrideOnlineMax = body.overrideOnlineMax ? Number(body.overrideOnlineMax) : null;

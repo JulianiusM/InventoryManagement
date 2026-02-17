@@ -16,7 +16,8 @@ export interface CreateGameReleaseData {
     playersOverrideMax?: number | null;
     // Mode-specific overrides
     overrideSupportsOnline?: boolean | null;
-    overrideSupportsLocal?: boolean | null;
+    overrideSupportsLocalCouch?: boolean | null;
+    overrideSupportsLocalLAN?: boolean | null;
     overrideSupportsPhysical?: boolean | null;
     overrideOnlineMin?: number | null;
     overrideOnlineMax?: number | null;
@@ -39,7 +40,8 @@ export async function createGameRelease(data: CreateGameReleaseData): Promise<Ga
     release.playersOverrideMax = data.playersOverrideMax ?? null;
     // Mode-specific overrides
     release.overrideSupportsOnline = data.overrideSupportsOnline ?? null;
-    release.overrideSupportsLocal = data.overrideSupportsLocal ?? null;
+    release.overrideSupportsLocalCouch = data.overrideSupportsLocalCouch ?? null;
+    release.overrideSupportsLocalLAN = data.overrideSupportsLocalLAN ?? null;
     release.overrideSupportsPhysical = data.overrideSupportsPhysical ?? null;
     release.overrideOnlineMin = data.overrideOnlineMin ?? null;
     release.overrideOnlineMax = data.overrideOnlineMax ?? null;

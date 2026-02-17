@@ -241,7 +241,7 @@ export class MetadataPipeline {
         metadata: GameMetadata
     ): Promise<GameMetadata> {
         // Check if we already have specific player counts
-        const hasMultiplayer = metadata.playerInfo?.supportsOnline || metadata.playerInfo?.supportsLocal;
+        const hasMultiplayer = metadata.playerInfo?.supportsOnline || metadata.playerInfo?.supportsLocalCouch || metadata.playerInfo?.supportsLocalLAN;
         const hasSpecificCounts = metadata.playerInfo?.onlineMaxPlayers !== undefined || 
                                   metadata.playerInfo?.localMaxPlayers !== undefined;
         
@@ -371,15 +371,24 @@ export class MetadataPipeline {
             updates.onlineMaxPlayers = playerInfo.onlineMaxPlayers;
         }
         
-        // Local mode
-        if (playerInfo.supportsLocal !== undefined) {
-            updates.supportsLocal = playerInfo.supportsLocal;
-            if (!playerInfo.supportsLocal) {
-                updates.localMinPlayers = null;
-                updates.localMaxPlayers = null;
-            }
+        // Local couch mode
+        if (playerInfo.supportsLocalCouch !== undefined) {
+            updates.supportsLocalCouch = playerInfo.supportsLocalCouch;
         }
-        const willSupportLocal = updates.supportsLocal ?? title.supportsLocal;
+        
+        // Local LAN mode
+        if (playerInfo.supportsLocalLAN !== undefined) {
+            updates.supportsLocalLAN = playerInfo.supportsLocalLAN;
+        }
+        
+        // Clear local counts if neither couch nor LAN is supported
+        const willSupportLocalCouch = updates.supportsLocalCouch ?? title.supportsLocalCouch;
+        const willSupportLocalLAN = updates.supportsLocalLAN ?? title.supportsLocalLAN;
+        if (playerInfo.supportsLocalCouch === false && playerInfo.supportsLocalLAN === false) {
+            updates.localMinPlayers = null;
+            updates.localMaxPlayers = null;
+        }
+        const willSupportLocal = willSupportLocalCouch || willSupportLocalLAN;
         // Only apply player counts if mode is supported AND value is valid
         if (willSupportLocal && isValidPlayerCount(playerInfo.localMaxPlayers)) {
             updates.localMaxPlayers = playerInfo.localMaxPlayers;
@@ -593,7 +602,7 @@ export class MetadataPipeline {
         const gamesNeedingPlayerCounts = games.filter(g => {
             const meta = metadataCache.get(g.externalGameId);
             if (!meta) return false;
-            const hasMultiplayer = meta.playerInfo?.supportsOnline || meta.playerInfo?.supportsLocal;
+            const hasMultiplayer = meta.playerInfo?.supportsOnline || meta.playerInfo?.supportsLocalCouch || meta.playerInfo?.supportsLocalLAN;
             const hasSpecificCounts = meta.playerInfo?.onlineMaxPlayers !== undefined ||
                                       meta.playerInfo?.localMaxPlayers !== undefined;
             return hasMultiplayer && !hasSpecificCounts;
@@ -717,8 +726,11 @@ export function enrichGameWithMetadata(game: ExternalGame, metadata: GameMetadat
         if (enriched.supportsOnline === undefined) {
             enriched.supportsOnline = metadata.playerInfo.supportsOnline;
         }
-        if (enriched.supportsLocal === undefined) {
-            enriched.supportsLocal = metadata.playerInfo.supportsLocal;
+        if (enriched.supportsLocalCouch === undefined) {
+            enriched.supportsLocalCouch = metadata.playerInfo.supportsLocalCouch;
+        }
+        if (enriched.supportsLocalLAN === undefined) {
+            enriched.supportsLocalLAN = metadata.playerInfo.supportsLocalLAN;
         }
         // Only apply mode-specific counts if valid (invalid -> keep as undefined = "unknown")
         if (enriched.onlineMaxPlayers === undefined && isValidPlayerCount(metadata.playerInfo.onlineMaxPlayers)) {

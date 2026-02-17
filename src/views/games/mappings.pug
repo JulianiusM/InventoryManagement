@@ -319,7 +319,7 @@ block content
                                             td
                                                 if title.supportsOnline
                                                     span.badge.text-bg-primary.me-1 Online
-                                                if title.supportsLocal
+                                                if title.supportsLocalCouch || title.supportsLocalLAN
                                                     span.badge.text-bg-success.me-1 Local
                                                 if title.supportsPhysical
                                                     span.badge.text-bg-warning.text-dark Physical
@@ -340,7 +340,7 @@ block content
                                                         i.bi.bi-exclamation-triangle.me-1
                                                         | Unknown
                                             td
-                                                if !title.supportsLocal
+                                                if !title.supportsLocalCouch && !title.supportsLocalLAN
                                                     span.text-white-50 N/A
                                                 else if title.localMaxPlayers
                                                     | #{title.localMinPlayers || 1}-#{title.localMaxPlayers}

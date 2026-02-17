@@ -489,11 +489,17 @@ const ONLINE_MULTIPLAYER_FEATURES = [
     'online play', 'online mode', 'internet play'
 ];
 
-const LOCAL_MULTIPLAYER_FEATURES = [
+const LOCAL_COUCH_MULTIPLAYER_FEATURES = [
     'local multiplayer', 'local co-op', 'local coop',
     'split screen', 'splitscreen', 'shared screen',
     'couch co-op', 'couch coop', 'hot seat', 'hotseat',
     'same screen', 'local pvp', 'local play', 'local mode'
+];
+
+const LOCAL_LAN_MULTIPLAYER_FEATURES = [
+    'lan', 'lan co-op', 'lan coop', 'lan pvp',
+    'lan multiplayer', 'lan play',
+    'system link', 'local wireless'
 ];
 
 /**
@@ -505,11 +511,19 @@ function isOnlineMultiplayerFeature(feature: string): boolean {
 }
 
 /**
- * Check if a feature name indicates local multiplayer support
+ * Check if a feature name indicates local couch multiplayer support
  */
-function isLocalMultiplayerFeature(feature: string): boolean {
+function isLocalCouchMultiplayerFeature(feature: string): boolean {
     const lower = feature.toLowerCase().trim();
-    return LOCAL_MULTIPLAYER_FEATURES.some(pattern => lower.includes(pattern));
+    return LOCAL_COUCH_MULTIPLAYER_FEATURES.some(pattern => lower.includes(pattern));
+}
+
+/**
+ * Check if a feature name indicates local LAN multiplayer support
+ */
+function isLocalLANMultiplayerFeature(feature: string): boolean {
+    const lower = feature.toLowerCase().trim();
+    return LOCAL_LAN_MULTIPLAYER_FEATURES.some(pattern => lower.includes(pattern));
 }
 
 /**
@@ -520,7 +534,7 @@ function isLocalMultiplayerFeature(feature: string): boolean {
  * - genres: List of genres
  * - releaseDate: Release date string
  * - developer/publisher: First developer/publisher
- * - supportsOnline/supportsLocal: Derived from features/tags
+ * - supportsOnline/supportsLocalCouch/supportsLocalLAN: Derived from features/tags
  * 
  * @param raw - The raw object from Playnite payload
  * @returns Extracted metadata fields
@@ -533,7 +547,8 @@ export function extractMetadataFromRaw(raw: PlayniteRawData | undefined): {
     publisher?: string;
     coverImageUrl?: string;
     supportsOnline?: boolean;
-    supportsLocal?: boolean;
+    supportsLocalCouch?: boolean;
+    supportsLocalLAN?: boolean;
 } {
     if (!raw) {
         return {};
@@ -543,7 +558,8 @@ export function extractMetadataFromRaw(raw: PlayniteRawData | undefined): {
     const allFeatures = [...(raw.features || []), ...(raw.tags || []), ...(raw.categories || [])];
     // Use ternary to ensure undefined is returned when no match (not false)
     const supportsOnline = allFeatures.some(isOnlineMultiplayerFeature) ? true : undefined;
-    const supportsLocal = allFeatures.some(isLocalMultiplayerFeature) ? true : undefined;
+    const supportsLocalCouch = allFeatures.some(isLocalCouchMultiplayerFeature) ? true : undefined;
+    const supportsLocalLAN = allFeatures.some(isLocalLANMultiplayerFeature) ? true : undefined;
     
     return {
         description: raw.description || undefined,
@@ -556,7 +572,8 @@ export function extractMetadataFromRaw(raw: PlayniteRawData | undefined): {
         coverImageUrl: undefined,
         // Multiplayer support derived from features/tags
         supportsOnline,
-        supportsLocal,
+        supportsLocalCouch,
+        supportsLocalLAN,
     };
 }
 

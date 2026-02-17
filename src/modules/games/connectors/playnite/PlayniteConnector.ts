@@ -189,7 +189,8 @@ export class PlayniteConnector extends BaseConnector implements PushConnector {
                 
                 // Multiplayer support from features/tags
                 supportsOnline: metadata.supportsOnline,
-                supportsLocal: metadata.supportsLocal,
+                supportsLocalCouch: metadata.supportsLocalCouch,
+                supportsLocalLAN: metadata.supportsLocalLAN,
                 
                 // Aggregator origin fields
                 originalProviderPluginId: game.originalProviderPluginId,

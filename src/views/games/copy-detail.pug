@@ -77,7 +77,7 @@ block content
                                     span.badge.text-bg-secondary
                                         i.bi.bi-people.me-1
                                         | #{gameTitle.overallMinPlayers || 1}-#{gameTitle.overallMaxPlayers} players
-                                else if gameTitle.supportsOnline || gameTitle.supportsLocal || gameTitle.supportsPhysical
+                                else if gameTitle.supportsOnline || gameTitle.supportsLocalCouch || gameTitle.supportsLocalLAN || gameTitle.supportsPhysical
                                     span.badge.text-bg-warning.text-dark
                                         i.bi.bi-people.me-1
                                         i.bi.bi-exclamation-triangle.me-1

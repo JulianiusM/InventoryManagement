@@ -48,7 +48,7 @@ describe('GameSuggestionController', () => {
             overallMinPlayers: 1,
             overallMaxPlayers: 4,
             supportsOnline: true,
-            supportsLocal: false,
+            supportsLocalCouch: false, supportsLocalLAN: false,
             supportsPhysical: false,
         };
 
@@ -112,18 +112,14 @@ describe('GameSuggestionController', () => {
             (gameSuggestionService.getRandomGameSuggestion as jest.Mock).mockResolvedValue(mockGameTitle);
 
             const formData: SuggestionFormData = {
-                includeOnline: 'require',
-                includeLocal: 'exclude',
-                includePhysical: 'any',
+                selectedModes: ['online', 'couch'],
             };
 
             await getGameSuggestion(formData, TEST_USER_ID);
 
             expect(gameSuggestionService.getRandomGameSuggestion).toHaveBeenCalledWith(
                 expect.objectContaining({
-                    includeOnline: true,
-                    includeLocal: false,
-                    includePhysical: undefined,
+                    selectedModes: ['online', 'couch'],
                 })
             );
         });
@@ -185,9 +181,7 @@ describe('GameSuggestionController', () => {
                     playerCount: undefined,
                     includePlatforms: undefined,
                     excludePlatforms: undefined,
-                    includeOnline: undefined,
-                    includeLocal: undefined,
-                    includePhysical: undefined,
+                    selectedModes: undefined,
                     gameTypes: undefined,
                 })
             );

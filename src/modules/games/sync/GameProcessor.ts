@@ -116,9 +116,10 @@ export async function updateExistingGameItem(
  */
 function hasMultiplayerSupport(game: ExternalGame): boolean {
     const supportsOnline = game.supportsOnline ?? false;
-    const supportsLocal = game.supportsLocal ?? false;
+    const supportsLocalCouch = game.supportsLocalCouch ?? false;
+    const supportsLocalLAN = game.supportsLocalLAN ?? false;
     const hasMultipleMaxPlayers = game.overallMaxPlayers !== undefined && game.overallMaxPlayers > 1;
-    return supportsOnline || supportsLocal || hasMultipleMaxPlayers;
+    return supportsOnline || supportsLocalCouch || supportsLocalLAN || hasMultipleMaxPlayers;
 }
 
 /**
@@ -157,7 +158,10 @@ function clampPlayerProfileValues(game: ExternalGame): ExternalGame {
         clamped.supportsOnline = true;
     }
     if (clamped.localMaxPlayers !== undefined) {
-        clamped.supportsLocal = true;
+        // If local max players detected but neither local mode specified, default to couch
+        if (!clamped.supportsLocalCouch && !clamped.supportsLocalLAN) {
+            clamped.supportsLocalCouch = true;
+        }
     }
     
     // Step 2: Validate overall counts - treat invalid values as "unknown"
@@ -173,7 +177,7 @@ function clampPlayerProfileValues(game: ExternalGame): ExternalGame {
         derivedMaxPlayers = Math.max(derivedMaxPlayers, clamped.onlineMaxPlayers);
         hasKnownMax = true;
     }
-    if (clamped.supportsLocal && clamped.localMaxPlayers !== undefined) {
+    if ((clamped.supportsLocalCouch || clamped.supportsLocalLAN) && clamped.localMaxPlayers !== undefined) {
         derivedMaxPlayers = Math.max(derivedMaxPlayers, clamped.localMaxPlayers);
         hasKnownMax = true;
     }
@@ -204,7 +208,7 @@ function clampPlayerProfileValues(game: ExternalGame): ExternalGame {
         }
     }
     
-    if (!clamped.supportsLocal) {
+    if (!clamped.supportsLocalCouch && !clamped.supportsLocalLAN) {
         clamped.localMinPlayers = undefined;
         clamped.localMaxPlayers = undefined;
     } else {
@@ -249,7 +253,8 @@ async function createGameFromData(
     
     // Determine multiplayer support from game data
     const supportsOnline = game.supportsOnline ?? false;
-    const supportsLocal = game.supportsLocal ?? false;
+    const supportsLocalCouch = game.supportsLocalCouch ?? false;
+    const supportsLocalLAN = game.supportsLocalLAN ?? false;
     
     // Normalize description in the shared pipeline (handles HTML, length, etc.)
     const normalizedDescription = normalizeDescription(game.description);
@@ -272,13 +277,14 @@ async function createGameFromData(
         overallMinPlayers: game.overallMinPlayers ?? null,
         overallMaxPlayers: game.overallMaxPlayers ?? null,
         supportsOnline,
-        supportsLocal,
+        supportsLocalCouch,
+        supportsLocalLAN,
         supportsPhysical: game.supportsPhysical ?? false,
         // Mode-specific counts: only set if we have actual data, otherwise null (unknown)
         onlineMinPlayers: supportsOnline ? (game.onlineMinPlayers ?? null) : null,
         onlineMaxPlayers: supportsOnline ? (game.onlineMaxPlayers ?? null) : null,
-        localMinPlayers: supportsLocal ? (game.localMinPlayers ?? null) : null,
-        localMaxPlayers: supportsLocal ? (game.localMaxPlayers ?? null) : null,
+        localMinPlayers: (supportsLocalCouch || supportsLocalLAN) ? (game.localMinPlayers ?? null) : null,
+        localMaxPlayers: (supportsLocalCouch || supportsLocalLAN) ? (game.localMaxPlayers ?? null) : null,
         physicalMinPlayers: null,
         physicalMaxPlayers: null,
         ownerId,
@@ -327,7 +333,8 @@ export async function safeCreateGameFromData(
                     overallMinPlayers: 1,
                     overallMaxPlayers: 1,
                     supportsOnline: false,
-                    supportsLocal: false,
+                    supportsLocalCouch: false,
+                    supportsLocalLAN: false,
                     supportsPhysical: false,
                     onlineMinPlayers: undefined,
                     onlineMaxPlayers: undefined,

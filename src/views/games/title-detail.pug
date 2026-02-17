@@ -33,7 +33,7 @@ block content
                         span.badge.text-bg-secondary
                             i.bi.bi-people.me-1
                             | #{title.overallMinPlayers || 1}-#{title.overallMaxPlayers} players
-                    else if title.supportsOnline || title.supportsLocal || title.supportsPhysical
+                    else if title.supportsOnline || title.supportsLocalCouch || title.supportsLocalLAN || title.supportsPhysical
                         //- Multiplayer game with unknown overall count
                         span.badge.text-bg-warning.text-dark
                             i.bi.bi-people.me-1
@@ -51,7 +51,7 @@ block content
                             //- Warning for multiplayer without specific player count
                             if !title.onlineMaxPlayers
                                 i.bi.bi-exclamation-triangle.ms-1(title="Player count unknown - click Fetch Metadata to update")
-                    if title.supportsLocal
+                    if title.supportsLocalCouch || title.supportsLocalLAN
                         span.badge.text-bg-success
                             i.bi.bi-display.me-1
                             | Local
@@ -98,7 +98,7 @@ block content
                                 //- Handle null (unknown) overall player counts
                                 if title.overallMaxPlayers
                                     | #{title.overallMinPlayers || 1} - #{title.overallMaxPlayers} players
-                                else if title.supportsOnline || title.supportsLocal || title.supportsPhysical
+                                else if title.supportsOnline || title.supportsLocalCouch || title.supportsLocalLAN || title.supportsPhysical
                                     //- Multiplayer game with unknown overall count
                                     span.text-warning
                                         i.bi.bi-exclamation-triangle.me-1
@@ -169,7 +169,7 @@ block content
                                 h6.text-white
                                     i.bi.bi-people.me-1
                                     | Player Settings
-                                    if !title.overallMaxPlayers && (title.supportsOnline || title.supportsLocal)
+                                    if !title.overallMaxPlayers && (title.supportsOnline || title.supportsLocalCouch || title.supportsLocalLAN)
                                         span.badge.text-bg-warning.ms-2
                                             i.bi.bi-exclamation-triangle.me-1
                                             | Player counts unknown
@@ -191,10 +191,16 @@ block content
                                             | Online
                                 .col-md-4
                                     .form-check
-                                        input.form-check-input(type="checkbox" name="supportsLocal" value="true" id="editSupportsLocal" checked=title.supportsLocal)
-                                        label.form-check-label(for="editSupportsLocal")
+                                        input.form-check-input(type="checkbox" name="supportsLocalCouch" value="true" id="editSupportsLocalCouch" checked=title.supportsLocalCouch)
+                                        label.form-check-label(for="editSupportsLocalCouch")
                                             i.bi.bi-display.me-1
-                                            | Local
+                                            | Local Couch
+                                .col-md-4
+                                    .form-check
+                                        input.form-check-input(type="checkbox" name="supportsLocalLAN" value="true" id="editSupportsLocalLAN" checked=title.supportsLocalLAN)
+                                        label.form-check-label(for="editSupportsLocalLAN")
+                                            i.bi.bi-ethernet.me-1
+                                            | Local LAN
                                 .col-md-4
                                     .form-check
                                         input.form-check-input(type="checkbox" name="supportsPhysical" value="true" id="editSupportsPhysical" checked=title.supportsPhysical)
@@ -357,10 +363,16 @@ block content
                                                 | Online
                                     .col-md-4
                                         .form-check
-                                            input.form-check-input(type="checkbox" name="overrideSupportsLocal" value="true" id="overrideLocal")
-                                            label.form-check-label.text-success(for="overrideLocal")
+                                            input.form-check-input(type="checkbox" name="overrideSupportsLocalCouch" value="true" id="overrideLocalCouch")
+                                            label.form-check-label.text-success(for="overrideLocalCouch")
                                                 i.bi.bi-display.me-1
-                                                | Local
+                                                | Local Couch
+                                    .col-md-4
+                                        .form-check
+                                            input.form-check-input(type="checkbox" name="overrideSupportsLocalLAN" value="true" id="overrideLocalLAN")
+                                            label.form-check-label.text-success(for="overrideLocalLAN")
+                                                i.bi.bi-ethernet.me-1
+                                                | Local LAN
                                     .col-md-4
                                         .form-check
                                             input.form-check-input(type="checkbox" name="overrideSupportsPhysical" value="true" id="overridePhysical")

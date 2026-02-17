@@ -47,8 +47,11 @@ export class GameRelease {
     @Column("boolean", {name: "override_supports_online", nullable: true})
     overrideSupportsOnline?: boolean | null;
 
-    @Column("boolean", {name: "override_supports_local", nullable: true})
-    overrideSupportsLocal?: boolean | null;
+    @Column("boolean", {name: "override_supports_local_couch", nullable: true})
+    overrideSupportsLocalCouch?: boolean | null;
+
+    @Column("boolean", {name: "override_supports_local_lan", nullable: true})
+    overrideSupportsLocalLAN?: boolean | null;
 
     @Column("boolean", {name: "override_supports_physical", nullable: true})
     overrideSupportsPhysical?: boolean | null;

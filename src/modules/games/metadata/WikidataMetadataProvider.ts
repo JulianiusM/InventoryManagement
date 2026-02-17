@@ -480,7 +480,7 @@ LIMIT 50`;
                 overallMinPlayers: minPlayers,
                 overallMaxPlayers: maxPlayers,
                 supportsPhysical: true,
-                supportsLocal: maxPlayers > 1,
+                supportsLocalCouch: maxPlayers > 1,
                 supportsOnline: false,
                 physicalMaxPlayers: maxPlayers,
                 localMaxPlayers: maxPlayers,

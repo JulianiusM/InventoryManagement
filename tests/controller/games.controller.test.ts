@@ -37,7 +37,7 @@ describe('GameValidationService', () => {
                 overallMinPlayers: 1,
                 overallMaxPlayers: 4,
                 supportsOnline: false,
-                supportsLocal: false,
+                supportsLocalCouch: false, supportsLocalLAN: false,
                 supportsPhysical: false,
             };
             expect(getEffectivePlayerCounts(profile, 'online')).toBeNull();
@@ -50,7 +50,7 @@ describe('GameValidationService', () => {
                 overallMinPlayers: 1,
                 overallMaxPlayers: 8,
                 supportsOnline: true,
-                supportsLocal: true,
+                supportsLocalCouch: true, supportsLocalLAN: false,
                 supportsPhysical: false,
             };
             expect(getEffectivePlayerCounts(profile, 'online')).toEqual({min: 1, max: 8});
@@ -62,7 +62,7 @@ describe('GameValidationService', () => {
                 overallMinPlayers: 1,
                 overallMaxPlayers: 16,
                 supportsOnline: true,
-                supportsLocal: true,
+                supportsLocalCouch: true, supportsLocalLAN: false,
                 supportsPhysical: true,
                 onlineMinPlayers: 2,
                 onlineMaxPlayers: 16,

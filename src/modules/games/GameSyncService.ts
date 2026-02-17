@@ -500,12 +500,12 @@ async function processMetadataEnrichmentAsync(
                 // Handle player profile updates carefully to avoid validation errors
                 // We need to consider existing values from the game title and merge with new values
                 const existingSupportsOnline = gameTitle.supportsOnline ?? false;
-                const existingSupportsLocal = gameTitle.supportsLocal ?? false;
+                const existingSupportsLocal = (gameTitle.supportsLocalCouch ?? false) || (gameTitle.supportsLocalLAN ?? false);
                 const existingOverallMax = gameTitle.overallMaxPlayers ?? 1;
                 
                 // Determine new support flags
                 const newSupportsOnline = enrichedGame.supportsOnline ?? existingSupportsOnline;
-                const newSupportsLocal = enrichedGame.supportsLocal ?? existingSupportsLocal;
+                const newSupportsLocal = (enrichedGame.supportsLocalCouch ?? false) || (enrichedGame.supportsLocalLAN ?? false) || existingSupportsLocal;
                 
                 // If updating min/max players, ensure consistency
                 if (enrichedGame.overallMinPlayers !== undefined) {
@@ -541,10 +541,16 @@ async function processMetadataEnrichmentAsync(
                         newOverallMax = enrichedGame.localMaxPlayers;
                     }
                     updateData.localMaxPlayers = enrichedGame.localMaxPlayers;
-                    updateData.supportsLocal = true;
+                    // Default to couch if neither mode is specified
+                    if (!enrichedGame.supportsLocalCouch && !enrichedGame.supportsLocalLAN) {
+                        updateData.supportsLocalCouch = true;
+                    } else {
+                        if (enrichedGame.supportsLocalCouch) updateData.supportsLocalCouch = true;
+                        if (enrichedGame.supportsLocalLAN) updateData.supportsLocalLAN = true;
+                    }
                 } else if (!newSupportsLocal && enrichedGame.localMaxPlayers !== undefined) {
-                    // If we have local max but don't support local, enable local support
-                    updateData.supportsLocal = true;
+                    // If we have local max but don't support local, enable local couch support
+                    updateData.supportsLocalCouch = true;
                     if (enrichedGame.localMaxPlayers > newOverallMax) {
                         newOverallMax = enrichedGame.localMaxPlayers;
                     }
@@ -556,7 +562,7 @@ async function processMetadataEnrichmentAsync(
                     updateData.overallMaxPlayers = newOverallMax;
                 }
                 
-                // Also update supportsOnline/supportsLocal if they're explicitly set in metadata
+                // Also update supportsOnline/supportsLocalCouch/supportsLocalLAN if they're explicitly set in metadata
                 if (enrichedGame.supportsOnline !== undefined && !updateData.supportsOnline) {
                     updateData.supportsOnline = enrichedGame.supportsOnline;
                     // If disabling online support, clear mode-specific values
@@ -565,13 +571,18 @@ async function processMetadataEnrichmentAsync(
                         updateData.onlineMaxPlayers = null;
                     }
                 }
-                if (enrichedGame.supportsLocal !== undefined && !updateData.supportsLocal) {
-                    updateData.supportsLocal = enrichedGame.supportsLocal;
-                    // If disabling local support, clear mode-specific values
-                    if (!enrichedGame.supportsLocal) {
-                        updateData.localMinPlayers = null;
-                        updateData.localMaxPlayers = null;
-                    }
+                if (enrichedGame.supportsLocalCouch !== undefined && !updateData.supportsLocalCouch) {
+                    updateData.supportsLocalCouch = enrichedGame.supportsLocalCouch;
+                }
+                if (enrichedGame.supportsLocalLAN !== undefined && !updateData.supportsLocalLAN) {
+                    updateData.supportsLocalLAN = enrichedGame.supportsLocalLAN;
+                }
+                // If disabling both local modes, clear local-specific values
+                const finalSupportsLocalCouch = (updateData.supportsLocalCouch ?? enrichedGame.supportsLocalCouch ?? gameTitle.supportsLocalCouch) || false;
+                const finalSupportsLocalLAN = (updateData.supportsLocalLAN ?? enrichedGame.supportsLocalLAN ?? gameTitle.supportsLocalLAN) || false;
+                if (!finalSupportsLocalCouch && !finalSupportsLocalLAN) {
+                    updateData.localMinPlayers = null;
+                    updateData.localMaxPlayers = null;
                 }
                 
                 if (Object.keys(updateData).length > 0) {

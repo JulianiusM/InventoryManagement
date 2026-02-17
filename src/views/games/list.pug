@@ -172,7 +172,7 @@ block content
                                         span.badge.text-bg-secondary
                                             i.bi.bi-people.me-1
                                             | #{title.overallMinPlayers || 1}-#{title.overallMaxPlayers} players
-                                    else if title.supportsOnline || title.supportsLocal || title.supportsPhysical
+                                    else if title.supportsOnline || title.supportsLocalCouch || title.supportsLocalLAN || title.supportsPhysical
                                         //- Multiplayer game with unknown overall count
                                         span.badge.text-bg-warning.text-dark
                                             i.bi.bi-people.me-1
@@ -298,10 +298,16 @@ block content
                                     | Online
                         .col-md-4
                             .form-check
-                                input#supportsLocal.form-check-input(type="checkbox" name="supportsLocal" value="true")
-                                label.form-check-label(for="supportsLocal")
+                                input#supportsLocalCouch.form-check-input(type="checkbox" name="supportsLocalCouch" value="true")
+                                label.form-check-label(for="supportsLocalCouch")
                                     i.bi.bi-display.me-1
-                                    | Local Co-op
+                                    | Local Couch
+                        .col-md-4
+                            .form-check
+                                input#supportsLocalLAN.form-check-input(type="checkbox" name="supportsLocalLAN" value="true")
+                                label.form-check-label(for="supportsLocalLAN")
+                                    i.bi.bi-ethernet.me-1
+                                    | Local LAN
                         .col-md-4
                             .form-check
                                 input#supportsPhysical.form-check-input(type="checkbox" name="supportsPhysical" value="true")
