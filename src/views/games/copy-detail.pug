@@ -98,14 +98,14 @@ block content
                                         i.bi.bi-display.me-1
                                         | Couch Co-op
                                         //- Warning for unknown player count
-                                        if !gameTitle.localMaxPlayers
+                                        if !gameTitle.couchMaxPlayers
                                             i.bi.bi-exclamation-triangle.ms-1(title="Player count unknown")
                                 if gameTitle.supportsLocalLAN
                                     span.badge.text-bg-info
                                         i.bi.bi-hdd-network.me-1
                                         | LAN
                                         //- Warning for unknown player count
-                                        if !gameTitle.localMaxPlayers
+                                        if !gameTitle.lanMaxPlayers
                                             i.bi.bi-exclamation-triangle.ms-1(title="Player count unknown")
                             .mt-2
                                 a.btn.btn-sm.btn-outline-light.me-2(href=`/games/titles/${gameTitle.id}`)

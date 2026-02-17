@@ -500,12 +500,10 @@ async function processMetadataEnrichmentAsync(
                 // Handle player profile updates carefully to avoid validation errors
                 // We need to consider existing values from the game title and merge with new values
                 const existingSupportsOnline = gameTitle.supportsOnline ?? false;
-                const existingSupportsLocal = (gameTitle.supportsLocalCouch ?? false) || (gameTitle.supportsLocalLAN ?? false);
                 const existingOverallMax = gameTitle.overallMaxPlayers ?? 1;
                 
                 // Determine new support flags
                 const newSupportsOnline = enrichedGame.supportsOnline ?? existingSupportsOnline;
-                const newSupportsLocal = (enrichedGame.supportsLocalCouch ?? false) || (enrichedGame.supportsLocalLAN ?? false) || existingSupportsLocal;
                 
                 // If updating min/max players, ensure consistency
                 if (enrichedGame.overallMinPlayers !== undefined) {
@@ -534,27 +532,30 @@ async function processMetadataEnrichmentAsync(
                     updateData.onlineMaxPlayers = enrichedGame.onlineMaxPlayers;
                 }
                 
-                // Handle local max players - must be <= overall max and only set if local mode is supported
-                if (newSupportsLocal && enrichedGame.localMaxPlayers !== undefined) {
-                    // If local max exceeds overall max, extend overall max
-                    if (enrichedGame.localMaxPlayers > newOverallMax) {
-                        newOverallMax = enrichedGame.localMaxPlayers;
+                // Handle couch max players - only set if supportsLocalCouch
+                if (enrichedGame.couchMaxPlayers !== undefined) {
+                    if (enrichedGame.couchMaxPlayers > newOverallMax) {
+                        newOverallMax = enrichedGame.couchMaxPlayers;
                     }
-                    updateData.localMaxPlayers = enrichedGame.localMaxPlayers;
-                    // Default to couch if neither mode is specified
-                    if (!enrichedGame.supportsLocalCouch && !enrichedGame.supportsLocalLAN) {
+                    updateData.couchMaxPlayers = enrichedGame.couchMaxPlayers;
+                    if (!enrichedGame.supportsLocalCouch) {
                         updateData.supportsLocalCouch = true;
                     } else {
                         if (enrichedGame.supportsLocalCouch) updateData.supportsLocalCouch = true;
+                    }
+                }
+                
+                // Handle LAN max players - only set if supportsLocalLAN
+                if (enrichedGame.lanMaxPlayers !== undefined) {
+                    if (enrichedGame.lanMaxPlayers > newOverallMax) {
+                        newOverallMax = enrichedGame.lanMaxPlayers;
+                    }
+                    updateData.lanMaxPlayers = enrichedGame.lanMaxPlayers;
+                    if (!enrichedGame.supportsLocalLAN) {
+                        updateData.supportsLocalLAN = true;
+                    } else {
                         if (enrichedGame.supportsLocalLAN) updateData.supportsLocalLAN = true;
                     }
-                } else if (!newSupportsLocal && enrichedGame.localMaxPlayers !== undefined) {
-                    // If we have local max but don't support local, enable local couch support
-                    updateData.supportsLocalCouch = true;
-                    if (enrichedGame.localMaxPlayers > newOverallMax) {
-                        newOverallMax = enrichedGame.localMaxPlayers;
-                    }
-                    updateData.localMaxPlayers = enrichedGame.localMaxPlayers;
                 }
                 
                 // Update overall max if it changed
@@ -577,12 +578,16 @@ async function processMetadataEnrichmentAsync(
                 if (enrichedGame.supportsLocalLAN !== undefined && !updateData.supportsLocalLAN) {
                     updateData.supportsLocalLAN = enrichedGame.supportsLocalLAN;
                 }
-                // If disabling both local modes, clear local-specific values
+                // If disabling both local modes, clear couch and LAN specific values
                 const finalSupportsLocalCouch = (updateData.supportsLocalCouch ?? enrichedGame.supportsLocalCouch ?? gameTitle.supportsLocalCouch) || false;
                 const finalSupportsLocalLAN = (updateData.supportsLocalLAN ?? enrichedGame.supportsLocalLAN ?? gameTitle.supportsLocalLAN) || false;
-                if (!finalSupportsLocalCouch && !finalSupportsLocalLAN) {
-                    updateData.localMinPlayers = null;
-                    updateData.localMaxPlayers = null;
+                if (!finalSupportsLocalCouch) {
+                    updateData.couchMinPlayers = null;
+                    updateData.couchMaxPlayers = null;
+                }
+                if (!finalSupportsLocalLAN) {
+                    updateData.lanMinPlayers = null;
+                    updateData.lanMaxPlayers = null;
                 }
                 
                 if (Object.keys(updateData).length > 0) {

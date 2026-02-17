@@ -56,14 +56,14 @@ block content
                             i.bi.bi-display.me-1
                             | Couch Co-op
                             //- Warning for multiplayer without specific player count
-                            if !title.localMaxPlayers
+                            if !title.couchMaxPlayers
                                 i.bi.bi-exclamation-triangle.ms-1(title="Player count unknown - click Fetch Metadata to update")
                     if title.supportsLocalLAN
                         span.badge.text-bg-info
                             i.bi.bi-hdd-network.me-1
                             | LAN
                             //- Warning for multiplayer without specific player count
-                            if !title.localMaxPlayers
+                            if !title.lanMaxPlayers
                                 i.bi.bi-exclamation-triangle.ms-1(title="Player count unknown - click Fetch Metadata to update")
                     if title.supportsPhysical
                         span.badge.text-bg-warning.text-dark
@@ -133,8 +133,8 @@ block content
                                     | Couch Co-op
                                 dd.col-sm-8
                                     //- Show explicit "Unknown" when player count is not known
-                                    if title.localMaxPlayers
-                                        | #{title.localMinPlayers || 1} - #{title.localMaxPlayers} players
+                                    if title.couchMaxPlayers
+                                        | #{title.couchMinPlayers || 1} - #{title.couchMaxPlayers} players
                                     else
                                         span.text-warning
                                             i.bi.bi-exclamation-triangle.me-1
@@ -146,8 +146,8 @@ block content
                                     | LAN / Multi-Device
                                 dd.col-sm-8
                                     //- Show explicit "Unknown" when player count is not known
-                                    if title.localMaxPlayers
-                                        | #{title.localMinPlayers || 1} - #{title.localMaxPlayers} players
+                                    if title.lanMaxPlayers
+                                        | #{title.lanMinPlayers || 1} - #{title.lanMaxPlayers} players
                                     else
                                         span.text-warning
                                             i.bi.bi-exclamation-triangle.me-1
@@ -236,11 +236,17 @@ block content
                                     label.form-label.small.text-primary Online Max
                                     input.form-control.form-control-sm.text-bg-dark(type="number" name="onlineMaxPlayers" value=title.onlineMaxPlayers || '' min="1")
                                 .col-md-3
-                                    label.form-label.small.text-success Local Min
-                                    input.form-control.form-control-sm.text-bg-dark(type="number" name="localMinPlayers" value=title.localMinPlayers || '' min="1")
+                                    label.form-label.small.text-success Couch Min
+                                    input.form-control.form-control-sm.text-bg-dark(type="number" name="couchMinPlayers" value=title.couchMinPlayers || '' min="1")
                                 .col-md-3
-                                    label.form-label.small.text-success Local Max
-                                    input.form-control.form-control-sm.text-bg-dark(type="number" name="localMaxPlayers" value=title.localMaxPlayers || '' min="1")
+                                    label.form-label.small.text-success Couch Max
+                                    input.form-control.form-control-sm.text-bg-dark(type="number" name="couchMaxPlayers" value=title.couchMaxPlayers || '' min="1")
+                                .col-md-3
+                                    label.form-label.small.text-info LAN Min
+                                    input.form-control.form-control-sm.text-bg-dark(type="number" name="lanMinPlayers" value=title.lanMinPlayers || '' min="1")
+                                .col-md-3
+                                    label.form-label.small.text-info LAN Max
+                                    input.form-control.form-control-sm.text-bg-dark(type="number" name="lanMaxPlayers" value=title.lanMaxPlayers || '' min="1")
                                 .col-md-3
                                     label.form-label.small.text-warning Physical Min
                                     input.form-control.form-control-sm.text-bg-dark(type="number" name="physicalMinPlayers" value=title.physicalMinPlayers || '' min="1")
@@ -408,11 +414,17 @@ block content
                                         label.form-label.small.text-primary Online Max
                                         input.form-control.form-control-sm.text-bg-dark(type="number" name="overrideOnlineMax" min="1")
                                     .col-md-3
-                                        label.form-label.small.text-success Local Min
-                                        input.form-control.form-control-sm.text-bg-dark(type="number" name="overrideLocalMin" min="1")
+                                        label.form-label.small.text-success Couch Min
+                                        input.form-control.form-control-sm.text-bg-dark(type="number" name="overrideCouchMin" min="1")
                                     .col-md-3
-                                        label.form-label.small.text-success Local Max
-                                        input.form-control.form-control-sm.text-bg-dark(type="number" name="overrideLocalMax" min="1")
+                                        label.form-label.small.text-success Couch Max
+                                        input.form-control.form-control-sm.text-bg-dark(type="number" name="overrideCouchMax" min="1")
+                                    .col-md-3
+                                        label.form-label.small.text-info LAN Min
+                                        input.form-control.form-control-sm.text-bg-dark(type="number" name="overrideLanMin" min="1")
+                                    .col-md-3
+                                        label.form-label.small.text-info LAN Max
+                                        input.form-control.form-control-sm.text-bg-dark(type="number" name="overrideLanMax" min="1")
                                     .col-md-3
                                         label.form-label.small.text-warning Physical Min
                                         input.form-control.form-control-sm.text-bg-dark(type="number" name="overridePhysicalMin" min="1")

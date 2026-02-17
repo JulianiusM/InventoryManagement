@@ -243,7 +243,8 @@ export class MetadataPipeline {
         // Check if we already have specific player counts
         const hasMultiplayer = metadata.playerInfo?.supportsOnline || metadata.playerInfo?.supportsLocalCouch || metadata.playerInfo?.supportsLocalLAN;
         const hasSpecificCounts = metadata.playerInfo?.onlineMaxPlayers !== undefined || 
-                                  metadata.playerInfo?.localMaxPlayers !== undefined;
+                                  metadata.playerInfo?.couchMaxPlayers !== undefined ||
+                                  metadata.playerInfo?.lanMaxPlayers !== undefined;
         
         if (!hasMultiplayer || hasSpecificCounts) {
             return metadata; // No enrichment needed
@@ -381,17 +382,21 @@ export class MetadataPipeline {
             updates.supportsLocalLAN = playerInfo.supportsLocalLAN;
         }
         
-        // Clear local counts if neither couch nor LAN is supported
+        // Clear couch and LAN counts if neither couch nor LAN is supported
         const willSupportLocalCouch = updates.supportsLocalCouch ?? title.supportsLocalCouch;
         const willSupportLocalLAN = updates.supportsLocalLAN ?? title.supportsLocalLAN;
         if (playerInfo.supportsLocalCouch === false && playerInfo.supportsLocalLAN === false) {
-            updates.localMinPlayers = null;
-            updates.localMaxPlayers = null;
+            updates.couchMinPlayers = null;
+            updates.couchMaxPlayers = null;
+            updates.lanMinPlayers = null;
+            updates.lanMaxPlayers = null;
         }
-        const willSupportLocal = willSupportLocalCouch || willSupportLocalLAN;
         // Only apply player counts if mode is supported AND value is valid
-        if (willSupportLocal && isValidPlayerCount(playerInfo.localMaxPlayers)) {
-            updates.localMaxPlayers = playerInfo.localMaxPlayers;
+        if (willSupportLocalCouch && isValidPlayerCount(playerInfo.couchMaxPlayers)) {
+            updates.couchMaxPlayers = playerInfo.couchMaxPlayers;
+        }
+        if (willSupportLocalLAN && isValidPlayerCount(playerInfo.lanMaxPlayers)) {
+            updates.lanMaxPlayers = playerInfo.lanMaxPlayers;
         }
         
         // Physical mode - ONLY for board games
@@ -498,7 +503,8 @@ export class MetadataPipeline {
         
         // Track if we had player counts before enrichment
         const hadPlayerCountsBefore = foundMetadata.playerInfo?.onlineMaxPlayers !== undefined ||
-                                       foundMetadata.playerInfo?.localMaxPlayers !== undefined;
+                                       foundMetadata.playerInfo?.couchMaxPlayers !== undefined ||
+                                       foundMetadata.playerInfo?.lanMaxPlayers !== undefined;
         
         // Enrich with player counts (use metadata.name if name param not provided)
         const enrichmentName = name || foundMetadata.name;
@@ -506,7 +512,8 @@ export class MetadataPipeline {
         
         // Track if we got player counts from enrichment
         const hasPlayerCountsAfter = foundMetadata.playerInfo?.onlineMaxPlayers !== undefined ||
-                                     foundMetadata.playerInfo?.localMaxPlayers !== undefined;
+                                     foundMetadata.playerInfo?.couchMaxPlayers !== undefined ||
+                                     foundMetadata.playerInfo?.lanMaxPlayers !== undefined;
         
         // If we got player counts from enrichment (not from original provider), note it
         if (!hadPlayerCountsBefore && hasPlayerCountsAfter) {
@@ -604,7 +611,8 @@ export class MetadataPipeline {
             if (!meta) return false;
             const hasMultiplayer = meta.playerInfo?.supportsOnline || meta.playerInfo?.supportsLocalCouch || meta.playerInfo?.supportsLocalLAN;
             const hasSpecificCounts = meta.playerInfo?.onlineMaxPlayers !== undefined ||
-                                      meta.playerInfo?.localMaxPlayers !== undefined;
+                                      meta.playerInfo?.couchMaxPlayers !== undefined ||
+                                      meta.playerInfo?.lanMaxPlayers !== undefined;
             return hasMultiplayer && !hasSpecificCounts;
         });
         
@@ -736,8 +744,11 @@ export function enrichGameWithMetadata(game: ExternalGame, metadata: GameMetadat
         if (enriched.onlineMaxPlayers === undefined && isValidPlayerCount(metadata.playerInfo.onlineMaxPlayers)) {
             enriched.onlineMaxPlayers = metadata.playerInfo.onlineMaxPlayers;
         }
-        if (enriched.localMaxPlayers === undefined && isValidPlayerCount(metadata.playerInfo.localMaxPlayers)) {
-            enriched.localMaxPlayers = metadata.playerInfo.localMaxPlayers;
+        if (enriched.couchMaxPlayers === undefined && isValidPlayerCount(metadata.playerInfo.couchMaxPlayers)) {
+            enriched.couchMaxPlayers = metadata.playerInfo.couchMaxPlayers;
+        }
+        if (enriched.lanMaxPlayers === undefined && isValidPlayerCount(metadata.playerInfo.lanMaxPlayers)) {
+            enriched.lanMaxPlayers = metadata.playerInfo.lanMaxPlayers;
         }
         // Note: supportsPhysical intentionally NOT set for video games
     }

@@ -154,8 +154,10 @@ export async function createGameTitle(body: CreateGameTitleBody, ownerId: number
         supportsPhysical: parseCheckboxBoolean(body.supportsPhysical),
         onlineMinPlayers: body.onlineMinPlayers ? Number(body.onlineMinPlayers) : null,
         onlineMaxPlayers: body.onlineMaxPlayers ? Number(body.onlineMaxPlayers) : null,
-        localMinPlayers: body.localMinPlayers ? Number(body.localMinPlayers) : null,
-        localMaxPlayers: body.localMaxPlayers ? Number(body.localMaxPlayers) : null,
+        couchMinPlayers: body.couchMinPlayers ? Number(body.couchMinPlayers) : null,
+        couchMaxPlayers: body.couchMaxPlayers ? Number(body.couchMaxPlayers) : null,
+        lanMinPlayers: body.lanMinPlayers ? Number(body.lanMinPlayers) : null,
+        lanMaxPlayers: body.lanMaxPlayers ? Number(body.lanMaxPlayers) : null,
         physicalMinPlayers: body.physicalMinPlayers ? Number(body.physicalMinPlayers) : null,
         physicalMaxPlayers: body.physicalMaxPlayers ? Number(body.physicalMaxPlayers) : null,
     };
@@ -213,8 +215,10 @@ export async function updateGameTitle(
     if (body.supportsPhysical !== undefined) updates.supportsPhysical = Boolean(body.supportsPhysical);
     if (body.onlineMinPlayers !== undefined) updates.onlineMinPlayers = Number(body.onlineMinPlayers) || null;
     if (body.onlineMaxPlayers !== undefined) updates.onlineMaxPlayers = Number(body.onlineMaxPlayers) || null;
-    if (body.localMinPlayers !== undefined) updates.localMinPlayers = Number(body.localMinPlayers) || null;
-    if (body.localMaxPlayers !== undefined) updates.localMaxPlayers = Number(body.localMaxPlayers) || null;
+    if (body.couchMinPlayers !== undefined) updates.couchMinPlayers = Number(body.couchMinPlayers) || null;
+    if (body.couchMaxPlayers !== undefined) updates.couchMaxPlayers = Number(body.couchMaxPlayers) || null;
+    if (body.lanMinPlayers !== undefined) updates.lanMinPlayers = Number(body.lanMinPlayers) || null;
+    if (body.lanMaxPlayers !== undefined) updates.lanMaxPlayers = Number(body.lanMaxPlayers) || null;
     if (body.physicalMinPlayers !== undefined) updates.physicalMinPlayers = Number(body.physicalMinPlayers) || null;
     if (body.physicalMaxPlayers !== undefined) updates.physicalMaxPlayers = Number(body.physicalMaxPlayers) || null;
     

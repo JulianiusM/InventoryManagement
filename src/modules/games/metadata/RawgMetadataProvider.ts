@@ -465,7 +465,7 @@ export class RawgMetadataProvider extends BaseMetadataProvider {
             // Don't set specific player counts - RAWG doesn't provide this data
             // IGDB should be used for accurate counts
             onlineMaxPlayers: undefined,
-            localMaxPlayers: undefined,
+            couchMaxPlayers: undefined,
         };
     }
 }

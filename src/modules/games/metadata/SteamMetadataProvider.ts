@@ -385,7 +385,8 @@ export class SteamMetadataProvider extends BaseMetadataProvider {
             // Don't set specific player counts - Steam doesn't provide this data
             // IGDB or other providers should be used for accurate counts
             onlineMaxPlayers: undefined,
-            localMaxPlayers: undefined,
+            couchMaxPlayers: undefined,
+            lanMaxPlayers: undefined,
         };
     }
 

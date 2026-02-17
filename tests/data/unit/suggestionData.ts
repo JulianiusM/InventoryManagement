@@ -34,8 +34,8 @@ export const sampleGameTitles = [
         supportsOnline: false,
         supportsLocalCouch: true, supportsLocalLAN: false,
         supportsPhysical: false,
-        localMinPlayers: 1,
-        localMaxPlayers: 4,
+        couchMinPlayers: 1,
+        couchMaxPlayers: 4,
         ownerId: TEST_USER_ID,
         releases: [
             {id: 'r3', platform: 'PC', gameTitleId: '2'},

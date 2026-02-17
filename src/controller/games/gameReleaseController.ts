@@ -41,8 +41,10 @@ export async function createGameRelease(body: CreateGameReleaseBody, ownerId: nu
         overrideSupportsPhysical: parseOptionalCheckboxBoolean(body.overrideSupportsPhysical),
         overrideOnlineMin: body.overrideOnlineMin ? Number(body.overrideOnlineMin) : null,
         overrideOnlineMax: body.overrideOnlineMax ? Number(body.overrideOnlineMax) : null,
-        overrideLocalMin: body.overrideLocalMin ? Number(body.overrideLocalMin) : null,
-        overrideLocalMax: body.overrideLocalMax ? Number(body.overrideLocalMax) : null,
+        overrideCouchMin: body.overrideCouchMin ? Number(body.overrideCouchMin) : null,
+        overrideCouchMax: body.overrideCouchMax ? Number(body.overrideCouchMax) : null,
+        overrideLanMin: body.overrideLanMin ? Number(body.overrideLanMin) : null,
+        overrideLanMax: body.overrideLanMax ? Number(body.overrideLanMax) : null,
         overridePhysicalMin: body.overridePhysicalMin ? Number(body.overridePhysicalMin) : null,
         overridePhysicalMax: body.overridePhysicalMax ? Number(body.overridePhysicalMax) : null,
         ownerId,
@@ -105,8 +107,10 @@ export async function updateGameRelease(
     if (body.overrideSupportsPhysical !== undefined) updates.overrideSupportsPhysical = parseOptionalCheckboxBoolean(body.overrideSupportsPhysical);
     if (body.overrideOnlineMin !== undefined) updates.overrideOnlineMin = body.overrideOnlineMin ? Number(body.overrideOnlineMin) : null;
     if (body.overrideOnlineMax !== undefined) updates.overrideOnlineMax = body.overrideOnlineMax ? Number(body.overrideOnlineMax) : null;
-    if (body.overrideLocalMin !== undefined) updates.overrideLocalMin = body.overrideLocalMin ? Number(body.overrideLocalMin) : null;
-    if (body.overrideLocalMax !== undefined) updates.overrideLocalMax = body.overrideLocalMax ? Number(body.overrideLocalMax) : null;
+    if (body.overrideCouchMin !== undefined) updates.overrideCouchMin = body.overrideCouchMin ? Number(body.overrideCouchMin) : null;
+    if (body.overrideCouchMax !== undefined) updates.overrideCouchMax = body.overrideCouchMax ? Number(body.overrideCouchMax) : null;
+    if (body.overrideLanMin !== undefined) updates.overrideLanMin = body.overrideLanMin ? Number(body.overrideLanMin) : null;
+    if (body.overrideLanMax !== undefined) updates.overrideLanMax = body.overrideLanMax ? Number(body.overrideLanMax) : null;
     if (body.overridePhysicalMin !== undefined) updates.overridePhysicalMin = body.overridePhysicalMin ? Number(body.overridePhysicalMin) : null;
     if (body.overridePhysicalMax !== undefined) updates.overridePhysicalMax = body.overridePhysicalMax ? Number(body.overridePhysicalMax) : null;
     

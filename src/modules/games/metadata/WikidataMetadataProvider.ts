@@ -483,7 +483,7 @@ LIMIT 50`;
                 supportsLocalCouch: maxPlayers > 1,
                 supportsOnline: false,
                 physicalMaxPlayers: maxPlayers,
-                localMaxPlayers: maxPlayers,
+                couchMaxPlayers: maxPlayers,
             },
             rawPayload: {bindings: bindings.slice(0, 10)}, // Keep some bindings for debugging
         };

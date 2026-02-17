@@ -456,7 +456,8 @@ export class IgdbMetadataProvider extends BaseMetadataProvider {
         
         // Extract actual player counts from multiplayer_modes
         let onlineMaxPlayers: number | undefined;
-        let localMaxPlayers: number | undefined;
+        let couchMaxPlayers: number | undefined;
+        let lanMaxPlayers: number | undefined;
         let overallMaxPlayers: number | undefined;
         let supportsOnline = false;
         let supportsLocalCouch = false;
@@ -476,11 +477,11 @@ export class IgdbMetadataProvider extends BaseMetadataProvider {
             // Local/offline modes (couch)
             if (mode.offlinemax !== undefined && mode.offlinemax > 0) {
                 supportsLocalCouch = true;
-                localMaxPlayers = Math.max(localMaxPlayers || 0, mode.offlinemax);
+                couchMaxPlayers = Math.max(couchMaxPlayers || 0, mode.offlinemax);
             }
             if (mode.offlinecoopmax !== undefined && mode.offlinecoopmax > 0) {
                 supportsLocalCouch = true;
-                localMaxPlayers = Math.max(localMaxPlayers || 0, mode.offlinecoopmax);
+                couchMaxPlayers = Math.max(couchMaxPlayers || 0, mode.offlinecoopmax);
             }
             // Splitscreen is boolean in IGDB (no max count) - use default constant
             if (mode.splitscreen) {
@@ -493,13 +494,23 @@ export class IgdbMetadataProvider extends BaseMetadataProvider {
             }
         }
         
+        // If LAN is supported but we don't have LAN-specific counts, use overall max as fallback
+        if (supportsLocalLAN && lanMaxPlayers === undefined) {
+            const knownMax = [onlineMaxPlayers, couchMaxPlayers].filter(v => v !== undefined);
+            if (knownMax.length > 0) {
+                lanMaxPlayers = Math.max(...knownMax);
+            }
+        }
+        
         // Determine overall max players
-        if (onlineMaxPlayers !== undefined && localMaxPlayers !== undefined) {
-            overallMaxPlayers = Math.max(onlineMaxPlayers, localMaxPlayers);
+        const localMaxCandidates = [couchMaxPlayers, lanMaxPlayers].filter(v => v !== undefined);
+        const bestLocalMax = localMaxCandidates.length > 0 ? Math.max(...localMaxCandidates) : undefined;
+        if (onlineMaxPlayers !== undefined && bestLocalMax !== undefined) {
+            overallMaxPlayers = Math.max(onlineMaxPlayers, bestLocalMax);
         } else if (onlineMaxPlayers !== undefined) {
             overallMaxPlayers = onlineMaxPlayers;
-        } else if (localMaxPlayers !== undefined) {
-            overallMaxPlayers = localMaxPlayers;
+        } else if (bestLocalMax !== undefined) {
+            overallMaxPlayers = bestLocalMax;
         } else if (!isMultiplayer && isSinglePlayer) {
             overallMaxPlayers = 1;
         } else if (isMMO) {
@@ -518,7 +529,8 @@ export class IgdbMetadataProvider extends BaseMetadataProvider {
             supportsLocalCouch,
             supportsLocalLAN,
             onlineMaxPlayers: supportsOnline ? onlineMaxPlayers : undefined,
-            localMaxPlayers: (supportsLocalCouch || supportsLocalLAN) ? localMaxPlayers : undefined,
+            couchMaxPlayers: supportsLocalCouch ? couchMaxPlayers : undefined,
+            lanMaxPlayers: supportsLocalLAN ? lanMaxPlayers : undefined,
         };
     }
     

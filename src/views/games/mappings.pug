@@ -344,12 +344,23 @@ block content
                                             td
                                                 if !title.supportsLocalCouch && !title.supportsLocalLAN
                                                     span.text-white-50 N/A
-                                                else if title.localMaxPlayers
-                                                    | #{title.localMinPlayers || 1}-#{title.localMaxPlayers}
                                                 else
-                                                    span.text-warning
-                                                        i.bi.bi-exclamation-triangle.me-1
-                                                        | Unknown
+                                                    if title.supportsLocalCouch
+                                                        if title.couchMaxPlayers
+                                                            | Couch: #{title.couchMinPlayers || 1}-#{title.couchMaxPlayers}
+                                                        else
+                                                            span.text-warning
+                                                                i.bi.bi-exclamation-triangle.me-1
+                                                                | Couch: Unknown
+                                                    if title.supportsLocalCouch && title.supportsLocalLAN
+                                                        br
+                                                    if title.supportsLocalLAN
+                                                        if title.lanMaxPlayers
+                                                            | LAN: #{title.lanMinPlayers || 1}-#{title.lanMaxPlayers}
+                                                        else
+                                                            span.text-warning
+                                                                i.bi.bi-exclamation-triangle.me-1
+                                                                | LAN: Unknown
                                             td.text-end
                                                 .btn-group.btn-group-sm
                                                     a.btn.btn-outline-info(href=`/games/titles/${title.id}/search-metadata?return=/games/mappings` title="Search Metadata")

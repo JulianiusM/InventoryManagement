@@ -149,19 +149,21 @@ function clampPlayerProfileValues(game: ExternalGame): ExternalGame {
     
     // Step 1: Validate mode-specific values - treat invalid values as "unknown"
     clamped.onlineMaxPlayers = validatePlayerCount(clamped.onlineMaxPlayers);
-    clamped.localMaxPlayers = validatePlayerCount(clamped.localMaxPlayers);
+    clamped.couchMaxPlayers = validatePlayerCount(clamped.couchMaxPlayers);
+    clamped.lanMaxPlayers = validatePlayerCount(clamped.lanMaxPlayers);
     clamped.onlineMinPlayers = validatePlayerCount(clamped.onlineMinPlayers);
-    clamped.localMinPlayers = validatePlayerCount(clamped.localMinPlayers);
+    clamped.couchMinPlayers = validatePlayerCount(clamped.couchMinPlayers);
+    clamped.lanMinPlayers = validatePlayerCount(clamped.lanMinPlayers);
     
     // If mode-specific values are valid, enable support
     if (clamped.onlineMaxPlayers !== undefined) {
         clamped.supportsOnline = true;
     }
-    if (clamped.localMaxPlayers !== undefined) {
-        // If local max players detected but neither local mode specified, default to couch
-        if (!clamped.supportsLocalCouch && !clamped.supportsLocalLAN) {
-            clamped.supportsLocalCouch = true;
-        }
+    if (clamped.couchMaxPlayers !== undefined) {
+        clamped.supportsLocalCouch = true;
+    }
+    if (clamped.lanMaxPlayers !== undefined) {
+        clamped.supportsLocalLAN = true;
     }
     
     // Step 2: Validate overall counts - treat invalid values as "unknown"
@@ -177,8 +179,12 @@ function clampPlayerProfileValues(game: ExternalGame): ExternalGame {
         derivedMaxPlayers = Math.max(derivedMaxPlayers, clamped.onlineMaxPlayers);
         hasKnownMax = true;
     }
-    if ((clamped.supportsLocalCouch || clamped.supportsLocalLAN) && clamped.localMaxPlayers !== undefined) {
-        derivedMaxPlayers = Math.max(derivedMaxPlayers, clamped.localMaxPlayers);
+    if (clamped.supportsLocalCouch && clamped.couchMaxPlayers !== undefined) {
+        derivedMaxPlayers = Math.max(derivedMaxPlayers, clamped.couchMaxPlayers);
+        hasKnownMax = true;
+    }
+    if (clamped.supportsLocalLAN && clamped.lanMaxPlayers !== undefined) {
+        derivedMaxPlayers = Math.max(derivedMaxPlayers, clamped.lanMaxPlayers);
         hasKnownMax = true;
     }
     
@@ -208,14 +214,23 @@ function clampPlayerProfileValues(game: ExternalGame): ExternalGame {
         }
     }
     
-    if (!clamped.supportsLocalCouch && !clamped.supportsLocalLAN) {
-        clamped.localMinPlayers = undefined;
-        clamped.localMaxPlayers = undefined;
+    if (!clamped.supportsLocalCouch) {
+        clamped.couchMinPlayers = undefined;
+        clamped.couchMaxPlayers = undefined;
     } else {
-        // For supported modes, validate min/max relationship if both are set
-        if (clamped.localMinPlayers !== undefined && clamped.localMaxPlayers !== undefined 
-            && clamped.localMaxPlayers < clamped.localMinPlayers) {
-            clamped.localMaxPlayers = clamped.localMinPlayers;
+        if (clamped.couchMinPlayers !== undefined && clamped.couchMaxPlayers !== undefined 
+            && clamped.couchMaxPlayers < clamped.couchMinPlayers) {
+            clamped.couchMaxPlayers = clamped.couchMinPlayers;
+        }
+    }
+    
+    if (!clamped.supportsLocalLAN) {
+        clamped.lanMinPlayers = undefined;
+        clamped.lanMaxPlayers = undefined;
+    } else {
+        if (clamped.lanMinPlayers !== undefined && clamped.lanMaxPlayers !== undefined 
+            && clamped.lanMaxPlayers < clamped.lanMinPlayers) {
+            clamped.lanMaxPlayers = clamped.lanMinPlayers;
         }
     }
     
@@ -228,7 +243,7 @@ function clampPlayerProfileValues(game: ExternalGame): ExternalGame {
  * 
  * This is the SINGLE implementation for creating games - used by all sync flows.
  * 
- * IMPORTANT: Mode-specific player counts (onlineMaxPlayers, localMaxPlayers) are kept
+ * IMPORTANT: Mode-specific player counts (onlineMaxPlayers, couchMaxPlayers, lanMaxPlayers) are kept
  * as null/undefined when not known from metadata. This preserves the distinction between
  * "we know it supports X players" vs "we don't know how many players".
  * 
@@ -283,8 +298,10 @@ async function createGameFromData(
         // Mode-specific counts: only set if we have actual data, otherwise null (unknown)
         onlineMinPlayers: supportsOnline ? (game.onlineMinPlayers ?? null) : null,
         onlineMaxPlayers: supportsOnline ? (game.onlineMaxPlayers ?? null) : null,
-        localMinPlayers: (supportsLocalCouch || supportsLocalLAN) ? (game.localMinPlayers ?? null) : null,
-        localMaxPlayers: (supportsLocalCouch || supportsLocalLAN) ? (game.localMaxPlayers ?? null) : null,
+        couchMinPlayers: supportsLocalCouch ? (game.couchMinPlayers ?? null) : null,
+        couchMaxPlayers: supportsLocalCouch ? (game.couchMaxPlayers ?? null) : null,
+        lanMinPlayers: supportsLocalLAN ? (game.lanMinPlayers ?? null) : null,
+        lanMaxPlayers: supportsLocalLAN ? (game.lanMaxPlayers ?? null) : null,
         physicalMinPlayers: null,
         physicalMaxPlayers: null,
         ownerId,
@@ -338,8 +355,10 @@ export async function safeCreateGameFromData(
                     supportsPhysical: false,
                     onlineMinPlayers: undefined,
                     onlineMaxPlayers: undefined,
-                    localMinPlayers: undefined,
-                    localMaxPlayers: undefined,
+                    couchMinPlayers: undefined,
+                    couchMaxPlayers: undefined,
+                    lanMinPlayers: undefined,
+                    lanMaxPlayers: undefined,
                 };
                 
                 return await createGameFromData(safeGame, platform, ownerId);

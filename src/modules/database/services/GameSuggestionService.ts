@@ -68,12 +68,24 @@ function applyFiltersToQuery(
                 );
             }
             
-            if (criteria.selectedModes.includes('couch') || criteria.selectedModes.includes('lan')) {
+            if (criteria.selectedModes.includes('couch')) {
                 modeCountConditions.push(
-                    `((title.supports_local_couch = 1 OR title.supports_local_lan = 1) AND (
-                        (title.local_min_players IS NOT NULL AND title.local_max_players IS NOT NULL 
-                         AND title.local_min_players <= :count AND title.local_max_players >= :count)
-                        OR (title.local_min_players IS NULL AND title.local_max_players IS NULL 
+                    `(title.supports_local_couch = 1 AND (
+                        (title.couch_min_players IS NOT NULL AND title.couch_max_players IS NOT NULL 
+                         AND title.couch_min_players <= :count AND title.couch_max_players >= :count)
+                        OR (title.couch_min_players IS NULL AND title.couch_max_players IS NULL 
+                            AND title.overall_min_players IS NOT NULL AND title.overall_max_players IS NOT NULL
+                            AND title.overall_min_players <= :count AND title.overall_max_players >= :count)
+                    ))`
+                );
+            }
+            
+            if (criteria.selectedModes.includes('lan')) {
+                modeCountConditions.push(
+                    `(title.supports_local_lan = 1 AND (
+                        (title.lan_min_players IS NOT NULL AND title.lan_max_players IS NOT NULL 
+                         AND title.lan_min_players <= :count AND title.lan_max_players >= :count)
+                        OR (title.lan_min_players IS NULL AND title.lan_max_players IS NULL 
                             AND title.overall_min_players IS NOT NULL AND title.overall_max_players IS NOT NULL
                             AND title.overall_min_players <= :count AND title.overall_max_players >= :count)
                     ))`
