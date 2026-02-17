@@ -82,8 +82,12 @@ block content
                             option(value="" selected=(data && !data.modeFilter)) All modes
                             option(value="online" selected=(data && data.modeFilter === 'online'))
                                 | Online
+                            option(value="couch" selected=(data && data.modeFilter === 'couch'))
+                                | Couch Co-op
+                            option(value="lan" selected=(data && data.modeFilter === 'lan'))
+                                | LAN
                             option(value="local" selected=(data && data.modeFilter === 'local'))
-                                | Local
+                                | Any Local
                             option(value="physical" selected=(data && data.modeFilter === 'physical'))
                                 | Physical
                     .col-md-1
@@ -187,10 +191,14 @@ block content
                                         span.badge.text-bg-primary
                                             i.bi.bi-globe.me-1
                                             | Online
-                                    if title.supportsLocal
+                                    if title.supportsLocalCouch
                                         span.badge.text-bg-success
                                             i.bi.bi-display.me-1
-                                            | Local
+                                            | Couch
+                                    if title.supportsLocalLAN
+                                        span.badge.text-bg-info
+                                            i.bi.bi-hdd-network.me-1
+                                            | LAN
                                     if title.supportsPhysical
                                         span.badge.text-bg-warning.text-dark
                                             i.bi.bi-dice-5.me-1
@@ -290,25 +298,25 @@ block content
                         
                         .col-12
                             label.form-label Multiplayer Support
-                        .col-md-4
+                        .col-md-3
                             .form-check
                                 input#supportsOnline.form-check-input(type="checkbox" name="supportsOnline" value="true")
                                 label.form-check-label(for="supportsOnline")
                                     i.bi.bi-globe.me-1
                                     | Online
-                        .col-md-4
+                        .col-md-3
                             .form-check
                                 input#supportsLocalCouch.form-check-input(type="checkbox" name="supportsLocalCouch" value="true")
                                 label.form-check-label(for="supportsLocalCouch")
                                     i.bi.bi-display.me-1
-                                    | Local Couch
-                        .col-md-4
+                                    | Couch Co-op
+                        .col-md-3
                             .form-check
                                 input#supportsLocalLAN.form-check-input(type="checkbox" name="supportsLocalLAN" value="true")
                                 label.form-check-label(for="supportsLocalLAN")
-                                    i.bi.bi-ethernet.me-1
-                                    | Local LAN
-                        .col-md-4
+                                    i.bi.bi-hdd-network.me-1
+                                    | LAN
+                        .col-md-3
                             .form-check
                                 input#supportsPhysical.form-check-input(type="checkbox" name="supportsPhysical" value="true")
                                 label.form-check-label(for="supportsPhysical")

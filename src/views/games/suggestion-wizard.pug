@@ -7,6 +7,7 @@ block content
     - const platforms = (data && data.platforms) ? data.platforms : []
     - const gameTypes = (data && data.gameTypes) ? data.gameTypes : []
     - const criteria = (data && data.criteria) ? data.criteria : {}
+    - const selectedModesArray = criteria.selectedModes ? (Array.isArray(criteria.selectedModes) ? criteria.selectedModes : [criteria.selectedModes]) : []
 
     #liveAlerts
 
@@ -65,35 +66,41 @@ block content
 
                         hr.border-secondary
 
-                        //- Game Modes (Big Button Section)
+                        //- Game Modes (Checkbox multi-select with OR logic)
                         .mb-4
                             h5.text-white.mb-3
                                 i.bi.bi-controller.me-2
-                                | Game modes
+                                | How do you want to play?
+                            p.text-white-50.small.mb-3 Select one or more modes. Games matching any selected mode will be included.
                             .row.g-3
-                                .col-md-4
+                                .col-md-6.col-lg-3
                                     .d-grid
-                                        button.btn.btn-lg.btn-outline-primary.mode-btn(type="button" data-mode="online" data-value="any")
-                                            i.bi.bi-globe.me-2.d-block.fs-2
+                                        input.btn-check#modeOnline(type="checkbox" name="selectedModes" value="online" autocomplete="off" checked=selectedModesArray.includes('online'))
+                                        label.btn.btn-lg.btn-outline-primary.text-start.py-3(for="modeOnline")
+                                            i.bi.bi-globe.me-2.fs-4
                                             span.d-block Online
-                                            small.mode-status.d-block Any
-                                        input(type="hidden" name="includeOnline" value="any")
-                                .col-md-4
+                                            small.d-block.mt-1 Internet multiplayer
+                                .col-md-6.col-lg-3
                                     .d-grid
-                                        button.btn.btn-lg.btn-outline-success.mode-btn(type="button" data-mode="local" data-value="any")
-                                            i.bi.bi-display.me-2.d-block.fs-2
-                                            span.d-block Local
-                                            small.mode-status.d-block Any
-                                        input(type="hidden" name="includeLocal" value="any")
-                                .col-md-4
+                                        input.btn-check#modeCouch(type="checkbox" name="selectedModes" value="couch" autocomplete="off" checked=selectedModesArray.includes('couch'))
+                                        label.btn.btn-lg.btn-outline-success.text-start.py-3(for="modeCouch")
+                                            i.bi.bi-display.me-2.fs-4
+                                            span.d-block Couch Co-op
+                                            small.d-block.mt-1 Same screen / device
+                                .col-md-6.col-lg-3
                                     .d-grid
-                                        button.btn.btn-lg.btn-outline-warning.mode-btn(type="button" data-mode="physical" data-value="any")
-                                            i.bi.bi-dice-5.me-2.d-block.fs-2
+                                        input.btn-check#modeLAN(type="checkbox" name="selectedModes" value="lan" autocomplete="off" checked=selectedModesArray.includes('lan'))
+                                        label.btn.btn-lg.btn-outline-info.text-start.py-3(for="modeLAN")
+                                            i.bi.bi-hdd-network.me-2.fs-4
+                                            span.d-block LAN / Multi-Device
+                                            small.d-block.mt-1 Separate systems
+                                .col-md-6.col-lg-3
+                                    .d-grid
+                                        input.btn-check#modePhysical(type="checkbox" name="selectedModes" value="physical" autocomplete="off" checked=selectedModesArray.includes('physical'))
+                                        label.btn.btn-lg.btn-outline-warning.text-start.py-3(for="modePhysical")
+                                            i.bi.bi-dice-5.me-2.fs-4
                                             span.d-block Physical
-                                            small.mode-status.d-block Any
-                                        input(type="hidden" name="includePhysical" value="any")
-                            .text-center.mt-2
-                                small.text-white-50 Click to cycle: Any → Required → Excluded
+                                            small.d-block.mt-1 Board / card games
 
                         hr.border-secondary
 
@@ -179,41 +186,6 @@ block scripts
             }
         }
 
-        // Game mode button handler (3-state toggle)
-        document.querySelectorAll('.mode-btn').forEach(btn => {
-            btn.addEventListener('click', function() {
-                const mode = this.getAttribute('data-mode');
-                const currentValue = this.getAttribute('data-value');
-                let newValue, newStatus, newClass;
-
-                if (currentValue === 'any') {
-                    newValue = 'require';
-                    newStatus = 'Required';
-                    newClass = 'active';
-                } else if (currentValue === 'require') {
-                    newValue = 'exclude';
-                    newStatus = 'Excluded';
-                    newClass = 'text-decoration-line-through';
-                } else {
-                    newValue = 'any';
-                    newStatus = 'Any';
-                    newClass = '';
-                }
-
-                // Update button state
-                this.setAttribute('data-value', newValue);
-                this.querySelector('.mode-status').textContent = newStatus;
-                this.classList.remove('active', 'text-decoration-line-through');
-                if (newClass) {
-                    this.classList.add(newClass);
-                }
-
-                // Update hidden input
-                const input = this.parentElement.querySelector('input[type="hidden"]');
-                input.value = newValue;
-            });
-        });
-
         // Initialize Select2 for better multi-select experience
         $(document).ready(function() {
             $('#includePlatforms, #excludePlatforms, #gameTypes').select2({
@@ -261,13 +233,10 @@ block scripts
             `;
             document.head.appendChild(style);
             
-            // Restore form state from criteria (passed via query params)
+            // Restore player count from criteria
             const playerCount = '#{criteria.playerCount || ''}';
             if (playerCount) {
-                // Set the hidden input
                 document.getElementById('playerCount').value = playerCount;
-                
-                // Activate the corresponding button if it matches
                 document.querySelectorAll('.player-btn').forEach(btn => {
                     const btnValue = btn.getAttribute('data-value');
                     if ((btnValue === '5+' && parseInt(playerCount) >= 5) || btnValue === playerCount) {
@@ -275,38 +244,4 @@ block scripts
                     }
                 });
             }
-            
-            // Restore mode button states
-            const includeOnline = '#{criteria.includeOnline || 'any'}';
-            const includeLocal = '#{criteria.includeLocal || 'any'}';
-            const includePhysical = '#{criteria.includePhysical || 'any'}';
-            
-            document.querySelectorAll('.mode-btn').forEach(btn => {
-                const mode = btn.getAttribute('data-mode');
-                let value = 'any';
-                if (mode === 'online') value = includeOnline;
-                else if (mode === 'local') value = includeLocal;
-                else if (mode === 'physical') value = includePhysical;
-                
-                // Set button state
-                btn.setAttribute('data-value', value);
-                const statusEl = btn.querySelector('.mode-status');
-                if (statusEl) {
-                    if (value === 'require') {
-                        statusEl.textContent = 'Required';
-                        btn.classList.add('active');
-                    } else if (value === 'exclude') {
-                        statusEl.textContent = 'Excluded';
-                        btn.classList.add('text-decoration-line-through');
-                    } else {
-                        statusEl.textContent = 'Any';
-                    }
-                }
-                
-                // Update hidden input
-                const input = btn.parentElement.querySelector('input[type="hidden"]');
-                if (input) {
-                    input.value = value;
-                }
-            });
         });

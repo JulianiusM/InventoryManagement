@@ -51,10 +51,17 @@ block content
                             //- Warning for multiplayer without specific player count
                             if !title.onlineMaxPlayers
                                 i.bi.bi-exclamation-triangle.ms-1(title="Player count unknown - click Fetch Metadata to update")
-                    if title.supportsLocalCouch || title.supportsLocalLAN
+                    if title.supportsLocalCouch
                         span.badge.text-bg-success
                             i.bi.bi-display.me-1
-                            | Local
+                            | Couch Co-op
+                            //- Warning for multiplayer without specific player count
+                            if !title.localMaxPlayers
+                                i.bi.bi-exclamation-triangle.ms-1(title="Player count unknown - click Fetch Metadata to update")
+                    if title.supportsLocalLAN
+                        span.badge.text-bg-info
+                            i.bi.bi-hdd-network.me-1
+                            | LAN
                             //- Warning for multiplayer without specific player count
                             if !title.localMaxPlayers
                                 i.bi.bi-exclamation-triangle.ms-1(title="Player count unknown - click Fetch Metadata to update")
@@ -120,10 +127,23 @@ block content
                                             i.bi.bi-exclamation-triangle.me-1
                                             | Unknown (click "Fetch Metadata" to update)
                             
-                            if title.supportsLocal
+                            if title.supportsLocalCouch
                                 dt.col-sm-4.text-success
                                     i.bi.bi-display.me-1
-                                    | Local Co-op
+                                    | Couch Co-op
+                                dd.col-sm-8
+                                    //- Show explicit "Unknown" when player count is not known
+                                    if title.localMaxPlayers
+                                        | #{title.localMinPlayers || 1} - #{title.localMaxPlayers} players
+                                    else
+                                        span.text-warning
+                                            i.bi.bi-exclamation-triangle.me-1
+                                            | Unknown (click "Fetch Metadata" to update)
+                            
+                            if title.supportsLocalLAN
+                                dt.col-sm-4.text-info
+                                    i.bi.bi-hdd-network.me-1
+                                    | LAN / Multi-Device
                                 dd.col-sm-8
                                     //- Show explicit "Unknown" when player count is not known
                                     if title.localMaxPlayers
@@ -183,25 +203,25 @@ block content
                                 
                                 .col-12
                                     label.form-label Multiplayer Modes
-                                .col-md-4
+                                .col-md-3
                                     .form-check
                                         input.form-check-input(type="checkbox" name="supportsOnline" value="true" id="editSupportsOnline" checked=title.supportsOnline)
                                         label.form-check-label(for="editSupportsOnline")
                                             i.bi.bi-globe.me-1
                                             | Online
-                                .col-md-4
+                                .col-md-3
                                     .form-check
                                         input.form-check-input(type="checkbox" name="supportsLocalCouch" value="true" id="editSupportsLocalCouch" checked=title.supportsLocalCouch)
                                         label.form-check-label(for="editSupportsLocalCouch")
                                             i.bi.bi-display.me-1
-                                            | Local Couch
-                                .col-md-4
+                                            | Couch Co-op
+                                .col-md-3
                                     .form-check
                                         input.form-check-input(type="checkbox" name="supportsLocalLAN" value="true" id="editSupportsLocalLAN" checked=title.supportsLocalLAN)
                                         label.form-check-label(for="editSupportsLocalLAN")
-                                            i.bi.bi-ethernet.me-1
-                                            | Local LAN
-                                .col-md-4
+                                            i.bi.bi-hdd-network.me-1
+                                            | LAN
+                                .col-md-3
                                     .form-check
                                         input.form-check-input(type="checkbox" name="supportsPhysical" value="true" id="editSupportsPhysical" checked=title.supportsPhysical)
                                         label.form-check-label(for="editSupportsPhysical")
