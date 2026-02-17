@@ -13,7 +13,8 @@ export interface PlayerProfile {
     overallMinPlayers?: number | null;
     overallMaxPlayers?: number | null;
     supportsOnline: boolean;
-    supportsLocal: boolean;
+    supportsLocalCouch: boolean;
+    supportsLocalLAN: boolean;
     supportsPhysical: boolean;
     // Mode-specific counts - null means "unknown for this mode"
     onlineMinPlayers?: number | null;
@@ -83,8 +84,9 @@ export function validatePlayerProfile(profile: PlayerProfile): void {
         }
     }
     
-    // Validate local mode
-    if (profile.supportsLocal) {
+    // Validate local modes (shared player counts)
+    const supportsAnyLocal = profile.supportsLocalCouch || profile.supportsLocalLAN;
+    if (supportsAnyLocal) {
         validateModePlayerCounts(
             'Local',
             profile.localMinPlayers,
@@ -94,10 +96,10 @@ export function validatePlayerProfile(profile: PlayerProfile): void {
         );
     } else {
         if (isDefined(profile.localMinPlayers)) {
-            throw new PlayerProfileValidationError('Local min players must be null when local is not supported');
+            throw new PlayerProfileValidationError('Local min players must be null when no local mode is supported');
         }
         if (isDefined(profile.localMaxPlayers)) {
-            throw new PlayerProfileValidationError('Local max players must be null when local is not supported');
+            throw new PlayerProfileValidationError('Local max players must be null when no local mode is supported');
         }
     }
     
@@ -182,7 +184,7 @@ export function getEffectivePlayerCounts(
                 max: profile.onlineMaxPlayers ?? profile.overallMaxPlayers ?? null,
             };
         case 'local':
-            if (!profile.supportsLocal) return null;
+            if (!profile.supportsLocalCouch && !profile.supportsLocalLAN) return null;
             return {
                 min: profile.localMinPlayers ?? profile.overallMinPlayers ?? null,
                 max: profile.localMaxPlayers ?? profile.overallMaxPlayers ?? null,

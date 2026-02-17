@@ -18,7 +18,8 @@ export interface CreateGameTitleData {
     overallMinPlayers?: number | null;
     overallMaxPlayers?: number | null;
     supportsOnline: boolean;
-    supportsLocal: boolean;
+    supportsLocalCouch: boolean;
+    supportsLocalLAN: boolean;
     supportsPhysical: boolean;
     // Mode-specific counts - null means "unknown for this mode"
     onlineMinPlayers?: number | null;
@@ -44,7 +45,8 @@ export async function createGameTitle(data: CreateGameTitleData): Promise<GameTi
     title.overallMinPlayers = data.overallMinPlayers ?? null;
     title.overallMaxPlayers = data.overallMaxPlayers ?? null;
     title.supportsOnline = data.supportsOnline;
-    title.supportsLocal = data.supportsLocal;
+    title.supportsLocalCouch = data.supportsLocalCouch;
+    title.supportsLocalLAN = data.supportsLocalLAN;
     title.supportsPhysical = data.supportsPhysical;
     title.onlineMinPlayers = data.onlineMinPlayers ?? null;
     title.onlineMaxPlayers = data.onlineMaxPlayers ?? null;
@@ -78,7 +80,8 @@ export async function updateGameTitle(id: string, data: Partial<Omit<GameTitle, 
     if (data.overallMinPlayers !== undefined || 
         data.overallMaxPlayers !== undefined ||
         data.supportsOnline !== undefined ||
-        data.supportsLocal !== undefined ||
+        data.supportsLocalCouch !== undefined ||
+        data.supportsLocalLAN !== undefined ||
         data.supportsPhysical !== undefined) {
         
         const repo = AppDataSource.getRepository(GameTitle);
@@ -89,7 +92,8 @@ export async function updateGameTitle(id: string, data: Partial<Omit<GameTitle, 
                 overallMinPlayers: merged.overallMinPlayers,
                 overallMaxPlayers: merged.overallMaxPlayers,
                 supportsOnline: merged.supportsOnline,
-                supportsLocal: merged.supportsLocal,
+                supportsLocalCouch: merged.supportsLocalCouch,
+                supportsLocalLAN: merged.supportsLocalLAN,
                 supportsPhysical: merged.supportsPhysical,
                 onlineMinPlayers: merged.onlineMinPlayers,
                 onlineMaxPlayers: merged.onlineMaxPlayers,
@@ -382,7 +386,7 @@ export async function findTitlesMissingMetadata(
  * 
  * **Player Count Logic:**
  * - **Singleplayer-only games** (no multiplayer modes enabled): Always considered valid.
- *   When no modes are enabled (supportsOnline=false, supportsLocal=false, supportsPhysical=false),
+ *   When no modes are enabled (supportsOnline=false, supportsLocalCouch=false, supportsLocalLAN=false, supportsPhysical=false),
  *   null overall player counts are treated as "implied 1 player" - this is not an issue.
  * 
  * - **Multiplayer games** (any mode enabled): Considered invalid if:
@@ -417,7 +421,7 @@ export async function findTitlesWithInvalidPlayerCounts(
         }
         
         // Check if this is a multiplayer game
-        const isMultiplayer = title.supportsOnline || title.supportsLocal || title.supportsPhysical;
+        const isMultiplayer = title.supportsOnline || title.supportsLocalCouch || title.supportsLocalLAN || title.supportsPhysical;
         
         if (!isMultiplayer) {
             // Singleplayer-only: no issue (null overall = implied 1 player)
@@ -434,7 +438,7 @@ export async function findTitlesWithInvalidPlayerCounts(
         if (title.supportsOnline && title.onlineMaxPlayers === null) {
             return true;
         }
-        if (title.supportsLocal && title.localMaxPlayers === null) {
+        if ((title.supportsLocalCouch || title.supportsLocalLAN) && title.localMaxPlayers === null) {
             return true;
         }
         if (title.supportsPhysical && title.physicalMaxPlayers === null) {

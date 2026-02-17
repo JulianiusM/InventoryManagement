@@ -8,22 +8,15 @@ import {GameTitle} from '../entities/gameTitle/GameTitle';
 import {SelectQueryBuilder} from 'typeorm';
 
 export interface SuggestionCriteria {
-    // Player count filter
     playerCount?: number;
+    includePlatforms?: string[];
+    excludePlatforms?: string[];
     
-    // Platform filters (whitelist/blacklist)
-    includePlatforms?: string[];  // Empty = all platforms
-    excludePlatforms?: string[];  // Platforms to exclude
+    // Mode selection - OR logic: game must support at least one selected mode
+    // Empty/undefined = no mode filter (any game)
+    selectedModes?: ('online' | 'couch' | 'lan' | 'physical')[];
     
-    // Game mode filters (whitelist/blacklist)
-    includeOnline?: boolean;      // null = don't care, true = must have, false = must not have
-    includeLocal?: boolean;
-    includePhysical?: boolean;
-    
-    // Game type filter
-    gameTypes?: string[];  // Empty = all types
-    
-    // Ownership filter
+    gameTypes?: string[];
     ownerId: number;
 }
 
@@ -35,22 +28,36 @@ function applyFiltersToQuery(
     query: SelectQueryBuilder<GameTitle>,
     criteria: SuggestionCriteria
 ): void {
+    // Filter by game modes (OR logic: game must support at least one selected mode)
+    if (criteria.selectedModes && criteria.selectedModes.length > 0) {
+        const modeConditions: string[] = [];
+        
+        if (criteria.selectedModes.includes('online')) {
+            modeConditions.push('title.supports_online = 1');
+        }
+        if (criteria.selectedModes.includes('couch')) {
+            modeConditions.push('title.supports_local_couch = 1');
+        }
+        if (criteria.selectedModes.includes('lan')) {
+            modeConditions.push('title.supports_local_lan = 1');
+        }
+        if (criteria.selectedModes.includes('physical')) {
+            modeConditions.push('title.supports_physical = 1');
+        }
+        
+        query.andWhere(`(${modeConditions.join(' OR ')})`);
+    }
+    
     // Filter by player count
     if (criteria.playerCount !== undefined && criteria.playerCount > 0) {
         const count = criteria.playerCount;
         
-        // Build player count filter based on required modes
-        const requiresOnline = criteria.includeOnline === true;
-        const requiresLocal = criteria.includeLocal === true;
-        const requiresPhysical = criteria.includePhysical === true;
-        
-        if (requiresOnline || requiresLocal || requiresPhysical) {
-            // When specific modes are required, check mode-specific player counts
-            const modeConditions: string[] = [];
+        if (criteria.selectedModes && criteria.selectedModes.length > 0) {
+            // When modes selected: check mode-specific player counts for selected modes
+            const modeCountConditions: string[] = [];
             
-            if (requiresOnline) {
-                // For online mode: check online-specific count, fall back to overall if not specified
-                modeConditions.push(
+            if (criteria.selectedModes.includes('online')) {
+                modeCountConditions.push(
                     `(title.supports_online = 1 AND (
                         (title.online_min_players IS NOT NULL AND title.online_max_players IS NOT NULL 
                          AND title.online_min_players <= :count AND title.online_max_players >= :count)
@@ -61,10 +68,9 @@ function applyFiltersToQuery(
                 );
             }
             
-            if (requiresLocal) {
-                // For local mode: check local-specific count, fall back to overall if not specified
-                modeConditions.push(
-                    `(title.supports_local = 1 AND (
+            if (criteria.selectedModes.includes('couch') || criteria.selectedModes.includes('lan')) {
+                modeCountConditions.push(
+                    `((title.supports_local_couch = 1 OR title.supports_local_lan = 1) AND (
                         (title.local_min_players IS NOT NULL AND title.local_max_players IS NOT NULL 
                          AND title.local_min_players <= :count AND title.local_max_players >= :count)
                         OR (title.local_min_players IS NULL AND title.local_max_players IS NULL 
@@ -74,9 +80,8 @@ function applyFiltersToQuery(
                 );
             }
             
-            if (requiresPhysical) {
-                // For physical mode: check physical-specific count, fall back to overall if not specified
-                modeConditions.push(
+            if (criteria.selectedModes.includes('physical')) {
+                modeCountConditions.push(
                     `(title.supports_physical = 1 AND (
                         (title.physical_min_players IS NOT NULL AND title.physical_max_players IS NOT NULL 
                          AND title.physical_min_players <= :count AND title.physical_max_players >= :count)
@@ -87,23 +92,24 @@ function applyFiltersToQuery(
                 );
             }
             
-            // All required modes must satisfy the player count
-            query.andWhere(`(${modeConditions.join(' AND ')})`, {count});
+            if (modeCountConditions.length > 0) {
+                // At least one selected mode must satisfy the player count
+                query.andWhere(`(${modeCountConditions.join(' OR ')})`, {count});
+            }
         } else {
-            // No specific mode required - use overall player count with special handling for unknown counts
+            // No mode selected - use overall player count
             if (count === 1) {
-                // For player count 1: include games with unknown counts (implied singleplayer)
                 query.andWhere(
                     `(
                         (title.overall_min_players IS NOT NULL AND title.overall_max_players IS NOT NULL
                          AND title.overall_min_players <= :count AND title.overall_max_players >= :count)
                         OR (title.overall_min_players IS NULL AND title.overall_max_players IS NULL 
-                            AND title.supports_online = 0 AND title.supports_local = 0 AND title.supports_physical = 0)
+                            AND title.supports_online = 0 AND title.supports_local_couch = 0 
+                            AND title.supports_local_lan = 0 AND title.supports_physical = 0)
                     )`,
                     {count}
                 );
             } else {
-                // For player count > 1: only include games with known counts in range
                 query.andWhere(
                     `(title.overall_min_players IS NOT NULL AND title.overall_max_players IS NOT NULL
                      AND title.overall_min_players <= :count AND title.overall_max_players >= :count)`,
@@ -111,25 +117,6 @@ function applyFiltersToQuery(
                 );
             }
         }
-    }
-    
-    // Filter by game modes
-    if (criteria.includeOnline === true) {
-        query.andWhere('title.supports_online = 1');
-    } else if (criteria.includeOnline === false) {
-        query.andWhere('title.supports_online = 0');
-    }
-    
-    if (criteria.includeLocal === true) {
-        query.andWhere('title.supports_local = 1');
-    } else if (criteria.includeLocal === false) {
-        query.andWhere('title.supports_local = 0');
-    }
-    
-    if (criteria.includePhysical === true) {
-        query.andWhere('title.supports_physical = 1');
-    } else if (criteria.includePhysical === false) {
-        query.andWhere('title.supports_physical = 0');
     }
     
     // Filter by game types
