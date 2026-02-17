@@ -534,7 +534,7 @@ async function processMetadataEnrichmentAsync(
                     updateData.onlineMaxPlayers = enrichedGame.onlineMaxPlayers;
                 }
                 
-                // Handle local max players - must be <= overall max and only set if supportsLocal
+                // Handle local max players - must be <= overall max and only set if local mode is supported
                 if (newSupportsLocal && enrichedGame.localMaxPlayers !== undefined) {
                     // If local max exceeds overall max, extend overall max
                     if (enrichedGame.localMaxPlayers > newOverallMax) {
