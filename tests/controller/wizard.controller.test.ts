@@ -106,7 +106,7 @@ describe('wizardController', () => {
             }
         });
 
-        test.each(submitGameData)('$description', async ({entityType, body, userId, mockGameTitle, mockRelease, mockCopy, mockMetadataResult, hasBarcode, expected}) => {
+        test.each(submitGameData)('$description', async ({entityType, body, userId, mockGameTitle, mockRelease, mockCopy, mockMetadataResult, hasBarcode, verifyCreateArgs, verifyCoverImageApplied, expected}) => {
             // Mock title creation
             setupMock(gameTitleService.createGameTitle as jest.Mock, mockGameTitle);
             // Mock release creation
@@ -127,6 +127,7 @@ describe('wizardController', () => {
             if (mockMetadataResult) {
                 const mockFetcher = {fetchMetadataFromProvider: jest.fn().mockResolvedValue(mockMetadataResult)};
                 (getMetadataFetcher as jest.Mock).mockReturnValue(mockFetcher);
+                setupMock(gameTitleService.updateGameTitle as jest.Mock, undefined);
             }
 
             const result = await wizardController.submitWizard(entityType, body, userId);
@@ -138,6 +139,25 @@ describe('wizardController', () => {
 
             if (hasBarcode) {
                 expect(barcodeService.mapBarcodeToItem).toHaveBeenCalled();
+            }
+
+            // Verify mode selection and player counts are passed correctly
+            if (verifyCreateArgs) {
+                expect(gameTitleService.createGameTitle).toHaveBeenCalledWith(
+                    expect.objectContaining(verifyCreateArgs)
+                );
+            }
+
+            // Verify metadata applies cover image without overwriting modes
+            if (verifyCoverImageApplied) {
+                expect(gameTitleService.updateGameTitle).toHaveBeenCalledWith(
+                    mockGameTitle.id,
+                    expect.objectContaining({coverImageUrl: expect.any(String)})
+                );
+                // Verify updateGameTitle was NOT called with mode/player overrides
+                const updateCall = (gameTitleService.updateGameTitle as jest.Mock).mock.calls[0][1];
+                expect(updateCall).not.toHaveProperty('supportsOnline');
+                expect(updateCall).not.toHaveProperty('overallMinPlayers');
             }
         });
 

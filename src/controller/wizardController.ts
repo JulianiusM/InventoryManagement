@@ -12,7 +12,8 @@ import * as gameCopyController from './games/gameCopyController';
 import * as locationService from '../modules/database/services/LocationService';
 import * as platformService from '../modules/database/services/PlatformService';
 import * as externalAccountService from '../modules/database/services/ExternalAccountService';
-import {getMetadataFetcher, applyMetadataToTitle} from '../modules/games/sync/MetadataFetcher';
+import * as gameTitleService from '../modules/database/services/GameTitleService';
+import {getMetadataFetcher} from '../modules/games/sync/MetadataFetcher';
 import {GameTitle} from '../modules/database/entities/gameTitle/GameTitle';
 import {requireAuthenticatedUser} from '../middleware/authMiddleware';
 import {ExpectedError} from '../modules/lib/errors';
@@ -273,7 +274,10 @@ async function submitGameWizard(body: Record<string, string>, userId: number) {
         physicalMaxPlayers: Number(body.physicalMaxPlayers) || undefined,
     }, userId);
 
-    // Step 2: Apply metadata if a provider result was selected
+    // Step 2: Apply cover image from metadata if a provider result was selected
+    // Note: description, modes, and player counts are already captured from the wizard
+    // form (which was prefilled from metadata). Only coverImageUrl needs to be fetched
+    // separately since it's not editable in the wizard form.
     if (body.metadataProviderId && body.metadataExternalId) {
         try {
             const metadataFetcher = getMetadataFetcher();
@@ -281,8 +285,10 @@ async function submitGameWizard(body: Record<string, string>, userId: number) {
                 body.metadataProviderId,
                 body.metadataExternalId
             );
-            if (result.metadata) {
-                await applyMetadataToTitle(title.id, title, result.metadata);
+            if (result.metadata?.coverImageUrl) {
+                await gameTitleService.updateGameTitle(title.id, {
+                    coverImageUrl: result.metadata.coverImageUrl,
+                });
             }
         } catch {
             // Metadata fetch failure should not block game creation

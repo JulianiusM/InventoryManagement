@@ -159,6 +159,42 @@ export const submitGameData = [
             listUrl: '/games',
         },
     },
+    {
+        description: 'persists mode selection and player counts via wizard',
+        entityType: 'game',
+        body: {name: 'Overcooked', type: 'video_game', platform: 'PC', copyType: 'digital_license', supportsOnline: 'true', supportsLocalCouch: 'true', overallMinPlayers: '1', overallMaxPlayers: '4', onlineMaxPlayers: '4', couchMaxPlayers: '4'},
+        userId: TEST_USER_ID,
+        mockGameTitle: {id: 'uuid-game-5', name: 'Overcooked'},
+        mockRelease: {id: 'uuid-release-5', gameTitleId: 'uuid-game-5', platform: 'PC'},
+        mockCopy: {id: 'uuid-copy-5', gameReleaseId: 'uuid-release-5'},
+        verifyCreateArgs: {supportsOnline: true, supportsLocalCouch: true, supportsLocalLAN: false, supportsPhysical: false, overallMinPlayers: 1, overallMaxPlayers: 4},
+        expected: {
+            entityType: 'game',
+            entityId: 'uuid-game-5',
+            entityName: 'Overcooked',
+            editUrl: '/games/titles/uuid-game-5',
+            listUrl: '/games',
+        },
+    },
+    {
+        description: 'metadata selection applies cover image without overwriting user-entered modes',
+        entityType: 'game',
+        body: {name: 'Celeste', type: 'video_game', platform: 'PC', copyType: 'digital_license', supportsOnline: 'true', overallMinPlayers: '1', overallMaxPlayers: '1', metadataProviderId: 'igdb', metadataExternalId: '99999'},
+        userId: TEST_USER_ID,
+        mockGameTitle: {id: 'uuid-game-6', name: 'Celeste'},
+        mockRelease: {id: 'uuid-release-6', gameTitleId: 'uuid-game-6', platform: 'PC'},
+        mockCopy: {id: 'uuid-copy-6', gameReleaseId: 'uuid-release-6'},
+        mockMetadataResult: {metadata: {name: 'Celeste', description: 'A platformer', coverImageUrl: 'https://example.com/celeste.jpg', playerInfo: {supportsOnline: false, overallMinPlayers: 1, overallMaxPlayers: 1}}, providerName: 'IGDB'},
+        verifyCreateArgs: {supportsOnline: true, overallMinPlayers: 1, overallMaxPlayers: 1},
+        verifyCoverImageApplied: true,
+        expected: {
+            entityType: 'game',
+            entityId: 'uuid-game-6',
+            entityName: 'Celeste',
+            editUrl: '/games/titles/uuid-game-6',
+            listUrl: '/games',
+        },
+    },
 ];
 
 export const submitErrorData = [
