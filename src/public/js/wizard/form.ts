@@ -273,7 +273,7 @@ function initWizard(steps: StepDef[], entityType: string, isGame: boolean): void
                 if (digitalFields) digitalFields.classList.toggle('d-none', isPhysical);
             });
         }
-        initGameMetadataSearch(steps, showStep);
+        initGameMetadataSearch();
     }
 
     /* -- Select2 -------------------------------------------------- */
@@ -290,7 +290,7 @@ function initWizard(steps: StepDef[], entityType: string, isGame: boolean): void
 /*  Game metadata search                                               */
 /* ------------------------------------------------------------------ */
 
-function initGameMetadataSearch(steps: StepDef[], showStepBase: (idx: number) => void): void {
+function initGameMetadataSearch(): void {
     const btnSearchMeta = qs<HTMLButtonElement>('#btnSearchMetadata');
     const metaSearchInput = qs<HTMLInputElement>('#metadataSearchQuery');
     const metaResults = qs<HTMLElement>('#metadataResults');
@@ -301,11 +301,8 @@ function initGameMetadataSearch(steps: StepDef[], showStepBase: (idx: number) =>
     const metaExternalInput = qs<HTMLInputElement>('#metadataExternalId');
     const btnClearMeta = qs<HTMLButtonElement>('#btnClearMetadata');
 
-    // Pre-fill search query from game name when entering metadata step
-    const origShowStep = showStepBase;
-    // Replace the showStep callback used by buttons – patching via global reference isn't
-    // needed because the caller already uses the returned function. Instead we hook into
-    // the step indicator click or simply check on each "next" transition.
+    // Pre-fill search query from game name when entering metadata step.
+    // Observe class changes on step containers to detect when the metadata step becomes visible.
     const observer = new MutationObserver(() => {
         const metaStep = document.querySelector<HTMLElement>('.wizard-step[data-step="metadata"]');
         if (metaStep && !metaStep.classList.contains('d-none') && metaSearchInput) {
@@ -316,7 +313,11 @@ function initGameMetadataSearch(steps: StepDef[], showStepBase: (idx: number) =>
         }
     });
     const stepsContainer = document.querySelector('.wizard-step[data-step="metadata"]')?.parentElement;
-    if (stepsContainer) observer.observe(stepsContainer, {childList: false, subtree: true, attributes: true, attributeFilter: ['class']});
+    if (stepsContainer) {
+        observer.observe(stepsContainer, {childList: false, subtree: true, attributes: true, attributeFilter: ['class']});
+        // Disconnect observer on page unload to prevent memory leaks
+        window.addEventListener('beforeunload', () => observer.disconnect());
+    }
 
     async function doMetadataSearch(): Promise<void> {
         const query = metaSearchInput ? metaSearchInput.value.trim() : '';
