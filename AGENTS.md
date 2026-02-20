@@ -39,7 +39,6 @@ Inventory Management is a TypeScript-based item cataloging and tracking applicat
    - Test data externalized to `tests/data/`
    - Reusable keywords in `tests/keywords/`
    - See [TESTING.md](TESTING.md) for comprehensive patterns
-   - Test quality is excellent (see [docs/TEST_REVIEW.md](docs/TEST_REVIEW.md))
 
 4. **Follow the conventions**:
    - TypeScript for all code
@@ -70,8 +69,7 @@ inventory-management/
 │   ├── README.md            # Documentation index
 │   ├── ARCHITECTURE.md      # System architecture
 │   ├── DEVELOPMENT.md       # Development guide
-│   ├── TEST_REVIEW.md       # Test quality review
-│   ├── FRONTEND_TESTING.md  # Frontend testing guide
+│   ├── CONFIGURATION.md     # Configuration reference
 │   └── user-guide/          # End-user documentation
 ├── src/
 │   ├── controller/      # Business logic controllers
@@ -422,8 +420,6 @@ Inventory Management has comprehensive, well-organized documentation:
 - **[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)** - System architecture
 - **[docs/DEVELOPMENT.md](docs/DEVELOPMENT.md)** - Development workflow
 - **[TESTING.md](TESTING.md)** - Testing documentation
-- **[docs/TEST_REVIEW.md](docs/TEST_REVIEW.md)** - Test quality review (⭐⭐⭐⭐⭐)
-- **[docs/FRONTEND_TESTING.md](docs/FRONTEND_TESTING.md)** - Frontend testing
 
 ### For End Users
 - **[docs/user-guide/](docs/user-guide/)** - Complete user documentation

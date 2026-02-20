@@ -14,7 +14,6 @@ For comprehensive documentation:
 - **[docs/ARCHITECTURE.md](../docs/ARCHITECTURE.md)** - System architecture and design
 - **[docs/DEVELOPMENT.md](../docs/DEVELOPMENT.md)** - Development workflow
 - **[TESTING.md](../TESTING.md)** - Complete testing guide
-- **[docs/TEST_REVIEW.md](../docs/TEST_REVIEW.md)** - Test quality review (⭐⭐⭐⭐⭐)
 - **[AGENTS.md](../AGENTS.md)** - General AI agent guidance
 
 ## Quick Reference

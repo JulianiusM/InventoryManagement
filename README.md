@@ -93,7 +93,7 @@ The Inventory Management test suite uses **data-driven** and **keyword-driven** 
 - 100% pass rate
 - All layers covered (unit, controller, database, frontend, E2E)
 
-See [TESTING.md](TESTING.md) for comprehensive testing documentation and [docs/TEST_REVIEW.md](docs/TEST_REVIEW.md) for detailed quality review.
+See [TESTING.md](TESTING.md) for comprehensive testing documentation.
 
 ### Quick Start - One-Click Test Execution
 

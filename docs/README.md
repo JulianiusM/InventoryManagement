@@ -13,19 +13,10 @@ Welcome to the Inventory Management documentation. This directory contains compr
 
 #### Development Guides
 - **[CONFIGURATION.md](CONFIGURATION.md)** - Configuration management and settings
-- **[UI_REDESIGN_SUMMARY.md](UI_REDESIGN_SUMMARY.md)** - UI redesign documentation and patterns
-- **[UX_IMPROVEMENTS_2026_01.md](UX_IMPROVEMENTS_2026_01.md)** - UX improvements and bug fixes (January 2026)
-
-#### Games Module
-- **[GAMES_MODULE_REVIEW.md](GAMES_MODULE_REVIEW.md)** - Games module architecture review
-- **[GAME_SUGGESTION.md](GAME_SUGGESTION.md)** - Game suggestion feature documentation
 - **[ACTIVITY_REQUIREMENTS_ALGORITHM.md](ACTIVITY_REQUIREMENTS_ALGORITHM.md)** - Activity shift requirement algorithm
 
 #### Testing
 - **[../TESTING.md](../TESTING.md)** - Complete testing guide (data-driven & keyword-driven)
-- **[TEST_REVIEW.md](TEST_REVIEW.md)** - Comprehensive test suite review
-- **[TEST_RECOMMENDATIONS.md](TEST_RECOMMENDATIONS.md)** - Test improvement recommendations
-- **[FRONTEND_TESTING.md](FRONTEND_TESTING.md)** - Frontend testing with MSW and Testing Library
 
 ### 🤖 For AI Agents
 
@@ -37,10 +28,6 @@ Welcome to the Inventory Management documentation. This directory contains compr
 
 - **[user-guide/README.md](user-guide/README.md)** - Complete user guide for the inventory management app
 - **[user-guide/GAMES.md](user-guide/GAMES.md)** - Games module user guide
-
-### 📋 Reference
-
-- **[HOUSEKEEPING_SUMMARY.md](HOUSEKEEPING_SUMMARY.md)** - Previous housekeeping summary
 
 ## Quick Links
 
@@ -73,14 +60,6 @@ When adding or updating documentation:
 - Add navigation links at top and bottom of long docs
 - Keep line length reasonable for readability
 
-### Document Ownership
-
-| Document | Owner | Update Frequency |
-|----------|-------|------------------|
-| TESTING.md | Test team | With test changes |
-| ARCHITECTURE.md | Tech lead | With major changes |
-| User guides | Product team | With feature releases |
-
 ## Getting Help
 
 - **Questions about code?** Check [ARCHITECTURE.md](ARCHITECTURE.md)
@@ -94,4 +73,4 @@ See [DEVELOPMENT.md](DEVELOPMENT.md) for guidelines on contributing documentatio
 ---
 
 **Last Updated:** February 2026  
-**Version:** 1.1
+**Version:** 1.2
