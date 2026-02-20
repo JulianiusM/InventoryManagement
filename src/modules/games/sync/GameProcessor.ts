@@ -201,8 +201,8 @@ function clampPlayerProfileValues(game: ExternalGame): ExternalGame {
         }
     }
     
-    // Step 5: Clear mode-specific values if mode is not supported (validation requires this)
-    // But preserve null/undefined for unknown counts when mode IS supported
+    // Step 5: Clear mode-specific values if mode is not supported
+    // (validation also does this, but cleaning up early keeps the clamp output consistent)
     if (!clamped.supportsOnline) {
         clamped.onlineMinPlayers = undefined;
         clamped.onlineMaxPlayers = undefined;

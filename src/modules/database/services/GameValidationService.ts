@@ -6,6 +6,9 @@
  * - For singleplayer-only games (no modes enabled): null = implied 1 player
  * - For multiplayer games: null = we don't know the actual player count
  * - This distinction is critical for accurate search functionality
+ * 
+ * When a mode is disabled, any associated player counts are silently cleared
+ * (the mode flag takes precedence over orphaned counts).
  */
 
 export interface PlayerProfile {
@@ -42,14 +45,13 @@ function isDefined<T>(value: T | null | undefined): value is T {
 }
 
 /**
- * Validate player profile data
+ * Normalize player profile data.
  * 
- * Player counts can be null (meaning "unknown"):
- * - null overall counts are valid - they indicate we don't know the player count
- * - For singleplayer-only games, null = implied 1 player
- * - For multiplayer games, null = unknown (UI will show warning)
+ * - Silently clears mode-specific player counts when the mode is not supported
+ *   (the supported flag takes precedence).
+ * - Validates remaining data for consistency (min/max relationships, positive values).
  * 
- * @throws PlayerProfileValidationError if validation fails
+ * @throws PlayerProfileValidationError if data is invalid
  */
 export function validatePlayerProfile(profile: PlayerProfile): void {
     // Validate overall player counts (only if provided)
@@ -67,7 +69,7 @@ export function validatePlayerProfile(profile: PlayerProfile): void {
         }
     }
     
-    // Validate online mode
+    // For each mode: if supported, validate counts; if not, silently clear counts
     if (profile.supportsOnline) {
         validateModePlayerCounts(
             'Online',
@@ -77,16 +79,10 @@ export function validatePlayerProfile(profile: PlayerProfile): void {
             profile.overallMaxPlayers
         );
     } else {
-        // If mode not supported, mode min/max must be null/absent
-        if (isDefined(profile.onlineMinPlayers)) {
-            throw new PlayerProfileValidationError('Online min players must be null when online is not supported');
-        }
-        if (isDefined(profile.onlineMaxPlayers)) {
-            throw new PlayerProfileValidationError('Online max players must be null when online is not supported');
-        }
+        profile.onlineMinPlayers = null;
+        profile.onlineMaxPlayers = null;
     }
     
-    // Validate couch mode
     if (profile.supportsLocalCouch) {
         validateModePlayerCounts(
             'Couch',
@@ -96,15 +92,10 @@ export function validatePlayerProfile(profile: PlayerProfile): void {
             profile.overallMaxPlayers
         );
     } else {
-        if (isDefined(profile.couchMinPlayers)) {
-            throw new PlayerProfileValidationError('Couch min players must be null when couch mode is not supported');
-        }
-        if (isDefined(profile.couchMaxPlayers)) {
-            throw new PlayerProfileValidationError('Couch max players must be null when couch mode is not supported');
-        }
+        profile.couchMinPlayers = null;
+        profile.couchMaxPlayers = null;
     }
     
-    // Validate LAN mode
     if (profile.supportsLocalLAN) {
         validateModePlayerCounts(
             'LAN',
@@ -114,15 +105,10 @@ export function validatePlayerProfile(profile: PlayerProfile): void {
             profile.overallMaxPlayers
         );
     } else {
-        if (isDefined(profile.lanMinPlayers)) {
-            throw new PlayerProfileValidationError('LAN min players must be null when LAN mode is not supported');
-        }
-        if (isDefined(profile.lanMaxPlayers)) {
-            throw new PlayerProfileValidationError('LAN max players must be null when LAN mode is not supported');
-        }
+        profile.lanMinPlayers = null;
+        profile.lanMaxPlayers = null;
     }
     
-    // Validate physical mode
     if (profile.supportsPhysical) {
         validateModePlayerCounts(
             'Physical',
@@ -132,12 +118,8 @@ export function validatePlayerProfile(profile: PlayerProfile): void {
             profile.overallMaxPlayers
         );
     } else {
-        if (isDefined(profile.physicalMinPlayers)) {
-            throw new PlayerProfileValidationError('Physical min players must be null when physical is not supported');
-        }
-        if (isDefined(profile.physicalMaxPlayers)) {
-            throw new PlayerProfileValidationError('Physical max players must be null when physical is not supported');
-        }
+        profile.physicalMinPlayers = null;
+        profile.physicalMaxPlayers = null;
     }
 }
 

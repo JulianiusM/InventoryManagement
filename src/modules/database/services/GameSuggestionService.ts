@@ -5,7 +5,7 @@
 
 import {AppDataSource} from '../dataSource';
 import {GameTitle} from '../entities/gameTitle/GameTitle';
-import {SelectQueryBuilder} from 'typeorm';
+import {Brackets, SelectQueryBuilder} from 'typeorm';
 
 export interface SuggestionCriteria {
     playerCount?: number;
@@ -21,6 +21,35 @@ export interface SuggestionCriteria {
 }
 
 /**
+ * Build a Brackets condition that checks if a mode-specific player count
+ * supports the given player count, falling back to overall counts.
+ */
+function modePlayerCountBracket(
+    modeFlag: string,
+    modeMin: string,
+    modeMax: string,
+): Brackets {
+    return new Brackets((qb) => {
+        qb.where(`title.${modeFlag} = :trueVal`, {trueVal: true})
+          .andWhere(new Brackets((inner) => {
+              inner.where(new Brackets((specific) => {
+                  specific.where(`title.${modeMin} IS NOT NULL`)
+                      .andWhere(`title.${modeMax} IS NOT NULL`)
+                      .andWhere(`title.${modeMin} <= :count`)
+                      .andWhere(`title.${modeMax} >= :count`);
+              })).orWhere(new Brackets((fallback) => {
+                  fallback.where(`title.${modeMin} IS NULL`)
+                      .andWhere(`title.${modeMax} IS NULL`)
+                      .andWhere('title.overallMinPlayers IS NOT NULL')
+                      .andWhere('title.overallMaxPlayers IS NOT NULL')
+                      .andWhere('title.overallMinPlayers <= :count')
+                      .andWhere('title.overallMaxPlayers >= :count');
+              }));
+          }));
+    });
+}
+
+/**
  * Apply criteria filters to a query builder
  * Helper function to avoid duplication between single and multiple suggestions
  */
@@ -30,103 +59,74 @@ function applyFiltersToQuery(
 ): void {
     // Filter by game modes (OR logic: game must support at least one selected mode)
     if (criteria.selectedModes && criteria.selectedModes.length > 0) {
-        const modeConditions: string[] = [];
-        
-        if (criteria.selectedModes.includes('online')) {
-            modeConditions.push('title.supports_online = 1');
-        }
-        if (criteria.selectedModes.includes('couch')) {
-            modeConditions.push('title.supports_local_couch = 1');
-        }
-        if (criteria.selectedModes.includes('lan')) {
-            modeConditions.push('title.supports_local_lan = 1');
-        }
-        if (criteria.selectedModes.includes('physical')) {
-            modeConditions.push('title.supports_physical = 1');
-        }
-        
-        query.andWhere(`(${modeConditions.join(' OR ')})`);
+        query.andWhere(new Brackets((modeOr) => {
+            if (criteria.selectedModes!.includes('online')) {
+                modeOr.orWhere('title.supportsOnline = :trueVal', {trueVal: true});
+            }
+            if (criteria.selectedModes!.includes('couch')) {
+                modeOr.orWhere('title.supportsLocalCouch = :trueVal', {trueVal: true});
+            }
+            if (criteria.selectedModes!.includes('lan')) {
+                modeOr.orWhere('title.supportsLocalLAN = :trueVal', {trueVal: true});
+            }
+            if (criteria.selectedModes!.includes('physical')) {
+                modeOr.orWhere('title.supportsPhysical = :trueVal', {trueVal: true});
+            }
+        }));
     }
     
     // Filter by player count
     if (criteria.playerCount !== undefined && criteria.playerCount > 0) {
         const count = criteria.playerCount;
+        query.setParameter('count', count);
         
         if (criteria.selectedModes && criteria.selectedModes.length > 0) {
-            // When modes selected: check mode-specific player counts for selected modes
-            const modeCountConditions: string[] = [];
-            
-            if (criteria.selectedModes.includes('online')) {
-                modeCountConditions.push(
-                    `(title.supports_online = 1 AND (
-                        (title.online_min_players IS NOT NULL AND title.online_max_players IS NOT NULL 
-                         AND title.online_min_players <= :count AND title.online_max_players >= :count)
-                        OR (title.online_min_players IS NULL AND title.online_max_players IS NULL 
-                            AND title.overall_min_players IS NOT NULL AND title.overall_max_players IS NOT NULL
-                            AND title.overall_min_players <= :count AND title.overall_max_players >= :count)
-                    ))`
-                );
-            }
-            
-            if (criteria.selectedModes.includes('couch')) {
-                modeCountConditions.push(
-                    `(title.supports_local_couch = 1 AND (
-                        (title.couch_min_players IS NOT NULL AND title.couch_max_players IS NOT NULL 
-                         AND title.couch_min_players <= :count AND title.couch_max_players >= :count)
-                        OR (title.couch_min_players IS NULL AND title.couch_max_players IS NULL 
-                            AND title.overall_min_players IS NOT NULL AND title.overall_max_players IS NOT NULL
-                            AND title.overall_min_players <= :count AND title.overall_max_players >= :count)
-                    ))`
-                );
-            }
-            
-            if (criteria.selectedModes.includes('lan')) {
-                modeCountConditions.push(
-                    `(title.supports_local_lan = 1 AND (
-                        (title.lan_min_players IS NOT NULL AND title.lan_max_players IS NOT NULL 
-                         AND title.lan_min_players <= :count AND title.lan_max_players >= :count)
-                        OR (title.lan_min_players IS NULL AND title.lan_max_players IS NULL 
-                            AND title.overall_min_players IS NOT NULL AND title.overall_max_players IS NOT NULL
-                            AND title.overall_min_players <= :count AND title.overall_max_players >= :count)
-                    ))`
-                );
-            }
-            
-            if (criteria.selectedModes.includes('physical')) {
-                modeCountConditions.push(
-                    `(title.supports_physical = 1 AND (
-                        (title.physical_min_players IS NOT NULL AND title.physical_max_players IS NOT NULL 
-                         AND title.physical_min_players <= :count AND title.physical_max_players >= :count)
-                        OR (title.physical_min_players IS NULL AND title.physical_max_players IS NULL 
-                            AND title.overall_min_players IS NOT NULL AND title.overall_max_players IS NOT NULL
-                            AND title.overall_min_players <= :count AND title.overall_max_players >= :count)
-                    ))`
-                );
-            }
-            
-            if (modeCountConditions.length > 0) {
-                // At least one selected mode must satisfy the player count
-                query.andWhere(`(${modeCountConditions.join(' OR ')})`, {count});
-            }
+            // When modes selected: at least one selected mode must satisfy the player count
+            query.andWhere(new Brackets((modeCountOr) => {
+                if (criteria.selectedModes!.includes('online')) {
+                    modeCountOr.orWhere(
+                        modePlayerCountBracket('supportsOnline', 'onlineMinPlayers', 'onlineMaxPlayers')
+                    );
+                }
+                if (criteria.selectedModes!.includes('couch')) {
+                    modeCountOr.orWhere(
+                        modePlayerCountBracket('supportsLocalCouch', 'couchMinPlayers', 'couchMaxPlayers')
+                    );
+                }
+                if (criteria.selectedModes!.includes('lan')) {
+                    modeCountOr.orWhere(
+                        modePlayerCountBracket('supportsLocalLAN', 'lanMinPlayers', 'lanMaxPlayers')
+                    );
+                }
+                if (criteria.selectedModes!.includes('physical')) {
+                    modeCountOr.orWhere(
+                        modePlayerCountBracket('supportsPhysical', 'physicalMinPlayers', 'physicalMaxPlayers')
+                    );
+                }
+            }));
         } else {
             // No mode selected - use overall player count
             if (count === 1) {
-                query.andWhere(
-                    `(
-                        (title.overall_min_players IS NOT NULL AND title.overall_max_players IS NOT NULL
-                         AND title.overall_min_players <= :count AND title.overall_max_players >= :count)
-                        OR (title.overall_min_players IS NULL AND title.overall_max_players IS NULL 
-                            AND title.supports_online = 0 AND title.supports_local_couch = 0 
-                            AND title.supports_local_lan = 0 AND title.supports_physical = 0)
-                    )`,
-                    {count}
-                );
+                query.andWhere(new Brackets((overall) => {
+                    overall.where(new Brackets((known) => {
+                        known.where('title.overallMinPlayers IS NOT NULL')
+                            .andWhere('title.overallMaxPlayers IS NOT NULL')
+                            .andWhere('title.overallMinPlayers <= :count')
+                            .andWhere('title.overallMaxPlayers >= :count');
+                    })).orWhere(new Brackets((singleplayer) => {
+                        singleplayer.where('title.overallMinPlayers IS NULL')
+                            .andWhere('title.overallMaxPlayers IS NULL')
+                            .andWhere('title.supportsOnline = :falseVal', {falseVal: false})
+                            .andWhere('title.supportsLocalCouch = :falseVal')
+                            .andWhere('title.supportsLocalLAN = :falseVal')
+                            .andWhere('title.supportsPhysical = :falseVal');
+                    }));
+                }));
             } else {
-                query.andWhere(
-                    `(title.overall_min_players IS NOT NULL AND title.overall_max_players IS NOT NULL
-                     AND title.overall_min_players <= :count AND title.overall_max_players >= :count)`,
-                    {count}
-                );
+                query.andWhere('title.overallMinPlayers IS NOT NULL')
+                    .andWhere('title.overallMaxPlayers IS NOT NULL')
+                    .andWhere('title.overallMinPlayers <= :count')
+                    .andWhere('title.overallMaxPlayers >= :count');
             }
         }
     }

@@ -77,6 +77,19 @@ export const validPlayerProfileData = [
             // No specific mode ranges - should fall back to overall
         },
     },
+    {
+        description: 'player counts on unsupported modes are silently cleared',
+        profile: {
+            overallMinPlayers: 1,
+            overallMaxPlayers: 4,
+            supportsOnline: false,
+            supportsLocalCouch: false, supportsLocalLAN: false,
+            supportsPhysical: false,
+            onlineMinPlayers: 2,
+            couchMaxPlayers: 4,
+            physicalMinPlayers: 2,
+        },
+    },
 ];
 
 export const invalidPlayerProfileData = [
@@ -101,42 +114,6 @@ export const invalidPlayerProfileData = [
             supportsPhysical: false,
         },
         expectedError: /maximum players must be >= minimum/i,
-    },
-    {
-        description: 'online mode specified when not supported',
-        profile: {
-            overallMinPlayers: 1,
-            overallMaxPlayers: 4,
-            supportsOnline: false,
-            supportsLocalCouch: false, supportsLocalLAN: false,
-            supportsPhysical: false,
-            onlineMinPlayers: 2,
-        },
-        expectedError: /online.*must be null/i,
-    },
-    {
-        description: 'couch mode specified when not supported',
-        profile: {
-            overallMinPlayers: 1,
-            overallMaxPlayers: 4,
-            supportsOnline: false,
-            supportsLocalCouch: false, supportsLocalLAN: false,
-            supportsPhysical: false,
-            couchMaxPlayers: 4,
-        },
-        expectedError: /couch.*must be null/i,
-    },
-    {
-        description: 'physical mode specified when not supported',
-        profile: {
-            overallMinPlayers: 1,
-            overallMaxPlayers: 4,
-            supportsOnline: false,
-            supportsLocalCouch: false, supportsLocalLAN: false,
-            supportsPhysical: false,
-            physicalMinPlayers: 2,
-        },
-        expectedError: /physical.*must be null/i,
     },
     {
         description: 'online min below overall min',

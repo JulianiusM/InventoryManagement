@@ -494,11 +494,14 @@ export class IgdbMetadataProvider extends BaseMetadataProvider {
             }
         }
         
-        // If LAN is supported but we don't have LAN-specific counts, use overall max as fallback
+        // If LAN is supported but we don't have LAN-specific counts,
+        // fall back to couch counts first (same-device counts are the best estimate),
+        // then to other known maximums
         if (supportsLocalLAN && lanMaxPlayers === undefined) {
-            const knownMax = [onlineMaxPlayers, couchMaxPlayers].filter(v => v !== undefined);
-            if (knownMax.length > 0) {
-                lanMaxPlayers = Math.max(...knownMax);
+            if (couchMaxPlayers !== undefined) {
+                lanMaxPlayers = couchMaxPlayers;
+            } else if (onlineMaxPlayers !== undefined) {
+                lanMaxPlayers = onlineMaxPlayers;
             }
         }
         

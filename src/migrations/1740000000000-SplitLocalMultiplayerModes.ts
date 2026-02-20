@@ -14,10 +14,26 @@ import {MigrationInterface, QueryRunner} from "typeorm";
  *   - override_local_max → override_couch_max (+ override_lan_max as null)
  * 
  * Data migration: existing local data defaults to couch co-op mode.
+ * 
+ * Idempotent: safe to run after TypeORM synchronize (fresh DB).
  */
 export class SplitLocalMultiplayerModes1740000000000 implements MigrationInterface {
 
+    private async columnExists(queryRunner: QueryRunner, table: string, column: string): Promise<boolean> {
+        const result = await queryRunner.query(
+            `SELECT COUNT(*) AS cnt FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ? AND COLUMN_NAME = ?`,
+            [table, column]
+        );
+        return Number(result[0]?.cnt) > 0;
+    }
+
     public async up(queryRunner: QueryRunner): Promise<void> {
+        // If the old column doesn't exist, the schema is already up-to-date (e.g. fresh DB via synchronize)
+        const needsMigration = await this.columnExists(queryRunner, 'game_titles', 'supports_local');
+        if (!needsMigration) {
+            return;
+        }
+
         // === game_titles ===
 
         // Add new boolean columns
@@ -110,6 +126,12 @@ export class SplitLocalMultiplayerModes1740000000000 implements MigrationInterfa
     }
 
     public async down(queryRunner: QueryRunner): Promise<void> {
+        // If the old column already exists, nothing to revert (e.g. migration was skipped)
+        const needsRevert = await this.columnExists(queryRunner, 'game_titles', 'supports_local_couch');
+        if (!needsRevert) {
+            return;
+        }
+
         // === game_titles ===
 
         // Re-add old columns
