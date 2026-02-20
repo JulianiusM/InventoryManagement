@@ -77,7 +77,7 @@ block content
                                     span.badge.text-bg-secondary
                                         i.bi.bi-people.me-1
                                         | #{gameTitle.overallMinPlayers || 1}-#{gameTitle.overallMaxPlayers} players
-                                else if gameTitle.supportsOnline || gameTitle.supportsLocal || gameTitle.supportsPhysical
+                                else if gameTitle.supportsOnline || gameTitle.supportsLocalCouch || gameTitle.supportsLocalLAN || gameTitle.supportsPhysical
                                     span.badge.text-bg-warning.text-dark
                                         i.bi.bi-people.me-1
                                         i.bi.bi-exclamation-triangle.me-1
@@ -93,12 +93,19 @@ block content
                                         //- Warning for unknown player count
                                         if !gameTitle.onlineMaxPlayers
                                             i.bi.bi-exclamation-triangle.ms-1(title="Player count unknown")
-                                if gameTitle.supportsLocal
+                                if gameTitle.supportsLocalCouch
                                     span.badge.text-bg-success
                                         i.bi.bi-display.me-1
-                                        | Local
+                                        | Couch Co-op
                                         //- Warning for unknown player count
-                                        if !gameTitle.localMaxPlayers
+                                        if !gameTitle.couchMaxPlayers
+                                            i.bi.bi-exclamation-triangle.ms-1(title="Player count unknown")
+                                if gameTitle.supportsLocalLAN
+                                    span.badge.text-bg-info
+                                        i.bi.bi-hdd-network.me-1
+                                        | LAN
+                                        //- Warning for unknown player count
+                                        if !gameTitle.lanMaxPlayers
                                             i.bi.bi-exclamation-triangle.ms-1(title="Player count unknown")
                             .mt-2
                                 a.btn.btn-sm.btn-outline-light.me-2(href=`/games/titles/${gameTitle.id}`)

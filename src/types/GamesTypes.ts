@@ -10,12 +10,15 @@ export interface CreateGameTitleBody {
     overallMinPlayers: number;
     overallMaxPlayers: number;
     supportsOnline?: boolean;
-    supportsLocal?: boolean;
+    supportsLocalCouch?: boolean;
+    supportsLocalLAN?: boolean;
     supportsPhysical?: boolean;
     onlineMinPlayers?: number;
     onlineMaxPlayers?: number;
-    localMinPlayers?: number;
-    localMaxPlayers?: number;
+    couchMinPlayers?: number;
+    couchMaxPlayers?: number;
+    lanMinPlayers?: number;
+    lanMaxPlayers?: number;
     physicalMinPlayers?: number;
     physicalMaxPlayers?: number;
 }
@@ -30,12 +33,15 @@ export interface CreateGameReleaseBody {
     playersOverrideMax?: number;
     // Mode-specific overrides
     overrideSupportsOnline?: boolean;
-    overrideSupportsLocal?: boolean;
+    overrideSupportsLocalCouch?: boolean;
+    overrideSupportsLocalLAN?: boolean;
     overrideSupportsPhysical?: boolean;
     overrideOnlineMin?: number;
     overrideOnlineMax?: number;
-    overrideLocalMin?: number;
-    overrideLocalMax?: number;
+    overrideCouchMin?: number;
+    overrideCouchMax?: number;
+    overrideLanMin?: number;
+    overrideLanMax?: number;
     overridePhysicalMin?: number;
     overridePhysicalMax?: number;
 }

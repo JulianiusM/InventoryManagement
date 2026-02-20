@@ -45,8 +45,11 @@ export class GameTitle {
     @Column("boolean", {name: "supports_online", default: false})
     supportsOnline!: boolean;
 
-    @Column("boolean", {name: "supports_local", default: false})
-    supportsLocal!: boolean;
+    @Column("boolean", {name: "supports_local_couch", default: false})
+    supportsLocalCouch!: boolean;
+
+    @Column("boolean", {name: "supports_local_lan", default: false})
+    supportsLocalLAN!: boolean;
 
     @Column("boolean", {name: "supports_physical", default: false})
     supportsPhysical!: boolean;
@@ -58,11 +61,17 @@ export class GameTitle {
     @Column("int", {name: "online_max_players", nullable: true})
     onlineMaxPlayers?: number | null;
 
-    @Column("int", {name: "local_min_players", nullable: true})
-    localMinPlayers?: number | null;
+    @Column("int", {name: "couch_min_players", nullable: true})
+    couchMinPlayers?: number | null;
 
-    @Column("int", {name: "local_max_players", nullable: true})
-    localMaxPlayers?: number | null;
+    @Column("int", {name: "couch_max_players", nullable: true})
+    couchMaxPlayers?: number | null;
+
+    @Column("int", {name: "lan_min_players", nullable: true})
+    lanMinPlayers?: number | null;
+
+    @Column("int", {name: "lan_max_players", nullable: true})
+    lanMaxPlayers?: number | null;
 
     @Column("int", {name: "physical_min_players", nullable: true})
     physicalMinPlayers?: number | null;

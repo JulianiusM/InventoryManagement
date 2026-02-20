@@ -337,7 +337,7 @@ Player counts are handled with explicit "known" vs "unknown" distinction:
   - `null` = player count unknown
   - For singleplayer-only games (no modes), null = implied 1 player
   - For multiplayer games, null = we don't know (UI shows warning)
-- `onlineMaxPlayers` / `localMaxPlayers` / `physicalMaxPlayers`: **NULLABLE**
+- `onlineMaxPlayers` / `couchMaxPlayers` / `lanMaxPlayers` / `physicalMaxPlayers`: **NULLABLE**
   - `null` = player count unknown for this mode
   - Valid number = known player count from metadata or user
 

@@ -58,13 +58,21 @@ block content
                                         else
                                             | Online
                                             i.bi.bi-exclamation-triangle.ms-1(title="Player count unknown")
-                                if release.gameTitle.supportsLocal
+                                if release.gameTitle.supportsLocalCouch
                                     span.badge.text-bg-success
                                         i.bi.bi-display.me-1
-                                        if release.gameTitle.localMaxPlayers
-                                            | Local #{release.gameTitle.localMinPlayers || 1}-#{release.gameTitle.localMaxPlayers}
+                                        if release.gameTitle.couchMaxPlayers
+                                            | Couch #{release.gameTitle.couchMinPlayers || 1}-#{release.gameTitle.couchMaxPlayers}
                                         else
-                                            | Local
+                                            | Couch Co-op
+                                            i.bi.bi-exclamation-triangle.ms-1(title="Player count unknown")
+                                if release.gameTitle.supportsLocalLAN
+                                    span.badge.text-bg-info
+                                        i.bi.bi-hdd-network.me-1
+                                        if release.gameTitle.lanMaxPlayers
+                                            | LAN #{release.gameTitle.lanMinPlayers || 1}-#{release.gameTitle.lanMaxPlayers}
+                                        else
+                                            | LAN
                                             i.bi.bi-exclamation-triangle.ms-1(title="Player count unknown")
                                 if release.gameTitle.supportsPhysical
                                     span.badge.text-bg-warning.text-dark
@@ -153,7 +161,7 @@ block content
                             dd.col-sm-7 #{release.releaseDate || '—'}
 
                 //- Player Override Card (Issue 7: Show release-specific overrides)
-                - const hasPlayerOverride = release.playersOverrideMin || release.playersOverrideMax || release.overrideSupportsOnline !== null || release.overrideSupportsLocal !== null || release.overrideSupportsPhysical !== null
+                - const hasPlayerOverride = release.playersOverrideMin || release.playersOverrideMax || release.overrideSupportsOnline !== null || release.overrideSupportsLocalCouch !== null || release.overrideSupportsLocalLAN !== null || release.overrideSupportsPhysical !== null
                 if hasPlayerOverride
                     .card.text-bg-dark.border-secondary.mb-3
                         .card-header
@@ -184,19 +192,34 @@ block content
                                         | Online
                                     dd.col-sm-7.text-white-50 Disabled
                                 
-                                if release.overrideSupportsLocal
+                                if release.overrideSupportsLocalCouch
                                     dt.col-sm-5.text-success
                                         i.bi.bi-display.me-1
-                                        | Local
+                                        | Couch Co-op
                                     dd.col-sm-7
-                                        if release.overrideLocalMin || release.overrideLocalMax
-                                            | #{release.overrideLocalMin || '?'} - #{release.overrideLocalMax || '?'} players
+                                        if release.overrideCouchMin || release.overrideCouchMax
+                                            | #{release.overrideCouchMin || '?'} - #{release.overrideCouchMax || '?'} players
                                         else
                                             span.text-white-50 Enabled (uses overall)
-                                else if release.overrideSupportsLocal === false
+                                else if release.overrideSupportsLocalCouch === false
                                     dt.col-sm-5.text-white-50
                                         i.bi.bi-display.me-1
-                                        | Local
+                                        | Couch Co-op
+                                    dd.col-sm-7.text-white-50 Disabled
+                                
+                                if release.overrideSupportsLocalLAN
+                                    dt.col-sm-5.text-info
+                                        i.bi.bi-hdd-network.me-1
+                                        | LAN
+                                    dd.col-sm-7
+                                        if release.overrideLanMin || release.overrideLanMax
+                                            | #{release.overrideLanMin || '?'} - #{release.overrideLanMax || '?'} players
+                                        else
+                                            span.text-white-50 Enabled (uses overall)
+                                else if release.overrideSupportsLocalLAN === false
+                                    dt.col-sm-5.text-white-50
+                                        i.bi.bi-hdd-network.me-1
+                                        | LAN
                                     dd.col-sm-7.text-white-50 Disabled
                                 
                                 if release.overrideSupportsPhysical
@@ -382,10 +405,16 @@ block content
                                         | Online
                             .col-md-4
                                 .form-check
-                                    input.form-check-input(type="checkbox" name="overrideSupportsLocal" value="true" id="editOverrideLocal" checked=release.overrideSupportsLocal)
-                                    label.form-check-label.text-success(for="editOverrideLocal")
+                                    input.form-check-input(type="checkbox" name="overrideSupportsLocalCouch" value="true" id="editOverrideLocalCouch" checked=release.overrideSupportsLocalCouch)
+                                    label.form-check-label.text-success(for="editOverrideLocalCouch")
                                         i.bi.bi-display.me-1
-                                        | Local
+                                        | Local Couch
+                            .col-md-4
+                                .form-check
+                                    input.form-check-input(type="checkbox" name="overrideSupportsLocalLAN" value="true" id="editOverrideLocalLAN" checked=release.overrideSupportsLocalLAN)
+                                    label.form-check-label.text-success(for="editOverrideLocalLAN")
+                                        i.bi.bi-ethernet.me-1
+                                        | Local LAN
                             .col-md-4
                                 .form-check
                                     input.form-check-input(type="checkbox" name="overrideSupportsPhysical" value="true" id="editOverridePhysical" checked=release.overrideSupportsPhysical)
@@ -403,11 +432,17 @@ block content
                                 label.form-label.small.text-primary Online Max
                                 input.form-control.form-control-sm.text-bg-dark(type="number" name="overrideOnlineMax" value=release.overrideOnlineMax || '' min="1")
                             .col-md-3
-                                label.form-label.small.text-success Local Min
-                                input.form-control.form-control-sm.text-bg-dark(type="number" name="overrideLocalMin" value=release.overrideLocalMin || '' min="1")
+                                label.form-label.small.text-success Couch Min
+                                input.form-control.form-control-sm.text-bg-dark(type="number" name="overrideCouchMin" value=release.overrideCouchMin || '' min="1")
                             .col-md-3
-                                label.form-label.small.text-success Local Max
-                                input.form-control.form-control-sm.text-bg-dark(type="number" name="overrideLocalMax" value=release.overrideLocalMax || '' min="1")
+                                label.form-label.small.text-success Couch Max
+                                input.form-control.form-control-sm.text-bg-dark(type="number" name="overrideCouchMax" value=release.overrideCouchMax || '' min="1")
+                            .col-md-3
+                                label.form-label.small.text-info LAN Min
+                                input.form-control.form-control-sm.text-bg-dark(type="number" name="overrideLanMin" value=release.overrideLanMin || '' min="1")
+                            .col-md-3
+                                label.form-label.small.text-info LAN Max
+                                input.form-control.form-control-sm.text-bg-dark(type="number" name="overrideLanMax" value=release.overrideLanMax || '' min="1")
                             .col-md-3
                                 label.form-label.small.text-warning Physical Min
                                 input.form-control.form-control-sm.text-bg-dark(type="number" name="overridePhysicalMin" value=release.overridePhysicalMin || '' min="1")

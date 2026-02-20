@@ -480,10 +480,10 @@ LIMIT 50`;
                 overallMinPlayers: minPlayers,
                 overallMaxPlayers: maxPlayers,
                 supportsPhysical: true,
-                supportsLocal: maxPlayers > 1,
+                supportsLocalCouch: maxPlayers > 1,
                 supportsOnline: false,
                 physicalMaxPlayers: maxPlayers,
-                localMaxPlayers: maxPlayers,
+                couchMaxPlayers: maxPlayers,
             },
             rawPayload: {bindings: bindings.slice(0, 10)}, // Keep some bindings for debugging
         };

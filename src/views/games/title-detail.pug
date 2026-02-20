@@ -33,7 +33,7 @@ block content
                         span.badge.text-bg-secondary
                             i.bi.bi-people.me-1
                             | #{title.overallMinPlayers || 1}-#{title.overallMaxPlayers} players
-                    else if title.supportsOnline || title.supportsLocal || title.supportsPhysical
+                    else if title.supportsOnline || title.supportsLocalCouch || title.supportsLocalLAN || title.supportsPhysical
                         //- Multiplayer game with unknown overall count
                         span.badge.text-bg-warning.text-dark
                             i.bi.bi-people.me-1
@@ -51,12 +51,19 @@ block content
                             //- Warning for multiplayer without specific player count
                             if !title.onlineMaxPlayers
                                 i.bi.bi-exclamation-triangle.ms-1(title="Player count unknown - click Fetch Metadata to update")
-                    if title.supportsLocal
+                    if title.supportsLocalCouch
                         span.badge.text-bg-success
                             i.bi.bi-display.me-1
-                            | Local
+                            | Couch Co-op
                             //- Warning for multiplayer without specific player count
-                            if !title.localMaxPlayers
+                            if !title.couchMaxPlayers
+                                i.bi.bi-exclamation-triangle.ms-1(title="Player count unknown - click Fetch Metadata to update")
+                    if title.supportsLocalLAN
+                        span.badge.text-bg-info
+                            i.bi.bi-hdd-network.me-1
+                            | LAN
+                            //- Warning for multiplayer without specific player count
+                            if !title.lanMaxPlayers
                                 i.bi.bi-exclamation-triangle.ms-1(title="Player count unknown - click Fetch Metadata to update")
                     if title.supportsPhysical
                         span.badge.text-bg-warning.text-dark
@@ -98,7 +105,7 @@ block content
                                 //- Handle null (unknown) overall player counts
                                 if title.overallMaxPlayers
                                     | #{title.overallMinPlayers || 1} - #{title.overallMaxPlayers} players
-                                else if title.supportsOnline || title.supportsLocal || title.supportsPhysical
+                                else if title.supportsOnline || title.supportsLocalCouch || title.supportsLocalLAN || title.supportsPhysical
                                     //- Multiplayer game with unknown overall count
                                     span.text-warning
                                         i.bi.bi-exclamation-triangle.me-1
@@ -120,14 +127,27 @@ block content
                                             i.bi.bi-exclamation-triangle.me-1
                                             | Unknown (click "Fetch Metadata" to update)
                             
-                            if title.supportsLocal
+                            if title.supportsLocalCouch
                                 dt.col-sm-4.text-success
                                     i.bi.bi-display.me-1
-                                    | Local Co-op
+                                    | Couch Co-op
                                 dd.col-sm-8
                                     //- Show explicit "Unknown" when player count is not known
-                                    if title.localMaxPlayers
-                                        | #{title.localMinPlayers || 1} - #{title.localMaxPlayers} players
+                                    if title.couchMaxPlayers
+                                        | #{title.couchMinPlayers || 1} - #{title.couchMaxPlayers} players
+                                    else
+                                        span.text-warning
+                                            i.bi.bi-exclamation-triangle.me-1
+                                            | Unknown (click "Fetch Metadata" to update)
+                            
+                            if title.supportsLocalLAN
+                                dt.col-sm-4.text-info
+                                    i.bi.bi-hdd-network.me-1
+                                    | LAN / Multi-Device
+                                dd.col-sm-8
+                                    //- Show explicit "Unknown" when player count is not known
+                                    if title.lanMaxPlayers
+                                        | #{title.lanMinPlayers || 1} - #{title.lanMaxPlayers} players
                                     else
                                         span.text-warning
                                             i.bi.bi-exclamation-triangle.me-1
@@ -169,7 +189,7 @@ block content
                                 h6.text-white
                                     i.bi.bi-people.me-1
                                     | Player Settings
-                                    if !title.overallMaxPlayers && (title.supportsOnline || title.supportsLocal)
+                                    if !title.overallMaxPlayers && (title.supportsOnline || title.supportsLocalCouch || title.supportsLocalLAN)
                                         span.badge.text-bg-warning.ms-2
                                             i.bi.bi-exclamation-triangle.me-1
                                             | Player counts unknown
@@ -183,19 +203,25 @@ block content
                                 
                                 .col-12
                                     label.form-label Multiplayer Modes
-                                .col-md-4
+                                .col-md-3
                                     .form-check
                                         input.form-check-input(type="checkbox" name="supportsOnline" value="true" id="editSupportsOnline" checked=title.supportsOnline)
                                         label.form-check-label(for="editSupportsOnline")
                                             i.bi.bi-globe.me-1
                                             | Online
-                                .col-md-4
+                                .col-md-3
                                     .form-check
-                                        input.form-check-input(type="checkbox" name="supportsLocal" value="true" id="editSupportsLocal" checked=title.supportsLocal)
-                                        label.form-check-label(for="editSupportsLocal")
+                                        input.form-check-input(type="checkbox" name="supportsLocalCouch" value="true" id="editSupportsLocalCouch" checked=title.supportsLocalCouch)
+                                        label.form-check-label(for="editSupportsLocalCouch")
                                             i.bi.bi-display.me-1
-                                            | Local
-                                .col-md-4
+                                            | Couch Co-op
+                                .col-md-3
+                                    .form-check
+                                        input.form-check-input(type="checkbox" name="supportsLocalLAN" value="true" id="editSupportsLocalLAN" checked=title.supportsLocalLAN)
+                                        label.form-check-label(for="editSupportsLocalLAN")
+                                            i.bi.bi-hdd-network.me-1
+                                            | LAN
+                                .col-md-3
                                     .form-check
                                         input.form-check-input(type="checkbox" name="supportsPhysical" value="true" id="editSupportsPhysical" checked=title.supportsPhysical)
                                         label.form-check-label(for="editSupportsPhysical")
@@ -210,11 +236,17 @@ block content
                                     label.form-label.small.text-primary Online Max
                                     input.form-control.form-control-sm.text-bg-dark(type="number" name="onlineMaxPlayers" value=title.onlineMaxPlayers || '' min="1")
                                 .col-md-3
-                                    label.form-label.small.text-success Local Min
-                                    input.form-control.form-control-sm.text-bg-dark(type="number" name="localMinPlayers" value=title.localMinPlayers || '' min="1")
+                                    label.form-label.small.text-success Couch Min
+                                    input.form-control.form-control-sm.text-bg-dark(type="number" name="couchMinPlayers" value=title.couchMinPlayers || '' min="1")
                                 .col-md-3
-                                    label.form-label.small.text-success Local Max
-                                    input.form-control.form-control-sm.text-bg-dark(type="number" name="localMaxPlayers" value=title.localMaxPlayers || '' min="1")
+                                    label.form-label.small.text-success Couch Max
+                                    input.form-control.form-control-sm.text-bg-dark(type="number" name="couchMaxPlayers" value=title.couchMaxPlayers || '' min="1")
+                                .col-md-3
+                                    label.form-label.small.text-info LAN Min
+                                    input.form-control.form-control-sm.text-bg-dark(type="number" name="lanMinPlayers" value=title.lanMinPlayers || '' min="1")
+                                .col-md-3
+                                    label.form-label.small.text-info LAN Max
+                                    input.form-control.form-control-sm.text-bg-dark(type="number" name="lanMaxPlayers" value=title.lanMaxPlayers || '' min="1")
                                 .col-md-3
                                     label.form-label.small.text-warning Physical Min
                                     input.form-control.form-control-sm.text-bg-dark(type="number" name="physicalMinPlayers" value=title.physicalMinPlayers || '' min="1")
@@ -357,10 +389,16 @@ block content
                                                 | Online
                                     .col-md-4
                                         .form-check
-                                            input.form-check-input(type="checkbox" name="overrideSupportsLocal" value="true" id="overrideLocal")
-                                            label.form-check-label.text-success(for="overrideLocal")
+                                            input.form-check-input(type="checkbox" name="overrideSupportsLocalCouch" value="true" id="overrideLocalCouch")
+                                            label.form-check-label.text-success(for="overrideLocalCouch")
                                                 i.bi.bi-display.me-1
-                                                | Local
+                                                | Local Couch
+                                    .col-md-4
+                                        .form-check
+                                            input.form-check-input(type="checkbox" name="overrideSupportsLocalLAN" value="true" id="overrideLocalLAN")
+                                            label.form-check-label.text-success(for="overrideLocalLAN")
+                                                i.bi.bi-ethernet.me-1
+                                                | Local LAN
                                     .col-md-4
                                         .form-check
                                             input.form-check-input(type="checkbox" name="overrideSupportsPhysical" value="true" id="overridePhysical")
@@ -376,11 +414,17 @@ block content
                                         label.form-label.small.text-primary Online Max
                                         input.form-control.form-control-sm.text-bg-dark(type="number" name="overrideOnlineMax" min="1")
                                     .col-md-3
-                                        label.form-label.small.text-success Local Min
-                                        input.form-control.form-control-sm.text-bg-dark(type="number" name="overrideLocalMin" min="1")
+                                        label.form-label.small.text-success Couch Min
+                                        input.form-control.form-control-sm.text-bg-dark(type="number" name="overrideCouchMin" min="1")
                                     .col-md-3
-                                        label.form-label.small.text-success Local Max
-                                        input.form-control.form-control-sm.text-bg-dark(type="number" name="overrideLocalMax" min="1")
+                                        label.form-label.small.text-success Couch Max
+                                        input.form-control.form-control-sm.text-bg-dark(type="number" name="overrideCouchMax" min="1")
+                                    .col-md-3
+                                        label.form-label.small.text-info LAN Min
+                                        input.form-control.form-control-sm.text-bg-dark(type="number" name="overrideLanMin" min="1")
+                                    .col-md-3
+                                        label.form-label.small.text-info LAN Max
+                                        input.form-control.form-control-sm.text-bg-dark(type="number" name="overrideLanMax" min="1")
                                     .col-md-3
                                         label.form-label.small.text-warning Physical Min
                                         input.form-control.form-control-sm.text-bg-dark(type="number" name="overridePhysicalMin" min="1")

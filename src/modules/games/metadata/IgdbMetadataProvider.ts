@@ -456,10 +456,12 @@ export class IgdbMetadataProvider extends BaseMetadataProvider {
         
         // Extract actual player counts from multiplayer_modes
         let onlineMaxPlayers: number | undefined;
-        let localMaxPlayers: number | undefined;
+        let couchMaxPlayers: number | undefined;
+        let lanMaxPlayers: number | undefined;
         let overallMaxPlayers: number | undefined;
         let supportsOnline = false;
-        let supportsLocal = false;
+        let supportsLocalCouch = false;
+        let supportsLocalLAN = false;
         
         for (const mode of multiplayerModes) {
             // Online modes
@@ -472,33 +474,46 @@ export class IgdbMetadataProvider extends BaseMetadataProvider {
                 onlineMaxPlayers = Math.max(onlineMaxPlayers || 0, mode.onlinecoopmax);
             }
             
-            // Local/offline modes
+            // Local/offline modes (couch)
             if (mode.offlinemax !== undefined && mode.offlinemax > 0) {
-                supportsLocal = true;
-                localMaxPlayers = Math.max(localMaxPlayers || 0, mode.offlinemax);
+                supportsLocalCouch = true;
+                couchMaxPlayers = Math.max(couchMaxPlayers || 0, mode.offlinemax);
             }
             if (mode.offlinecoopmax !== undefined && mode.offlinecoopmax > 0) {
-                supportsLocal = true;
-                localMaxPlayers = Math.max(localMaxPlayers || 0, mode.offlinecoopmax);
+                supportsLocalCouch = true;
+                couchMaxPlayers = Math.max(couchMaxPlayers || 0, mode.offlinecoopmax);
             }
             // Splitscreen is boolean in IGDB (no max count) - use default constant
             if (mode.splitscreen) {
-                supportsLocal = true;
+                supportsLocalCouch = true;
             }
             
-            // LAN modes count as both
+            // LAN modes
             if (mode.lancoop) {
-                supportsLocal = true;
+                supportsLocalLAN = true;
+            }
+        }
+        
+        // If LAN is supported but we don't have LAN-specific counts,
+        // fall back to couch counts first (same-device counts are the best estimate),
+        // then to other known maximums
+        if (supportsLocalLAN && lanMaxPlayers === undefined) {
+            if (couchMaxPlayers !== undefined) {
+                lanMaxPlayers = couchMaxPlayers;
+            } else if (onlineMaxPlayers !== undefined) {
+                lanMaxPlayers = onlineMaxPlayers;
             }
         }
         
         // Determine overall max players
-        if (onlineMaxPlayers !== undefined && localMaxPlayers !== undefined) {
-            overallMaxPlayers = Math.max(onlineMaxPlayers, localMaxPlayers);
+        const localMaxCandidates = [couchMaxPlayers, lanMaxPlayers].filter(v => v !== undefined);
+        const bestLocalMax = localMaxCandidates.length > 0 ? Math.max(...localMaxCandidates) : undefined;
+        if (onlineMaxPlayers !== undefined && bestLocalMax !== undefined) {
+            overallMaxPlayers = Math.max(onlineMaxPlayers, bestLocalMax);
         } else if (onlineMaxPlayers !== undefined) {
             overallMaxPlayers = onlineMaxPlayers;
-        } else if (localMaxPlayers !== undefined) {
-            overallMaxPlayers = localMaxPlayers;
+        } else if (bestLocalMax !== undefined) {
+            overallMaxPlayers = bestLocalMax;
         } else if (!isMultiplayer && isSinglePlayer) {
             overallMaxPlayers = 1;
         } else if (isMMO) {
@@ -514,9 +529,11 @@ export class IgdbMetadataProvider extends BaseMetadataProvider {
             overallMinPlayers,
             overallMaxPlayers,
             supportsOnline,
-            supportsLocal,
+            supportsLocalCouch,
+            supportsLocalLAN,
             onlineMaxPlayers: supportsOnline ? onlineMaxPlayers : undefined,
-            localMaxPlayers: supportsLocal ? localMaxPlayers : undefined,
+            couchMaxPlayers: supportsLocalCouch ? couchMaxPlayers : undefined,
+            lanMaxPlayers: supportsLocalLAN ? lanMaxPlayers : undefined,
         };
     }
     

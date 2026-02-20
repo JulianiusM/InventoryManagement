@@ -6,6 +6,9 @@
  * - For singleplayer-only games (no modes enabled): null = implied 1 player
  * - For multiplayer games: null = we don't know the actual player count
  * - This distinction is critical for accurate search functionality
+ * 
+ * When a mode is disabled, any associated player counts are silently cleared
+ * (the mode flag takes precedence over orphaned counts).
  */
 
 export interface PlayerProfile {
@@ -13,13 +16,16 @@ export interface PlayerProfile {
     overallMinPlayers?: number | null;
     overallMaxPlayers?: number | null;
     supportsOnline: boolean;
-    supportsLocal: boolean;
+    supportsLocalCouch: boolean;
+    supportsLocalLAN: boolean;
     supportsPhysical: boolean;
     // Mode-specific counts - null means "unknown for this mode"
     onlineMinPlayers?: number | null;
     onlineMaxPlayers?: number | null;
-    localMinPlayers?: number | null;
-    localMaxPlayers?: number | null;
+    couchMinPlayers?: number | null;
+    couchMaxPlayers?: number | null;
+    lanMinPlayers?: number | null;
+    lanMaxPlayers?: number | null;
     physicalMinPlayers?: number | null;
     physicalMaxPlayers?: number | null;
 }
@@ -39,14 +45,13 @@ function isDefined<T>(value: T | null | undefined): value is T {
 }
 
 /**
- * Validate player profile data
+ * Normalize player profile data.
  * 
- * Player counts can be null (meaning "unknown"):
- * - null overall counts are valid - they indicate we don't know the player count
- * - For singleplayer-only games, null = implied 1 player
- * - For multiplayer games, null = unknown (UI will show warning)
+ * - Silently clears mode-specific player counts when the mode is not supported
+ *   (the supported flag takes precedence).
+ * - Validates remaining data for consistency (min/max relationships, positive values).
  * 
- * @throws PlayerProfileValidationError if validation fails
+ * @throws PlayerProfileValidationError if data is invalid
  */
 export function validatePlayerProfile(profile: PlayerProfile): void {
     // Validate overall player counts (only if provided)
@@ -64,7 +69,7 @@ export function validatePlayerProfile(profile: PlayerProfile): void {
         }
     }
     
-    // Validate online mode
+    // For each mode: if supported, validate counts; if not, silently clear counts
     if (profile.supportsOnline) {
         validateModePlayerCounts(
             'Online',
@@ -74,34 +79,36 @@ export function validatePlayerProfile(profile: PlayerProfile): void {
             profile.overallMaxPlayers
         );
     } else {
-        // If mode not supported, mode min/max must be null/absent
-        if (isDefined(profile.onlineMinPlayers)) {
-            throw new PlayerProfileValidationError('Online min players must be null when online is not supported');
-        }
-        if (isDefined(profile.onlineMaxPlayers)) {
-            throw new PlayerProfileValidationError('Online max players must be null when online is not supported');
-        }
+        profile.onlineMinPlayers = null;
+        profile.onlineMaxPlayers = null;
     }
     
-    // Validate local mode
-    if (profile.supportsLocal) {
+    if (profile.supportsLocalCouch) {
         validateModePlayerCounts(
-            'Local',
-            profile.localMinPlayers,
-            profile.localMaxPlayers,
+            'Couch',
+            profile.couchMinPlayers,
+            profile.couchMaxPlayers,
             profile.overallMinPlayers,
             profile.overallMaxPlayers
         );
     } else {
-        if (isDefined(profile.localMinPlayers)) {
-            throw new PlayerProfileValidationError('Local min players must be null when local is not supported');
-        }
-        if (isDefined(profile.localMaxPlayers)) {
-            throw new PlayerProfileValidationError('Local max players must be null when local is not supported');
-        }
+        profile.couchMinPlayers = null;
+        profile.couchMaxPlayers = null;
     }
     
-    // Validate physical mode
+    if (profile.supportsLocalLAN) {
+        validateModePlayerCounts(
+            'LAN',
+            profile.lanMinPlayers,
+            profile.lanMaxPlayers,
+            profile.overallMinPlayers,
+            profile.overallMaxPlayers
+        );
+    } else {
+        profile.lanMinPlayers = null;
+        profile.lanMaxPlayers = null;
+    }
+    
     if (profile.supportsPhysical) {
         validateModePlayerCounts(
             'Physical',
@@ -111,12 +118,8 @@ export function validatePlayerProfile(profile: PlayerProfile): void {
             profile.overallMaxPlayers
         );
     } else {
-        if (isDefined(profile.physicalMinPlayers)) {
-            throw new PlayerProfileValidationError('Physical min players must be null when physical is not supported');
-        }
-        if (isDefined(profile.physicalMaxPlayers)) {
-            throw new PlayerProfileValidationError('Physical max players must be null when physical is not supported');
-        }
+        profile.physicalMinPlayers = null;
+        profile.physicalMaxPlayers = null;
     }
 }
 
@@ -172,7 +175,7 @@ function validateModePlayerCounts(
  */
 export function getEffectivePlayerCounts(
     profile: PlayerProfile,
-    mode: 'online' | 'local' | 'physical'
+    mode: 'online' | 'couch' | 'lan' | 'physical'
 ): {min: number | null; max: number | null} | null {
     switch (mode) {
         case 'online':
@@ -181,11 +184,17 @@ export function getEffectivePlayerCounts(
                 min: profile.onlineMinPlayers ?? profile.overallMinPlayers ?? null,
                 max: profile.onlineMaxPlayers ?? profile.overallMaxPlayers ?? null,
             };
-        case 'local':
-            if (!profile.supportsLocal) return null;
+        case 'couch':
+            if (!profile.supportsLocalCouch) return null;
             return {
-                min: profile.localMinPlayers ?? profile.overallMinPlayers ?? null,
-                max: profile.localMaxPlayers ?? profile.overallMaxPlayers ?? null,
+                min: profile.couchMinPlayers ?? profile.overallMinPlayers ?? null,
+                max: profile.couchMaxPlayers ?? profile.overallMaxPlayers ?? null,
+            };
+        case 'lan':
+            if (!profile.supportsLocalLAN) return null;
+            return {
+                min: profile.lanMinPlayers ?? profile.overallMinPlayers ?? null,
+                max: profile.lanMaxPlayers ?? profile.overallMaxPlayers ?? null,
             };
         case 'physical':
             if (!profile.supportsPhysical) return null;

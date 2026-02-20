@@ -37,11 +37,12 @@ describe('GameValidationService', () => {
                 overallMinPlayers: 1,
                 overallMaxPlayers: 4,
                 supportsOnline: false,
-                supportsLocal: false,
+                supportsLocalCouch: false, supportsLocalLAN: false,
                 supportsPhysical: false,
             };
             expect(getEffectivePlayerCounts(profile, 'online')).toBeNull();
-            expect(getEffectivePlayerCounts(profile, 'local')).toBeNull();
+            expect(getEffectivePlayerCounts(profile, 'couch')).toBeNull();
+            expect(getEffectivePlayerCounts(profile, 'lan')).toBeNull();
             expect(getEffectivePlayerCounts(profile, 'physical')).toBeNull();
         });
 
@@ -50,11 +51,11 @@ describe('GameValidationService', () => {
                 overallMinPlayers: 1,
                 overallMaxPlayers: 8,
                 supportsOnline: true,
-                supportsLocal: true,
+                supportsLocalCouch: true, supportsLocalLAN: false,
                 supportsPhysical: false,
             };
             expect(getEffectivePlayerCounts(profile, 'online')).toEqual({min: 1, max: 8});
-            expect(getEffectivePlayerCounts(profile, 'local')).toEqual({min: 1, max: 8});
+            expect(getEffectivePlayerCounts(profile, 'couch')).toEqual({min: 1, max: 8});
         });
 
         test('uses mode-specific values when provided', () => {
@@ -62,17 +63,17 @@ describe('GameValidationService', () => {
                 overallMinPlayers: 1,
                 overallMaxPlayers: 16,
                 supportsOnline: true,
-                supportsLocal: true,
+                supportsLocalCouch: true, supportsLocalLAN: false,
                 supportsPhysical: true,
                 onlineMinPlayers: 2,
                 onlineMaxPlayers: 16,
-                localMinPlayers: 1,
-                localMaxPlayers: 4,
+                couchMinPlayers: 1,
+                couchMaxPlayers: 4,
                 physicalMinPlayers: 3,
                 physicalMaxPlayers: 10,
             };
             expect(getEffectivePlayerCounts(profile, 'online')).toEqual({min: 2, max: 16});
-            expect(getEffectivePlayerCounts(profile, 'local')).toEqual({min: 1, max: 4});
+            expect(getEffectivePlayerCounts(profile, 'couch')).toEqual({min: 1, max: 4});
             expect(getEffectivePlayerCounts(profile, 'physical')).toEqual({min: 3, max: 10});
         });
     });

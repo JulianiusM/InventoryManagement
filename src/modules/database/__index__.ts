@@ -16,9 +16,10 @@ import { Session } from "./entities/session/Session";
 import { SimilarTitlePair } from "./entities/similarTitlePair/SimilarTitlePair";
 import { SyncJob } from "./entities/syncJob/SyncJob";
 import { User } from "./entities/user/User";
+import { SplitLocalMultiplayerModes1740000000000 } from "../../migrations/1740000000000-SplitLocalMultiplayerModes";
 
 export const entities = [Barcode, ConnectorDevice, ExternalAccount, ExternalLibraryEntry, GameExternalMapping, GameRelease, GameTitle, Item, ItemMovement, Loan, Location, Party, Platform, Session, SimilarTitlePair, SyncJob, User];
 
-export const migrations = [];
+export const migrations = [SplitLocalMultiplayerModes1740000000000];
 
 export const subscribers = [];

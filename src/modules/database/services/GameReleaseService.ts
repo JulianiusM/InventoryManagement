@@ -16,12 +16,15 @@ export interface CreateGameReleaseData {
     playersOverrideMax?: number | null;
     // Mode-specific overrides
     overrideSupportsOnline?: boolean | null;
-    overrideSupportsLocal?: boolean | null;
+    overrideSupportsLocalCouch?: boolean | null;
+    overrideSupportsLocalLAN?: boolean | null;
     overrideSupportsPhysical?: boolean | null;
     overrideOnlineMin?: number | null;
     overrideOnlineMax?: number | null;
-    overrideLocalMin?: number | null;
-    overrideLocalMax?: number | null;
+    overrideCouchMin?: number | null;
+    overrideCouchMax?: number | null;
+    overrideLanMin?: number | null;
+    overrideLanMax?: number | null;
     overridePhysicalMin?: number | null;
     overridePhysicalMax?: number | null;
     ownerId: number;
@@ -39,12 +42,15 @@ export async function createGameRelease(data: CreateGameReleaseData): Promise<Ga
     release.playersOverrideMax = data.playersOverrideMax ?? null;
     // Mode-specific overrides
     release.overrideSupportsOnline = data.overrideSupportsOnline ?? null;
-    release.overrideSupportsLocal = data.overrideSupportsLocal ?? null;
+    release.overrideSupportsLocalCouch = data.overrideSupportsLocalCouch ?? null;
+    release.overrideSupportsLocalLAN = data.overrideSupportsLocalLAN ?? null;
     release.overrideSupportsPhysical = data.overrideSupportsPhysical ?? null;
     release.overrideOnlineMin = data.overrideOnlineMin ?? null;
     release.overrideOnlineMax = data.overrideOnlineMax ?? null;
-    release.overrideLocalMin = data.overrideLocalMin ?? null;
-    release.overrideLocalMax = data.overrideLocalMax ?? null;
+    release.overrideCouchMin = data.overrideCouchMin ?? null;
+    release.overrideCouchMax = data.overrideCouchMax ?? null;
+    release.overrideLanMin = data.overrideLanMin ?? null;
+    release.overrideLanMax = data.overrideLanMax ?? null;
     release.overridePhysicalMin = data.overridePhysicalMin ?? null;
     release.overridePhysicalMax = data.overridePhysicalMax ?? null;
     release.owner = {id: data.ownerId} as User;

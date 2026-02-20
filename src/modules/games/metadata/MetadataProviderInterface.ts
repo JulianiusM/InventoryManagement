@@ -122,10 +122,12 @@ export interface GameMetadata {
         overallMinPlayers?: number;
         overallMaxPlayers?: number;
         supportsOnline?: boolean;
-        supportsLocal?: boolean;
+        supportsLocalCouch?: boolean;
+        supportsLocalLAN?: boolean;
         supportsPhysical?: boolean;
         onlineMaxPlayers?: number;
-        localMaxPlayers?: number;
+        couchMaxPlayers?: number;
+        lanMaxPlayers?: number;
         physicalMaxPlayers?: number;
     };
     
@@ -326,7 +328,8 @@ export function mergePlayerCounts(
         ...existing,
         overallMaxPlayers: enrichment.overallMaxPlayers ?? existing.overallMaxPlayers,
         onlineMaxPlayers: enrichment.onlineMaxPlayers ?? existing.onlineMaxPlayers,
-        localMaxPlayers: enrichment.localMaxPlayers ?? existing.localMaxPlayers,
+        couchMaxPlayers: enrichment.couchMaxPlayers ?? existing.couchMaxPlayers,
+        lanMaxPlayers: enrichment.lanMaxPlayers ?? existing.lanMaxPlayers,
         physicalMaxPlayers: enrichment.physicalMaxPlayers ?? existing.physicalMaxPlayers,
     };
 }

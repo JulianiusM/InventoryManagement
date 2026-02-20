@@ -47,8 +47,11 @@ export class GameRelease {
     @Column("boolean", {name: "override_supports_online", nullable: true})
     overrideSupportsOnline?: boolean | null;
 
-    @Column("boolean", {name: "override_supports_local", nullable: true})
-    overrideSupportsLocal?: boolean | null;
+    @Column("boolean", {name: "override_supports_local_couch", nullable: true})
+    overrideSupportsLocalCouch?: boolean | null;
+
+    @Column("boolean", {name: "override_supports_local_lan", nullable: true})
+    overrideSupportsLocalLAN?: boolean | null;
 
     @Column("boolean", {name: "override_supports_physical", nullable: true})
     overrideSupportsPhysical?: boolean | null;
@@ -59,11 +62,17 @@ export class GameRelease {
     @Column("int", {name: "override_online_max", nullable: true})
     overrideOnlineMax?: number | null;
 
-    @Column("int", {name: "override_local_min", nullable: true})
-    overrideLocalMin?: number | null;
+    @Column("int", {name: "override_couch_min", nullable: true})
+    overrideCouchMin?: number | null;
 
-    @Column("int", {name: "override_local_max", nullable: true})
-    overrideLocalMax?: number | null;
+    @Column("int", {name: "override_couch_max", nullable: true})
+    overrideCouchMax?: number | null;
+
+    @Column("int", {name: "override_lan_min", nullable: true})
+    overrideLanMin?: number | null;
+
+    @Column("int", {name: "override_lan_max", nullable: true})
+    overrideLanMax?: number | null;
 
     @Column("int", {name: "override_physical_min", nullable: true})
     overridePhysicalMin?: number | null;

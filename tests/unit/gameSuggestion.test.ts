@@ -48,7 +48,7 @@ describe('GameSuggestionController', () => {
             overallMinPlayers: 1,
             overallMaxPlayers: 4,
             supportsOnline: true,
-            supportsLocal: false,
+            supportsLocalCouch: false, supportsLocalLAN: false,
             supportsPhysical: false,
         };
 
@@ -112,18 +112,14 @@ describe('GameSuggestionController', () => {
             (gameSuggestionService.getRandomGameSuggestion as jest.Mock).mockResolvedValue(mockGameTitle);
 
             const formData: SuggestionFormData = {
-                includeOnline: 'require',
-                includeLocal: 'exclude',
-                includePhysical: 'any',
+                selectedModes: ['online', 'couch'],
             };
 
             await getGameSuggestion(formData, TEST_USER_ID);
 
             expect(gameSuggestionService.getRandomGameSuggestion).toHaveBeenCalledWith(
                 expect.objectContaining({
-                    includeOnline: true,
-                    includeLocal: false,
-                    includePhysical: undefined,
+                    selectedModes: ['online', 'couch'],
                 })
             );
         });
@@ -185,10 +181,50 @@ describe('GameSuggestionController', () => {
                     playerCount: undefined,
                     includePlatforms: undefined,
                     excludePlatforms: undefined,
-                    includeOnline: undefined,
-                    includeLocal: undefined,
-                    includePhysical: undefined,
+                    selectedModes: undefined,
+                    modeWeights: undefined,
                     gameTypes: undefined,
+                })
+            );
+        });
+
+        it('should parse mode weights from form data', async () => {
+            (gameSuggestionService.getRandomGameSuggestion as jest.Mock).mockResolvedValue(mockGameTitle);
+
+            const formData: SuggestionFormData = {
+                selectedModes: ['couch', 'physical'],
+                modeWeight_couch: '75',
+                modeWeight_physical: '25',
+            };
+
+            await getGameSuggestion(formData, TEST_USER_ID);
+
+            expect(gameSuggestionService.getRandomGameSuggestion).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    selectedModes: ['couch', 'physical'],
+                    modeWeights: [
+                        {mode: 'couch', weight: 75},
+                        {mode: 'physical', weight: 25},
+                    ],
+                })
+            );
+        });
+
+        it('should ignore invalid mode weights', async () => {
+            (gameSuggestionService.getRandomGameSuggestion as jest.Mock).mockResolvedValue(mockGameTitle);
+
+            const formData: SuggestionFormData = {
+                selectedModes: ['online'],
+                modeWeight_online: 'invalid',
+                modeWeight_couch: '0',
+            };
+
+            await getGameSuggestion(formData, TEST_USER_ID);
+
+            expect(gameSuggestionService.getRandomGameSuggestion).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    selectedModes: ['online'],
+                    modeWeights: undefined,
                 })
             );
         });

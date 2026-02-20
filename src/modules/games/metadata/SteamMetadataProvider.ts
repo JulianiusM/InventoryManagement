@@ -363,6 +363,7 @@ export class SteamMetadataProvider extends BaseMetadataProvider {
         const isMultiplayer = categoryIds.has(1) || categoryIds.has(9) || categoryIds.has(20) || categoryIds.has(49);
         const hasOnline = categoryIds.has(36) || categoryIds.has(38) || categoryIds.has(27) || categoryIds.has(20);
         const hasLocal = categoryIds.has(24) || categoryIds.has(37) || categoryIds.has(39);
+        const hasLAN = categoryIds.has(47) || categoryIds.has(48);
         
         // Steam doesn't provide exact player counts - only capabilities
         // We only set overallMaxPlayers=1 for single-player-only games
@@ -379,11 +380,13 @@ export class SteamMetadataProvider extends BaseMetadataProvider {
             overallMinPlayers: 1,
             overallMaxPlayers,
             supportsOnline: hasOnline,
-            supportsLocal: hasLocal,
+            supportsLocalCouch: hasLocal,
+            supportsLocalLAN: hasLAN,
             // Don't set specific player counts - Steam doesn't provide this data
             // IGDB or other providers should be used for accurate counts
             onlineMaxPlayers: undefined,
-            localMaxPlayers: undefined,
+            couchMaxPlayers: undefined,
+            lanMaxPlayers: undefined,
         };
     }
 

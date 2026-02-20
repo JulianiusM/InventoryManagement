@@ -9,13 +9,13 @@ block content
     - const platforms = (data && data.platforms) ? data.platforms : []
     - const gameTypes = (data && data.gameTypes) ? data.gameTypes : []
     - const typeLabels = {video_game: 'Video Game', board_game: 'Board Game', card_game: 'Card Game', tabletop_rpg: 'Tabletop RPG', other_physical_game: 'Other Physical'}
+    - const modeLabels = {online: 'Online', couch: 'Couch Co-op', lan: 'LAN / Multi-Device', physical: 'Physical'}
+    - const selectedModesArray = criteria.selectedModes ? (Array.isArray(criteria.selectedModes) ? criteria.selectedModes : [criteria.selectedModes]) : []
     
     //- Build query string for "Change Criteria" link
     - const queryParams = [];
     - if (criteria.playerCount) queryParams.push(`playerCount=${encodeURIComponent(criteria.playerCount)}`);
-    - if (criteria.includeOnline && criteria.includeOnline !== 'any') queryParams.push(`includeOnline=${encodeURIComponent(criteria.includeOnline)}`);
-    - if (criteria.includeLocal && criteria.includeLocal !== 'any') queryParams.push(`includeLocal=${encodeURIComponent(criteria.includeLocal)}`);
-    - if (criteria.includePhysical && criteria.includePhysical !== 'any') queryParams.push(`includePhysical=${encodeURIComponent(criteria.includePhysical)}`);
+    - selectedModesArray.forEach(m => queryParams.push(`selectedModes=${encodeURIComponent(m)}`));
     - if (criteria.includePlatforms) {
         - const includePlatformsArray = Array.isArray(criteria.includePlatforms) ? criteria.includePlatforms : [criteria.includePlatforms];
         - includePlatformsArray.forEach(p => queryParams.push(`includePlatforms=${encodeURIComponent(p)}`));
@@ -67,7 +67,7 @@ block content
                                         span.badge.text-bg-secondary.me-2
                                             i.bi.bi-people.me-1
                                             | #{suggestion.overallMinPlayers || 1}-#{suggestion.overallMaxPlayers} players
-                                    else if suggestion.supportsOnline || suggestion.supportsLocal || suggestion.supportsPhysical
+                                    else if suggestion.supportsOnline || suggestion.supportsLocalCouch || suggestion.supportsLocalLAN || suggestion.supportsPhysical
                                         span.badge.text-bg-warning.text-dark.me-2
                                             i.bi.bi-people.me-1
                                             i.bi.bi-exclamation-triangle.me-1
@@ -83,10 +83,14 @@ block content
                                         span.badge.text-bg-primary.me-2
                                             i.bi.bi-globe.me-1
                                             | Online
-                                    if suggestion.supportsLocal
+                                    if suggestion.supportsLocalCouch
                                         span.badge.text-bg-success.me-2
                                             i.bi.bi-display.me-1
-                                            | Local
+                                            | Couch Co-op
+                                    if suggestion.supportsLocalLAN
+                                        span.badge.text-bg-info.me-2
+                                            i.bi.bi-hdd-network.me-1
+                                            | LAN
                                     if suggestion.supportsPhysical
                                         span.badge.text-bg-warning.text-dark.me-2
                                             i.bi.bi-dice-5.me-1
@@ -111,12 +115,13 @@ block content
                                 //- Preserve criteria
                                 if criteria.playerCount
                                     input(type="hidden" name="playerCount" value=criteria.playerCount)
-                                if criteria.includeOnline
-                                    input(type="hidden" name="includeOnline" value=criteria.includeOnline)
-                                if criteria.includeLocal
-                                    input(type="hidden" name="includeLocal" value=criteria.includeLocal)
-                                if criteria.includePhysical
-                                    input(type="hidden" name="includePhysical" value=criteria.includePhysical)
+                                each mode in selectedModesArray
+                                    input(type="hidden" name="selectedModes" value=mode)
+                                //- Preserve mode weights
+                                - const modeWeightKeys = ['online','couch','lan','physical']
+                                each m in modeWeightKeys
+                                    if criteria['modeWeight_' + m]
+                                        input(type="hidden" name=`modeWeight_${m}` value=criteria['modeWeight_' + m])
                                 if criteria.includePlatforms
                                     - const includePlatformsArray = Array.isArray(criteria.includePlatforms) ? criteria.includePlatforms : [criteria.includePlatforms]
                                     each platform in includePlatformsArray
@@ -154,21 +159,11 @@ block content
                                     i.bi.bi-people.me-2
                                     strong Player count:
                                     |  #{criteria.playerCount}
-                            if criteria.includeOnline
+                            if selectedModesArray.length > 0
                                 p.mb-1.small
-                                    i.bi.bi-globe.me-2
-                                    strong Online:
-                                    |  #{criteria.includeOnline === 'require' ? 'Required' : (criteria.includeOnline === 'exclude' ? 'Excluded' : 'Any')}
-                            if criteria.includeLocal
-                                p.mb-1.small
-                                    i.bi.bi-display.me-2
-                                    strong Local:
-                                    |  #{criteria.includeLocal === 'require' ? 'Required' : (criteria.includeLocal === 'exclude' ? 'Excluded' : 'Any')}
-                            if criteria.includePhysical
-                                p.mb-1.small
-                                    i.bi.bi-dice-5.me-2
-                                    strong Physical:
-                                    |  #{criteria.includePhysical === 'require' ? 'Required' : (criteria.includePhysical === 'exclude' ? 'Excluded' : 'Any')}
+                                    i.bi.bi-controller.me-2
+                                    strong Game modes:
+                                    |  #{selectedModesArray.map(m => modeLabels[m] || m).join(', ')}
                             if criteria.includePlatforms
                                 - const includePlatformsArray = Array.isArray(criteria.includePlatforms) ? criteria.includePlatforms : [criteria.includePlatforms]
                                 if includePlatformsArray.length > 0
