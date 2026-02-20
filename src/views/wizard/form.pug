@@ -448,7 +448,7 @@ block scripts
             });
 
             // Draft persistence via localStorage
-            var draftKey = 'wizard_draft_' + '#{entityType}';
+            var draftKey = 'wizard_draft_' + !{JSON.stringify(entityType)};
             function saveDraft() {
                 var data = {};
                 var inputs = form.querySelectorAll('input, select, textarea');
