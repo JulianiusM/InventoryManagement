@@ -12,23 +12,20 @@ Welcome to the Inventory Management documentation. This directory contains compr
 - **[ARCHITECTURE.md](ARCHITECTURE.md)** - System architecture and design
 
 #### Development Guides
-- **[CODING_STANDARDS.md](CODING_STANDARDS.md)** - TypeScript, code style, and best practices
-- **[DATABASE.md](DATABASE.md)** - Database entities, migrations, and patterns
 - **[CONFIGURATION.md](CONFIGURATION.md)** - Configuration management and settings
-- **[FRONTEND.md](FRONTEND.md)** - Frontend architecture and modular structure
 - **[UI_REDESIGN_SUMMARY.md](UI_REDESIGN_SUMMARY.md)** - UI redesign documentation and patterns
 - **[UX_IMPROVEMENTS_2026_01.md](UX_IMPROVEMENTS_2026_01.md)** - UX improvements and bug fixes (January 2026)
 
+#### Games Module
+- **[GAMES_MODULE_REVIEW.md](GAMES_MODULE_REVIEW.md)** - Games module architecture review
+- **[GAME_SUGGESTION.md](GAME_SUGGESTION.md)** - Game suggestion feature documentation
+- **[ACTIVITY_REQUIREMENTS_ALGORITHM.md](ACTIVITY_REQUIREMENTS_ALGORITHM.md)** - Activity shift requirement algorithm
+
 #### Testing
-- **[TESTING_GUIDE.md](TESTING_GUIDE.md)** - Complete testing guide (data-driven & keyword-driven)
+- **[../TESTING.md](../TESTING.md)** - Complete testing guide (data-driven & keyword-driven)
 - **[TEST_REVIEW.md](TEST_REVIEW.md)** - Comprehensive test suite review
 - **[TEST_RECOMMENDATIONS.md](TEST_RECOMMENDATIONS.md)** - Test improvement recommendations
 - **[FRONTEND_TESTING.md](FRONTEND_TESTING.md)** - Frontend testing with MSW and Testing Library
-
-#### Maintenance
-- **[CI_CD.md](CI_CD.md)** - CI/CD pipeline and GitHub Actions
-- **[DEPLOYMENT.md](DEPLOYMENT.md)** - Deployment procedures and configuration
-- **[TROUBLESHOOTING.md](TROUBLESHOOTING.md)** - Common issues and solutions
 
 ### 🤖 For AI Agents
 
@@ -39,29 +36,20 @@ Welcome to the Inventory Management documentation. This directory contains compr
 ### 👥 For End Users
 
 - **[user-guide/README.md](user-guide/README.md)** - Complete user guide for the inventory management app
+- **[user-guide/GAMES.md](user-guide/GAMES.md)** - Games module user guide
 
 ### 📋 Reference
 
-- **[API.md](API.md)** - API endpoints and usage
-- **[PERMISSIONS.md](PERMISSIONS.md)** - Permission system documentation
-- **[CHANGELOG.md](CHANGELOG.md)** - Version history and changes
-
-### 📦 Archive
-
-Historical and deprecated documentation:
-- **[archive/REFACTORING_SUMMARY.md](archive/REFACTORING_SUMMARY.md)** - Test refactoring history
-- **[archive/TESTING_INFRASTRUCTURE.md](archive/TESTING_INFRASTRUCTURE.md)** - Original testing infrastructure docs
+- **[HOUSEKEEPING_SUMMARY.md](HOUSEKEEPING_SUMMARY.md)** - Previous housekeeping summary
 
 ## Quick Links
 
 ### I want to...
 
 - **Set up my development environment** → [../README.md](../README.md)
-- **Write tests** → [TESTING_GUIDE.md](TESTING_GUIDE.md)
+- **Write tests** → [../TESTING.md](../TESTING.md)
 - **Understand the codebase** → [ARCHITECTURE.md](ARCHITECTURE.md)
-- **Create a database migration** → [DATABASE.md](DATABASE.md)
 - **Add a new feature** → [DEVELOPMENT.md](DEVELOPMENT.md)
-- **Deploy the application** → [DEPLOYMENT.md](DEPLOYMENT.md)
 - **Use as AI agent** → [../AGENTS.md](../AGENTS.md)
 - **Learn to use the app** → [user-guide/README.md](user-guide/README.md)
 
@@ -89,17 +77,14 @@ When adding or updating documentation:
 
 | Document | Owner | Update Frequency |
 |----------|-------|------------------|
-| TESTING_GUIDE.md | Test team | With test changes |
+| TESTING.md | Test team | With test changes |
 | ARCHITECTURE.md | Tech lead | With major changes |
 | User guides | Product team | With feature releases |
-| API.md | Backend team | With API changes |
-| CI_CD.md | DevOps team | With pipeline changes |
 
 ## Getting Help
 
-- **Questions about code?** Check [ARCHITECTURE.md](ARCHITECTURE.md) or [TROUBLESHOOTING.md](TROUBLESHOOTING.md)
-- **Questions about tests?** Check [TESTING_GUIDE.md](TESTING_GUIDE.md)
-- **Questions about deployment?** Check [DEPLOYMENT.md](DEPLOYMENT.md)
+- **Questions about code?** Check [ARCHITECTURE.md](ARCHITECTURE.md)
+- **Questions about tests?** Check [../TESTING.md](../TESTING.md)
 - **Questions about features?** Check [user-guide/](user-guide/)
 
 ## Contributing to Documentation
@@ -108,5 +93,5 @@ See [DEVELOPMENT.md](DEVELOPMENT.md) for guidelines on contributing documentatio
 
 ---
 
-**Last Updated:** December 10, 2025  
-**Version:** 1.0
+**Last Updated:** February 2026  
+**Version:** 1.1

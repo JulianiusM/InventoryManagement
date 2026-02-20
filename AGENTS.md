@@ -26,7 +26,7 @@ Inventory Management is a TypeScript-based item cataloging and tracking applicat
    - [README.md](README.md) - Project setup and quick start
    - [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) - System architecture and design
    - [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md) - Development workflow and guidelines
-   - [docs/TESTING_GUIDE.md](docs/TESTING_GUIDE.md) - Comprehensive testing guide
+   - [TESTING.md](TESTING.md) - Comprehensive testing guide
    - [.github/copilot-instructions.md](.github/copilot-instructions.md) - GitHub Copilot-specific instructions
 
 2. **Understand the documentation structure**:
@@ -38,7 +38,7 @@ Inventory Management is a TypeScript-based item cataloging and tracking applicat
    - All tests use **data-driven** and **keyword-driven** patterns
    - Test data externalized to `tests/data/`
    - Reusable keywords in `tests/keywords/`
-   - See [docs/TESTING_GUIDE.md](docs/TESTING_GUIDE.md) for comprehensive patterns
+   - See [TESTING.md](TESTING.md) for comprehensive patterns
    - Test quality is excellent (see [docs/TEST_REVIEW.md](docs/TEST_REVIEW.md))
 
 4. **Follow the conventions**:
@@ -70,11 +70,9 @@ inventory-management/
 │   ├── README.md            # Documentation index
 │   ├── ARCHITECTURE.md      # System architecture
 │   ├── DEVELOPMENT.md       # Development guide
-│   ├── TESTING_GUIDE.md     # Testing documentation
 │   ├── TEST_REVIEW.md       # Test quality review
 │   ├── FRONTEND_TESTING.md  # Frontend testing guide
-│   ├── user-guide/          # End-user documentation
-│   └── archive/             # Historical documents
+│   └── user-guide/          # End-user documentation
 ├── src/
 │   ├── controller/      # Business logic controllers
 │   ├── middleware/      # Express middleware
@@ -412,7 +410,7 @@ See [.github/copilot-instructions.md](.github/copilot-instructions.md) for Copil
 This file serves as the primary guide. Read it along with:
 - [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for system design
 - [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md) for development workflow
-- [docs/TESTING_GUIDE.md](docs/TESTING_GUIDE.md) for testing patterns
+- [TESTING.md](TESTING.md) for testing patterns
 - Existing code for implementation examples
 
 ## Documentation Structure
@@ -423,7 +421,7 @@ Inventory Management has comprehensive, well-organized documentation:
 - **[docs/README.md](docs/README.md)** - Documentation navigation
 - **[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)** - System architecture
 - **[docs/DEVELOPMENT.md](docs/DEVELOPMENT.md)** - Development workflow
-- **[docs/TESTING_GUIDE.md](docs/TESTING_GUIDE.md)** - Testing documentation
+- **[TESTING.md](TESTING.md)** - Testing documentation
 - **[docs/TEST_REVIEW.md](docs/TEST_REVIEW.md)** - Test quality review (⭐⭐⭐⭐⭐)
 - **[docs/FRONTEND_TESTING.md](docs/FRONTEND_TESTING.md)** - Frontend testing
 

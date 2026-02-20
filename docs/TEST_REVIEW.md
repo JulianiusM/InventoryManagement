@@ -7,7 +7,7 @@
 
 ## Executive Summary
 
-The Surveyor test suite demonstrates **excellent practices** with comprehensive coverage across all testing layers. The tests follow modern data-driven and keyword-driven testing patterns, resulting in maintainable, reusable, and highly readable test code.
+The Inventory Management test suite demonstrates **excellent practices** with comprehensive coverage across all testing layers. The tests follow modern data-driven and keyword-driven testing patterns, resulting in maintainable, reusable, and highly readable test code.
 
 ### Overall Assessment: ⭐⭐⭐⭐⭐ (5/5)
 
@@ -572,7 +572,7 @@ The test suite follows the testing pyramid principle:
 
 ### Overall Rating: ⭐⭐⭐⭐⭐ (Exceptional)
 
-The Surveyor test suite represents **best-in-class testing practices** and serves as an excellent model for other projects. The consistent application of data-driven and keyword-driven testing patterns results in a highly maintainable, readable, and comprehensive test suite.
+The Inventory Management test suite represents **best-in-class testing practices** and serves as an excellent model for other projects. The consistent application of data-driven and keyword-driven testing patterns results in a highly maintainable, readable, and comprehensive test suite.
 
 ### Key Achievements:
 - ✅ Comprehensive coverage across all application layers

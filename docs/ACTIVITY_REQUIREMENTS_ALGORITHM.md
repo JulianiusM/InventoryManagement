@@ -1,6 +1,6 @@
 # Activity shift requirement algorithm
 
-This document describes how Surveyor derives required shift counts for each participant based on slot demand, attendance, and configured rules. The logic is implemented in `src/modules/activity/requirements.ts` and reused by the requirements UI, baseline calculator, and recommendation engine.
+This document describes how Inventory Management derives required shift counts for each participant based on slot demand, attendance, and configured rules. The logic is implemented in `src/modules/activity/requirements.ts` and reused by the requirements UI, baseline calculator, and recommendation engine.
 
 ## Goals
 

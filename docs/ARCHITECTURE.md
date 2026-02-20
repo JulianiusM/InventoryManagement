@@ -476,7 +476,7 @@ verifyResult(result, testCase.expected);
 - **Frontend tests**: Test client code with MSW (no backend)
 - **E2E tests**: Test complete workflows with Playwright
 
-See [TESTING_GUIDE.md](TESTING_GUIDE.md) for comprehensive testing documentation.
+See [TESTING.md](../TESTING.md) for comprehensive testing documentation.
 
 ---
 
@@ -791,10 +791,9 @@ If requirements grow:
 
 ## Documentation Links
 
-- **Testing**: [TESTING_GUIDE.md](TESTING_GUIDE.md)
+- **Testing**: [TESTING.md](../TESTING.md)
 - **Development**: [DEVELOPMENT.md](DEVELOPMENT.md)
 - **Frontend Testing**: [FRONTEND_TESTING.md](FRONTEND_TESTING.md)
-- **Database**: [DATABASE.md](DATABASE.md)
 
 ---
 

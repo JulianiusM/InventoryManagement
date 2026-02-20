@@ -5,7 +5,7 @@
 
 ## Overview
 
-While the Surveyor test suite is excellent and represents best-in-class practices, this document provides recommendations for continued improvement and maintenance of test quality.
+While the Inventory Management test suite is excellent and represents best-in-class practices, this document provides recommendations for continued improvement and maintenance of test quality.
 
 ---
 
@@ -565,7 +565,7 @@ Track these metrics over time:
 
 ### Current State: Excellent ✅
 
-The Surveyor test suite is in excellent condition and represents best-in-class testing practices. The recommendations in this document are primarily for continued excellence and future enhancements, not for fixing deficiencies.
+The Inventory Management test suite is in excellent condition and represents best-in-class testing practices. The recommendations in this document are primarily for continued excellence and future enhancements, not for fixing deficiencies.
 
 ### Priority Focus
 

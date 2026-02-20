@@ -1,6 +1,6 @@
 # Frontend Testing Guide
 
-This directory contains comprehensive frontend tests for the Surveyor application. These tests run **without a backend** and use MSW (Mock Service Worker) to intercept and mock HTTP requests.
+This directory contains comprehensive frontend tests for the Inventory Management application. These tests run **without a backend** and use MSW (Mock Service Worker) to intercept and mock HTTP requests.
 
 ## Overview
 

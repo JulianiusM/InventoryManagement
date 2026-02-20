@@ -5,7 +5,7 @@
 
 ## Overview
 
-This document summarizes the comprehensive housekeeping performed on the Surveyor repository as requested in the housekeeping issue. All four major tasks have been completed successfully.
+This document summarizes the comprehensive housekeeping performed on the Inventory Management repository as requested in the housekeeping issue. All four major tasks have been completed successfully.
 
 ---
 
@@ -97,7 +97,7 @@ docs/
 ├── README.md                    # Navigation hub
 ├── ARCHITECTURE.md              # System design (18KB)
 ├── DEVELOPMENT.md               # Workflow guide (15KB)
-├── TESTING_GUIDE.md             # Testing patterns
+├── TESTING_GUIDE.md             # Testing patterns (→ see TESTING.md in root)
 ├── FRONTEND_TESTING.md          # Frontend testing
 ├── TEST_REVIEW.md               # Quality review
 ├── TEST_RECOMMENDATIONS.md      # Improvements

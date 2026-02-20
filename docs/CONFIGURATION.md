@@ -192,4 +192,4 @@ TOKEN_EXPIRATION_MS,7200000
 
 - [Settings Module Source Code](../src/modules/settings.ts)
 - [Development Guide](DEVELOPMENT.md)
-- [Testing Guide](TESTING_GUIDE.md)
+- [Testing Guide](../TESTING.md)

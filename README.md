@@ -17,7 +17,7 @@ Comprehensive documentation is available in the [`docs/`](docs/) directory:
 - **[Getting Started Guide](docs/user-guide/GETTING_STARTED.md)** - New user onboarding
 - **[Architecture](docs/ARCHITECTURE.md)** - System design and patterns
 - **[Development Guide](docs/DEVELOPMENT.md)** - Development workflow
-- **[Testing Guide](docs/TESTING_GUIDE.md)** - Testing patterns and best practices
+- **[Testing Guide](TESTING.md)** - Testing patterns and best practices
 - **[User Guides](docs/user-guide/)** - Feature-specific documentation
 - **[AI Agent Guide](AGENTS.md)** - For AI coding assistants
 
@@ -93,7 +93,7 @@ The Inventory Management test suite uses **data-driven** and **keyword-driven** 
 - 100% pass rate
 - All layers covered (unit, controller, database, frontend, E2E)
 
-See [docs/TESTING_GUIDE.md](docs/TESTING_GUIDE.md) for comprehensive testing documentation and [docs/TEST_REVIEW.md](docs/TEST_REVIEW.md) for detailed quality review.
+See [TESTING.md](TESTING.md) for comprehensive testing documentation and [docs/TEST_REVIEW.md](docs/TEST_REVIEW.md) for detailed quality review.
 
 ### Quick Start - One-Click Test Execution
 
