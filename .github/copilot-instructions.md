@@ -13,8 +13,7 @@ For comprehensive documentation:
 - **[docs/README.md](../docs/README.md)** - Documentation index and navigation
 - **[docs/ARCHITECTURE.md](../docs/ARCHITECTURE.md)** - System architecture and design
 - **[docs/DEVELOPMENT.md](../docs/DEVELOPMENT.md)** - Development workflow
-- **[docs/TESTING_GUIDE.md](../docs/TESTING_GUIDE.md)** - Complete testing guide
-- **[docs/TEST_REVIEW.md](../docs/TEST_REVIEW.md)** - Test quality review (⭐⭐⭐⭐⭐)
+- **[TESTING.md](../TESTING.md)** - Complete testing guide
 - **[AGENTS.md](../AGENTS.md)** - General AI agent guidance
 
 ## Quick Reference

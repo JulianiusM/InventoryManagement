@@ -476,7 +476,7 @@ verifyResult(result, testCase.expected);
 - **Frontend tests**: Test client code with MSW (no backend)
 - **E2E tests**: Test complete workflows with Playwright
 
-See [TESTING_GUIDE.md](TESTING_GUIDE.md) for comprehensive testing documentation.
+See [TESTING.md](../TESTING.md) for comprehensive testing documentation.
 
 ---
 
@@ -719,85 +719,20 @@ esbuild (watch) ─────────────────────�
 
 ## Scalability Considerations
 
-### Current State: Monolith
-
 The application is currently a monolith, suitable for:
 - Small to medium user bases (< 10,000 users)
 - Single server deployment
 - Moderate traffic (< 1,000 req/min)
 
-### Future Scaling Options
-
-If needed, consider:
-
-1. **Horizontal Scaling**: Load balancer + multiple app instances
-2. **Database Optimization**: Read replicas, connection pooling
-3. **Caching Layer**: Redis for sessions and data caching
-4. **CDN**: Static assets served from CDN
-5. **Microservices**: Split by feature (if truly necessary)
-
----
-
-## Monitoring and Observability
-
-### Logging
-
-- **Winston**: Structured logging
-- **Levels**: Error, Warn, Info, Debug
-- **Destinations**: Console, Files, External service
-
-### Metrics
-
-Consider adding:
-- Response times
-- Error rates
-- Database query times
-- User activity
-
-### Health Checks
-
-```typescript
-app.get('/health', (req, res) => {
-    res.json({
-        status: 'ok',
-        database: await checkDatabase(),
-        version: process.env.npm_package_version
-    });
-});
-```
-
----
-
-## Future Architecture Considerations
-
-### Potential Improvements
-
-1. **API Layer**: Add REST or GraphQL API for mobile apps
-2. **Real-time**: WebSockets for live updates
-3. **Background Jobs**: Queue system for long-running tasks
-4. **File Storage**: S3 or similar for file uploads
-5. **Email Queue**: Asynchronous email sending
-6. **Search**: Elasticsearch for full-text search
-
-### Migration Paths
-
-If requirements grow:
-- Extract services to microservices (feature by feature)
-- Add API gateway for service orchestration
-- Implement event-driven architecture
-- Add message queue (RabbitMQ, Kafka)
-
 ---
 
 ## Documentation Links
 
-- **Testing**: [TESTING_GUIDE.md](TESTING_GUIDE.md)
+- **Testing**: [TESTING.md](../TESTING.md)
 - **Development**: [DEVELOPMENT.md](DEVELOPMENT.md)
-- **Frontend Testing**: [FRONTEND_TESTING.md](FRONTEND_TESTING.md)
-- **Database**: [DATABASE.md](DATABASE.md)
 
 ---
 
-**Last Updated:** December 10, 2025  
-**Architecture Version:** 1.0  
+**Last Updated:** February 2026  
+**Architecture Version:** 1.1  
 **Next Review:** Quarterly or with major changes

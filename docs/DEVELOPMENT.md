@@ -137,7 +137,7 @@ inventory-management/
 
 3. **Write tests:**
    - Follow data-driven and keyword-driven patterns
-   - See [TESTING_GUIDE.md](TESTING_GUIDE.md)
+   - See [TESTING.md](../TESTING.md)
 
 4. **Run tests:**
    ```bash
@@ -308,7 +308,7 @@ npm run run
 
 ## Testing
 
-See [TESTING_GUIDE.md](TESTING_GUIDE.md) for comprehensive testing documentation.
+See [TESTING.md](../TESTING.md) for comprehensive testing documentation.
 
 ### Quick Reference
 
@@ -680,7 +680,7 @@ npm run build
 ## Getting Help
 
 - **Documentation**: Check [docs/](.)
-- **Testing**: See [TESTING_GUIDE.md](TESTING_GUIDE.md)
+- **Testing**: See [TESTING.md](../TESTING.md)
 - **Architecture**: See [ARCHITECTURE.md](ARCHITECTURE.md)
 - **Issues**: Create GitHub issue with reproduction steps
 

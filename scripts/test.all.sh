@@ -44,7 +44,7 @@ for arg in "$@"; do
 done
 
 echo -e "${BLUE}╔════════════════════════════════════════════════════╗${NC}"
-echo -e "${BLUE}║     Surveyor - Complete Test Suite Setup          ║${NC}"
+echo -e "${BLUE}║     Inventory Management - Complete Test Suite Setup ║${NC}"
 echo -e "${BLUE}╚════════════════════════════════════════════════════╝${NC}"
 echo ""
 
