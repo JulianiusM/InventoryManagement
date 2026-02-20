@@ -320,6 +320,32 @@ block content
                                                 i.bi.bi-dice-3.me-1
                                                 | Physical
 
+                            //- Mode-specific player counts
+                            .col-md-3
+                                label.form-label.small.text-primary Online Min
+                                input#onlineMinPlayers.form-control.form-control-sm.text-bg-dark.border-secondary(type="number" name="onlineMinPlayers" min="1")
+                            .col-md-3
+                                label.form-label.small.text-primary Online Max
+                                input#onlineMaxPlayers.form-control.form-control-sm.text-bg-dark.border-secondary(type="number" name="onlineMaxPlayers" min="1")
+                            .col-md-3
+                                label.form-label.small.text-success Couch Min
+                                input#couchMinPlayers.form-control.form-control-sm.text-bg-dark.border-secondary(type="number" name="couchMinPlayers" min="1")
+                            .col-md-3
+                                label.form-label.small.text-success Couch Max
+                                input#couchMaxPlayers.form-control.form-control-sm.text-bg-dark.border-secondary(type="number" name="couchMaxPlayers" min="1")
+                            .col-md-3
+                                label.form-label.small.text-info LAN Min
+                                input#lanMinPlayers.form-control.form-control-sm.text-bg-dark.border-secondary(type="number" name="lanMinPlayers" min="1")
+                            .col-md-3
+                                label.form-label.small.text-info LAN Max
+                                input#lanMaxPlayers.form-control.form-control-sm.text-bg-dark.border-secondary(type="number" name="lanMaxPlayers" min="1")
+                            .col-md-3
+                                label.form-label.small.text-warning Physical Min
+                                input#physicalMinPlayers.form-control.form-control-sm.text-bg-dark.border-secondary(type="number" name="physicalMinPlayers" min="1")
+                            .col-md-3
+                                label.form-label.small.text-warning Physical Max
+                                input#physicalMaxPlayers.form-control.form-control-sm.text-bg-dark.border-secondary(type="number" name="physicalMaxPlayers" min="1")
+
             //- Step: Copy (release + copy details)
             .wizard-step.d-none(data-step="copy")
                 .card.text-bg-dark.border-secondary.mb-3
@@ -524,8 +550,6 @@ block scripts
                     // Skip physical-only fields for digital copies
                     if ((input.name === 'condition') && !isPhysicalCopy) return;
                     if ((input.name === 'barcode' || input.name === 'barcodeSymbology') && !isPhysicalCopy) return;
-                    // Skip dropdown search filter inputs
-                    if (input.getAttribute('data-search-for') !== null) return;
                     var label = form.querySelector('label[for="' + input.id + '"]');
                     var labelText = label ? label.textContent.replace('*', '').trim() : input.name;
                     // For selects, show text not value
@@ -740,6 +764,17 @@ block scripts
                                 if (pi.supportsLocalCouch) { var el = document.getElementById('supportsLocalCouch'); if (el) el.checked = true; }
                                 if (pi.supportsLocalLAN) { var el = document.getElementById('supportsLocalLAN'); if (el) el.checked = true; }
                                 if (pi.supportsPhysical) { var el = document.getElementById('supportsPhysical'); if (el) el.checked = true; }
+                                // Mode-specific player counts
+                                var modeFields = [
+                                    ['onlineMinPlayers', pi.onlineMinPlayers], ['onlineMaxPlayers', pi.onlineMaxPlayers],
+                                    ['couchMinPlayers', pi.couchMinPlayers], ['couchMaxPlayers', pi.couchMaxPlayers],
+                                    ['lanMinPlayers', pi.lanMinPlayers], ['lanMaxPlayers', pi.lanMaxPlayers],
+                                    ['physicalMinPlayers', pi.physicalMinPlayers], ['physicalMaxPlayers', pi.physicalMaxPlayers]
+                                ];
+                                modeFields.forEach(function(pair) {
+                                    var el = document.getElementById(pair[0]);
+                                    if (el && pair[1] && !el.value) el.value = pair[1];
+                                });
                             }
                         })
                         .catch(function() { /* metadata prefill failure is non-critical */ });
@@ -769,40 +804,37 @@ block scripts
                             var el = document.getElementById(id);
                             if (el) el.checked = false;
                         });
+                        // Clear mode-specific player counts
+                        ['onlineMinPlayers','onlineMaxPlayers','couchMinPlayers','couchMaxPlayers',
+                         'lanMinPlayers','lanMaxPlayers','physicalMinPlayers','physicalMaxPlayers'].forEach(function(id) {
+                            var el = document.getElementById(id);
+                            if (el) el.value = '';
+                        });
                     });
                 }
             }
 
-            // ============ Searchable dropdowns for all wizard selects ============
-            form.querySelectorAll('select.form-select').forEach(function(select) {
-                if (select.options.length < 6) return; // Only for dropdowns with 6+ options
-                var wrapper = document.createElement('div');
-                wrapper.className = 'position-relative';
-                select.parentNode.insertBefore(wrapper, select);
-                var searchInput = document.createElement('input');
-                searchInput.type = 'text';
-                searchInput.className = 'form-control form-control-sm text-bg-dark border-secondary mb-1';
-                searchInput.placeholder = 'Type to filter\u2026';
-                searchInput.setAttribute('data-search-for', select.id || '');
-                wrapper.appendChild(searchInput);
-                wrapper.appendChild(select);
-                var allOptions = [];
-                for (var i = 0; i < select.options.length; i++) {
-                    allOptions.push({value: select.options[i].value, text: select.options[i].text, selected: select.options[i].selected});
-                }
-                searchInput.addEventListener('input', function() {
-                    var q = searchInput.value.toLowerCase();
-                    var selectedVal = select.value;
-                    while (select.options.length) select.remove(0);
-                    allOptions.forEach(function(o) {
-                        if (!q || o.text.toLowerCase().indexOf(q) !== -1 || o.value.toLowerCase().indexOf(q) !== -1) {
-                            var opt = new Option(o.text, o.value);
-                            if (o.value === selectedVal) opt.selected = true;
-                            select.add(opt);
-                        }
+            // ============ Searchable dropdowns via Select2 ============
+            if (typeof $ !== 'undefined' && $.fn.select2) {
+                $('select.form-select').each(function() {
+                    if (this.options.length < 6) return;
+                    $(this).select2({
+                        theme: 'bootstrap-5',
+                        allowClear: true,
+                        width: '100%'
                     });
                 });
-            });
+                // Dark theme styling for Select2
+                var s2style = document.createElement('style');
+                s2style.textContent = [
+                    '.select2-container--bootstrap-5 .select2-selection { background-color: #212529 !important; border-color: #495057 !important; color: #fff !important; }',
+                    '.select2-container--bootstrap-5 .select2-dropdown { background-color: #212529 !important; border-color: #495057 !important; }',
+                    '.select2-container--bootstrap-5 .select2-results__option { color: #fff !important; }',
+                    '.select2-container--bootstrap-5 .select2-results__option--highlighted { background-color: #0d6efd !important; color: #fff !important; }',
+                    '.select2-container--bootstrap-5 .select2-search__field { background-color: #212529 !important; border-color: #495057 !important; color: #fff !important; }'
+                ].join('\n');
+                document.head.appendChild(s2style);
+            }
 
             loadDraft();
             showStep(currentStep);

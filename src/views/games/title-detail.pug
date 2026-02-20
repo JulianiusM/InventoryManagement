@@ -205,24 +205,28 @@ block content
                                     label.form-label Multiplayer Modes
                                 .col-md-3
                                     .form-check
+                                        input(type="hidden" name="supportsOnline" value="false")
                                         input.form-check-input(type="checkbox" name="supportsOnline" value="true" id="editSupportsOnline" checked=title.supportsOnline)
                                         label.form-check-label(for="editSupportsOnline")
                                             i.bi.bi-globe.me-1
                                             | Online
                                 .col-md-3
                                     .form-check
+                                        input(type="hidden" name="supportsLocalCouch" value="false")
                                         input.form-check-input(type="checkbox" name="supportsLocalCouch" value="true" id="editSupportsLocalCouch" checked=title.supportsLocalCouch)
                                         label.form-check-label(for="editSupportsLocalCouch")
                                             i.bi.bi-display.me-1
                                             | Couch Co-op
                                 .col-md-3
                                     .form-check
+                                        input(type="hidden" name="supportsLocalLAN" value="false")
                                         input.form-check-input(type="checkbox" name="supportsLocalLAN" value="true" id="editSupportsLocalLAN" checked=title.supportsLocalLAN)
                                         label.form-check-label(for="editSupportsLocalLAN")
                                             i.bi.bi-hdd-network.me-1
                                             | LAN
                                 .col-md-3
                                     .form-check
+                                        input(type="hidden" name="supportsPhysical" value="false")
                                         input.form-check-input(type="checkbox" name="supportsPhysical" value="true" id="editSupportsPhysical" checked=title.supportsPhysical)
                                         label.form-check-label(for="editSupportsPhysical")
                                             i.bi.bi-dice-5.me-1

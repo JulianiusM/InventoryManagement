@@ -389,3 +389,21 @@ export const dismissalTestData = [
         expectedField: 'dismissedInvalidPlayers',
     },
 ];
+
+// Update game title test data (for mode deselection fix)
+export const updateGameTitleData = [
+    {
+        description: 'deselects online mode when hidden field sends false',
+        titleId: 'uuid-title-1',
+        existingTitle: {id: 'uuid-title-1', name: 'Test Game', ownerId: TEST_USER_ID, supportsOnline: true, supportsLocalCouch: true},
+        body: {supportsOnline: 'false', supportsLocalCouch: 'true'},
+        expectedUpdates: {supportsOnline: false, supportsLocalCouch: true},
+    },
+    {
+        description: 'deselects all modes when all hidden fields send false',
+        titleId: 'uuid-title-2',
+        existingTitle: {id: 'uuid-title-2', name: 'Test Game 2', ownerId: TEST_USER_ID, supportsOnline: true, supportsPhysical: true},
+        body: {supportsOnline: 'false', supportsLocalCouch: 'false', supportsLocalLAN: 'false', supportsPhysical: 'false'},
+        expectedUpdates: {supportsOnline: false, supportsLocalCouch: false, supportsLocalLAN: false, supportsPhysical: false},
+    },
+];

@@ -8,6 +8,7 @@ import {
     createGameTitleData,
     createGameTitleErrorData,
     lendGameCopyErrorData,
+    updateGameTitleData,
     TEST_USER_ID,
 } from '../data/controller/gamesData';
 import {setupMock, verifyThrowsError} from '../keywords/common/controllerKeywords';
@@ -100,6 +101,7 @@ import * as syncJobService from '../../src/modules/database/services/SyncJobServ
 import * as itemService from '../../src/modules/database/services/ItemService';
 import * as loanService from '../../src/modules/database/services/LoanService';
 import * as gamesController from '../../src/controller/gamesController';
+import * as gameTitleController from '../../src/controller/games/gameTitleController';
 
 describe('gamesController', () => {
     beforeEach(() => {
@@ -278,6 +280,20 @@ describe('gamesController', () => {
                 expect(result).toBe(10);
                 expect(gameTitleService.resetDismissals).toHaveBeenCalledWith(TEST_USER_ID, undefined);
             });
+        });
+    });
+
+    describe('updateGameTitle', () => {
+        test.each(updateGameTitleData)('$description', async ({titleId, existingTitle, body, expectedUpdates}) => {
+            setupMock(gameTitleService.getGameTitleById as jest.Mock, existingTitle);
+            setupMock(gameTitleService.updateGameTitle as jest.Mock, undefined);
+
+            await gameTitleController.updateGameTitle(titleId, body, TEST_USER_ID);
+
+            expect(gameTitleService.updateGameTitle).toHaveBeenCalledWith(
+                titleId,
+                expect.objectContaining(expectedUpdates)
+            );
         });
     });
 });

@@ -259,10 +259,18 @@ async function submitGameWizard(body: Record<string, string>, userId: number) {
         description: body.description || undefined,
         overallMinPlayers: Number(body.overallMinPlayers) || 1,
         overallMaxPlayers: Number(body.overallMaxPlayers) || 1,
-        supportsOnline: body.supportsOnline === 'true' ? true : undefined,
-        supportsLocalCouch: body.supportsLocalCouch === 'true' ? true : undefined,
-        supportsLocalLAN: body.supportsLocalLAN === 'true' ? true : undefined,
-        supportsPhysical: body.supportsPhysical === 'true' ? true : undefined,
+        supportsOnline: body.supportsOnline === 'true',
+        supportsLocalCouch: body.supportsLocalCouch === 'true',
+        supportsLocalLAN: body.supportsLocalLAN === 'true',
+        supportsPhysical: body.supportsPhysical === 'true',
+        onlineMinPlayers: Number(body.onlineMinPlayers) || undefined,
+        onlineMaxPlayers: Number(body.onlineMaxPlayers) || undefined,
+        couchMinPlayers: Number(body.couchMinPlayers) || undefined,
+        couchMaxPlayers: Number(body.couchMaxPlayers) || undefined,
+        lanMinPlayers: Number(body.lanMinPlayers) || undefined,
+        lanMaxPlayers: Number(body.lanMaxPlayers) || undefined,
+        physicalMinPlayers: Number(body.physicalMinPlayers) || undefined,
+        physicalMaxPlayers: Number(body.physicalMaxPlayers) || undefined,
     }, userId);
 
     // Step 2: Apply metadata if a provider result was selected
