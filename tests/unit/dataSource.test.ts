@@ -111,11 +111,23 @@ describe('initDataSource', () => {
         jest.mock('../../src/modules/settings', () => ({
             __esModule: true,
             default: {
-                value: {initialized: true, dbType: 'mariadb', dbHost: 'localhost', dbPort: 3306, dbUser: 'root', dbPassword: 'password', dbName: 'test_db'},
+                value: {
+                    initialized: true,
+                    dbType: 'mariadb',
+                    dbHost: 'localhost',
+                    dbPort: 3306,
+                    dbUser: 'root',
+                    dbPassword: 'password',
+                    dbName: 'test_db',
+                },
                 read: jest.fn(),
             },
         }));
-        jest.mock('../../src/modules/database/__index__', () => ({entities: [], migrations: [], subscribers: []}));
+        jest.mock('../../src/modules/database/__index__', () => ({
+            entities: [],
+            migrations: [],
+            subscribers: [],
+        }));
 
         const mockInit2 = jest.fn();
         const mockSync2 = jest.fn();

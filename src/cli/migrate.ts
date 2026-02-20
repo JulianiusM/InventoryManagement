@@ -66,22 +66,11 @@ async function main() {
             }
 
             case 'show': {
-                const migrations = dataSource.migrations;
-                const executed = await dataSource.query(
-                    `SELECT name FROM migrations ORDER BY id`
-                ).catch(() => []);
-
-                const executedNames = new Set(executed.map((r: {name: string}) => r.name));
-
-                console.log('Migration status:');
-                for (const m of migrations) {
-                    const name = (m as any).name ?? m.constructor.name;
-                    const status = executedNames.has(name) ? '✅ applied' : '⏳ pending';
-                    console.log(`  ${status}  ${name}`);
-                }
-
-                if (migrations.length === 0) {
-                    console.log('  (no migrations registered)');
+                const hasPending = await dataSource.showMigrations();
+                if (hasPending) {
+                    console.log('⏳ There are pending migrations. Run "migrate run" to apply them.');
+                } else {
+                    console.log('✅ All migrations have been applied.');
                 }
                 break;
             }

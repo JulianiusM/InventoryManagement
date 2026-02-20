@@ -42,12 +42,12 @@ export async function initDataSource() {
     );
     const tableCount = parseInt(rows[0].cnt, 10);
     if (tableCount === 0) {
-        console.log('📦 Empty database detected — synchronizing schema…');
+        console.log('📦 Empty database detected — synchronizing schema...');
         await AppDataSource.synchronize();
     }
 
     // Always run pending migrations (TypeORM tracks which have already been applied).
-    console.log('📦 Running pending migrations…');
+    console.log('📦 Running pending migrations...');
     const applied = await AppDataSource.runMigrations();
     if (applied.length > 0) {
         console.log(`✅ Applied ${applied.length} migration(s): ${applied.map(m => m.name).join(', ')}`);
