@@ -13,6 +13,8 @@ block content
     - const locationKinds = data.locationKinds || []
     - const platforms = data.platforms || []
     - const gameTypes = data.gameTypes || []
+    - const copyTypes = data.copyTypes || []
+    - const accounts = data.accounts || []
 
     //- Breadcrumb
     nav(aria-label="breadcrumb")
@@ -212,6 +214,10 @@ block content
 
         //- ============ GAME WIZARD ============
         if entityType === 'game'
+            //- Hidden fields for metadata selection
+            input#metadataProviderId(type="hidden" name="metadataProviderId")
+            input#metadataExternalId(type="hidden" name="metadataExternalId")
+
             //- Step: Basics
             .wizard-step(data-step="basics")
                 .card.text-bg-dark.border-secondary.mb-3
@@ -238,52 +244,99 @@ block content
                                     | Description
                                 textarea#description.form-control.text-bg-dark.border-secondary(name="description" rows="3" placeholder="Optional game description")
 
-            //- Step: Players (optional)
-            .wizard-step.d-none(data-step="players")
+            //- Step: Metadata (optional - search and select metadata)
+            .wizard-step.d-none(data-step="metadata")
                 .card.text-bg-dark.border-secondary.mb-3
                     .card-header.border-secondary
-                        i.bi.bi-people.me-2
-                        | Player Information
+                        i.bi.bi-cloud-download.me-2
+                        | Search Metadata
                         span.badge.bg-dark.text-white-50.ms-2 Optional
+                    .card-body
+                        p.text-white-50 Search online databases to auto-fill game details like description and cover image.
+                        .row.g-2.mb-3
+                            .col-md-9
+                                input#metadataSearchQuery.form-control.text-bg-dark.border-secondary(type="text" placeholder="Search for game...")
+                            .col-md-3
+                                button#btnSearchMetadata.btn.btn-primary.w-100(type="button")
+                                    i.bi.bi-search.me-1
+                                    | Search
+                        #metadataSearchSpinner.text-center.d-none.mb-3
+                            .spinner-border.spinner-border-sm.text-primary(role="status")
+                            span.text-white-50.ms-2 Searching...
+                        #metadataResults
+                        #metadataSelected.d-none
+                            .alert.alert-success.d-flex.align-items-center
+                                i.bi.bi-check-circle-fill.me-2
+                                span#metadataSelectedName
+                                button.btn.btn-sm.btn-outline-light.ms-auto#btnClearMetadata(type="button")
+                                    i.bi.bi-x-lg.me-1
+                                    | Clear
+
+            //- Step: Copy (release + copy details)
+            .wizard-step.d-none(data-step="copy")
+                .card.text-bg-dark.border-secondary.mb-3
+                    .card-header.border-secondary
+                        i.bi.bi-disc.me-2
+                        | Your Copy
                     .card-body
                         .row.g-3
                             .col-md-6
-                                label.form-label(for="overallMinPlayers")
-                                    i.bi.bi-person.me-1
-                                    | Min Players
-                                input#overallMinPlayers.form-control.text-bg-dark.border-secondary(type="number" name="overallMinPlayers" min="1" placeholder="1")
+                                label.form-label(for="platform")
+                                    i.bi.bi-display.me-1
+                                    | Platform *
+                                select#platform.form-select.text-bg-dark.border-secondary(name="platform")
+                                    if platforms.length
+                                        each p in platforms
+                                            option(value=p.name selected=(p.name === 'PC'))= p.name
+                                    else
+                                        option(value="PC" selected) PC
+                                        option(value="PlayStation 5") PlayStation 5
+                                        option(value="Xbox Series X|S") Xbox Series X|S
+                                        option(value="Nintendo Switch") Nintendo Switch
                             .col-md-6
-                                label.form-label(for="overallMaxPlayers")
-                                    i.bi.bi-people.me-1
-                                    | Max Players
-                                input#overallMaxPlayers.form-control.text-bg-dark.border-secondary(type="number" name="overallMaxPlayers" min="1" placeholder="1")
-                            .col-12
-                                label.form-label.mb-2 Game Modes
-                                .row.g-2
-                                    .col-md-3
-                                        .form-check
-                                            input#supportsOnline.form-check-input(type="checkbox" name="supportsOnline" value="true")
-                                            label.form-check-label(for="supportsOnline")
-                                                i.bi.bi-globe.me-1
-                                                | Online
-                                    .col-md-3
-                                        .form-check
-                                            input#supportsLocalCouch.form-check-input(type="checkbox" name="supportsLocalCouch" value="true")
-                                            label.form-check-label(for="supportsLocalCouch")
-                                                i.bi.bi-tv.me-1
-                                                | Couch Co-op
-                                    .col-md-3
-                                        .form-check
-                                            input#supportsLocalLAN.form-check-input(type="checkbox" name="supportsLocalLAN" value="true")
-                                            label.form-check-label(for="supportsLocalLAN")
-                                                i.bi.bi-ethernet.me-1
-                                                | LAN
-                                    .col-md-3
-                                        .form-check
-                                            input#supportsPhysical.form-check-input(type="checkbox" name="supportsPhysical" value="true")
-                                            label.form-check-label(for="supportsPhysical")
-                                                i.bi.bi-dice-3.me-1
-                                                | Physical
+                                label.form-label(for="edition")
+                                    i.bi.bi-bookmark.me-1
+                                    | Edition
+                                input#edition.form-control.text-bg-dark.border-secondary(type="text" name="edition" placeholder="e.g. Deluxe, GOTY")
+                            .col-md-6
+                                label.form-label(for="copyType")
+                                    i.bi.bi-disc.me-1
+                                    | Copy Type *
+                                select#copyType.form-select.text-bg-dark.border-secondary(name="copyType")
+                                    option(value="physical_copy") Physical Copy
+                                    option(value="digital_license") Digital License
+
+                            //- Physical copy fields
+                            #physicalCopyFields
+                                .row.g-3.mt-0
+                                    .col-md-6
+                                        label.form-label(for="condition")
+                                            i.bi.bi-heart.me-1
+                                            | Condition
+                                        select#condition.form-select.text-bg-dark.border-secondary(name="condition")
+                                            option(value="") Not specified
+                                            each c in itemConditions
+                                                option(value=c)= c.charAt(0).toUpperCase() + c.slice(1).replace('_', ' ')
+                                    .col-md-6
+                                        label.form-label(for="locationId")
+                                            i.bi.bi-geo-alt.me-1
+                                            | Storage Location
+                                        select#locationId.form-select.text-bg-dark.border-secondary(name="locationId")
+                                            option(value="") Unassigned
+                                            each loc in locations
+                                                option(value=loc.id)= loc.name
+
+                            //- Digital copy fields
+                            #digitalCopyFields.d-none
+                                .row.g-3.mt-0
+                                    .col-md-6
+                                        label.form-label(for="externalAccountId")
+                                            i.bi.bi-cloud.me-1
+                                            | Linked Account
+                                        select#externalAccountId.form-select.text-bg-dark.border-secondary(name="externalAccountId")
+                                            option(value="") None
+                                            each acc in accounts
+                                                option(value=acc.id)= acc.accountName + ' (' + acc.provider + ')'
 
             //- Step: Review
             .wizard-step.d-none(data-step="review")
@@ -377,6 +430,11 @@ block scripts
                 var tbody = document.getElementById('reviewContent');
                 if (!tbody) return;
                 tbody.innerHTML = '';
+
+                // For game wizard, check copy type to filter fields
+                var copyTypeEl = document.getElementById('copyType');
+                var isPhysicalCopy = copyTypeEl ? copyTypeEl.value === 'physical_copy' : true;
+
                 var inputs = form.querySelectorAll('input:not([type=radio]):not([type=checkbox]):not([type=hidden]), select, textarea');
                 inputs.forEach(function(input) {
                     var val = input.value;
@@ -388,9 +446,17 @@ block scripts
                     }
                     if (input.name === 'locationId') {
                         var radio = form.querySelector('input[name="locationChoice"]:checked');
-                        if (!radio || radio.value !== 'existing') return;
+                        if (radio && radio.value !== 'existing') return;
+                        // For game wizard, only show if physical copy
+                        if (copyTypeEl && !isPhysicalCopy) return;
                     }
                     if (input.name === 'locationChoice') return;
+                    // Skip metadata search query from review
+                    if (input.id === 'metadataSearchQuery') return;
+                    // Skip digital-only fields for physical copies
+                    if (input.name === 'externalAccountId' && isPhysicalCopy) return;
+                    // Skip physical-only fields for digital copies
+                    if ((input.name === 'condition') && !isPhysicalCopy) return;
                     var label = form.querySelector('label[for="' + input.id + '"]');
                     var labelText = label ? label.textContent.replace('*', '').trim() : input.name;
                     // For selects, show text not value
@@ -410,6 +476,13 @@ block scripts
                     tr.innerHTML = '<td class="text-white-50">' + escapeHtml(labelText) + '</td><td class="text-white">Yes</td>';
                     tbody.appendChild(tr);
                 });
+                // Show metadata selection in review if set
+                var metaProviderVal = document.getElementById('metadataProviderId');
+                if (metaProviderVal && metaProviderVal.value) {
+                    var tr = document.createElement('tr');
+                    tr.innerHTML = '<td class="text-white-50">Metadata Source</td><td class="text-white">' + escapeHtml(metaProviderVal.value) + '</td>';
+                    tbody.appendChild(tr);
+                }
                 if (!tbody.children.length) {
                     var tr = document.createElement('tr');
                     tr.innerHTML = '<td class="text-white-50" colspan="2">No data entered yet.</td>';
@@ -486,6 +559,118 @@ block scripts
             form.addEventListener('submit', function() {
                 try { localStorage.removeItem(draftKey); } catch(e) {}
             });
+
+            // ============ Game wizard specific logic ============
+            if (!{JSON.stringify(entityType === 'game')}) {
+                // Copy type toggle: show physical or digital fields
+                var copyTypeSelect = document.getElementById('copyType');
+                var physicalFields = document.getElementById('physicalCopyFields');
+                var digitalFields = document.getElementById('digitalCopyFields');
+                if (copyTypeSelect) {
+                    copyTypeSelect.addEventListener('change', function() {
+                        var isPhysical = copyTypeSelect.value === 'physical_copy';
+                        if (physicalFields) physicalFields.classList.toggle('d-none', !isPhysical);
+                        if (digitalFields) digitalFields.classList.toggle('d-none', isPhysical);
+                    });
+                }
+
+                // Metadata search
+                var btnSearchMeta = document.getElementById('btnSearchMetadata');
+                var metaSearchInput = document.getElementById('metadataSearchQuery');
+                var metaResults = document.getElementById('metadataResults');
+                var metaSpinner = document.getElementById('metadataSearchSpinner');
+                var metaSelected = document.getElementById('metadataSelected');
+                var metaSelectedName = document.getElementById('metadataSelectedName');
+                var metaProviderInput = document.getElementById('metadataProviderId');
+                var metaExternalInput = document.getElementById('metadataExternalId');
+                var btnClearMeta = document.getElementById('btnClearMetadata');
+
+                // Pre-fill search query from game name when entering metadata step
+                var origShowStep = showStep;
+                showStep = function(idx) {
+                    origShowStep(idx);
+                    if (steps[idx] && steps[idx].id === 'metadata' && metaSearchInput) {
+                        var nameInput = document.getElementById('name');
+                        if (nameInput && nameInput.value && !metaSearchInput.value) {
+                            metaSearchInput.value = nameInput.value;
+                        }
+                    }
+                };
+
+                function doMetadataSearch() {
+                    var query = metaSearchInput ? metaSearchInput.value.trim() : '';
+                    if (!query) return;
+                    var typeSelect = document.getElementById('type');
+                    var gameType = typeSelect ? typeSelect.value : '';
+                    if (metaSpinner) metaSpinner.classList.remove('d-none');
+                    if (metaResults) metaResults.innerHTML = '';
+
+                    fetch('/wizard/api/search-metadata?q=' + encodeURIComponent(query) + '&type=' + encodeURIComponent(gameType))
+                        .then(function(r) { return r.json(); })
+                        .then(function(options) {
+                            if (metaSpinner) metaSpinner.classList.add('d-none');
+                            if (!metaResults) return;
+                            if (!options || options.length === 0) {
+                                metaResults.innerHTML = '<div class="alert alert-warning"><i class="bi bi-exclamation-triangle me-2"></i>No results found. Try a different search or skip this step.</div>';
+                                return;
+                            }
+                            var html = '<div class="list-group list-group-flush">';
+                            options.forEach(function(opt) {
+                                html += '<button type="button" class="list-group-item list-group-item-action text-bg-dark border-secondary d-flex align-items-center metadata-option"'
+                                    + ' data-provider="' + escapeHtml(opt.provider) + '"'
+                                    + ' data-external-id="' + escapeHtml(opt.externalId) + '"'
+                                    + ' data-name="' + escapeHtml(opt.name) + '">';
+                                if (opt.coverImageUrl) {
+                                    html += '<img src="' + escapeHtml(opt.coverImageUrl) + '" alt="" style="width:50px;height:50px;object-fit:cover;border-radius:4px" class="me-3">';
+                                } else {
+                                    html += '<div class="me-3 d-flex align-items-center justify-content-center bg-secondary" style="width:50px;height:50px;border-radius:4px"><i class="bi bi-image text-muted"></i></div>';
+                                }
+                                html += '<div><div class="text-white">' + escapeHtml(opt.name) + '</div>';
+                                html += '<small class="text-white-50">';
+                                if (opt.releaseDate) html += '<i class="bi bi-calendar me-1"></i>' + escapeHtml(opt.releaseDate) + ' ';
+                                html += '<span class="badge text-bg-secondary">' + escapeHtml(opt.provider) + '</span>';
+                                html += '</small></div></button>';
+                            });
+                            html += '</div>';
+                            metaResults.innerHTML = html;
+
+                            // Attach click listeners to options
+                            metaResults.querySelectorAll('.metadata-option').forEach(function(btn) {
+                                btn.addEventListener('click', function() {
+                                    selectMetadata(btn.dataset.provider, btn.dataset.externalId, btn.dataset.name);
+                                });
+                            });
+                        })
+                        .catch(function() {
+                            if (metaSpinner) metaSpinner.classList.add('d-none');
+                            if (metaResults) metaResults.innerHTML = '<div class="alert alert-danger">Search failed. Skip this step or try again.</div>';
+                        });
+                }
+
+                function selectMetadata(provider, externalId, name) {
+                    if (metaProviderInput) metaProviderInput.value = provider;
+                    if (metaExternalInput) metaExternalInput.value = externalId;
+                    if (metaResults) metaResults.innerHTML = '';
+                    if (metaSelected) metaSelected.classList.remove('d-none');
+                    if (metaSelectedName) metaSelectedName.textContent = 'Selected: ' + name + ' (' + provider + ')';
+                }
+
+                if (btnSearchMeta) {
+                    btnSearchMeta.addEventListener('click', doMetadataSearch);
+                }
+                if (metaSearchInput) {
+                    metaSearchInput.addEventListener('keydown', function(e) {
+                        if (e.key === 'Enter') { e.preventDefault(); doMetadataSearch(); }
+                    });
+                }
+                if (btnClearMeta) {
+                    btnClearMeta.addEventListener('click', function() {
+                        if (metaProviderInput) metaProviderInput.value = '';
+                        if (metaExternalInput) metaExternalInput.value = '';
+                        if (metaSelected) metaSelected.classList.add('d-none');
+                    });
+                }
+            }
 
             loadDraft();
             showStep(currentStep);

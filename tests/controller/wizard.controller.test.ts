@@ -23,6 +23,7 @@ jest.mock('../../src/modules/database/services/LoanService');
 jest.mock('../../src/modules/database/services/PlatformService');
 jest.mock('../../src/modules/database/services/GameTitleService');
 jest.mock('../../src/modules/database/services/GameReleaseService');
+jest.mock('../../src/modules/database/services/ExternalAccountService');
 jest.mock('../../src/modules/database/services/SyncJobService');
 jest.mock('../../src/modules/database/services/GameValidationService');
 jest.mock('../../src/modules/games/sync/MetadataFetcher');
@@ -31,7 +32,10 @@ import * as locationService from '../../src/modules/database/services/LocationSe
 import * as itemService from '../../src/modules/database/services/ItemService';
 import * as itemMovementService from '../../src/modules/database/services/ItemMovementService';
 import * as platformService from '../../src/modules/database/services/PlatformService';
+import * as externalAccountService from '../../src/modules/database/services/ExternalAccountService';
 import * as gameTitleService from '../../src/modules/database/services/GameTitleService';
+import * as gameReleaseService from '../../src/modules/database/services/GameReleaseService';
+import {getMetadataFetcher} from '../../src/modules/games/sync/MetadataFetcher';
 import * as wizardController from '../../src/controller/wizardController';
 
 describe('wizardController', () => {
@@ -53,6 +57,7 @@ describe('wizardController', () => {
             // Setup mocks for prefetch data
             setupMock(locationService.getAllLocations as jest.Mock, []);
             setupMock(platformService.getAllPlatforms as jest.Mock, []);
+            setupMock(externalAccountService.getAllExternalAccounts as jest.Mock, []);
 
             const result = await wizardController.showWizardForm(entityType, userId);
 
@@ -100,13 +105,28 @@ describe('wizardController', () => {
             }
         });
 
-        test.each(submitGameData)('$description', async ({entityType, body, userId, mockGameTitle, expected}) => {
+        test.each(submitGameData)('$description', async ({entityType, body, userId, mockGameTitle, mockRelease, mockCopy, mockMetadataResult, expected}) => {
+            // Mock title creation
             setupMock(gameTitleService.createGameTitle as jest.Mock, mockGameTitle);
+            // Mock release creation
+            setupMock(gameTitleService.getGameTitleById as jest.Mock, {...mockGameTitle, ownerId: userId});
+            setupMock(gameReleaseService.createGameRelease as jest.Mock, mockRelease);
+            // Mock copy creation
+            setupMock(gameReleaseService.getGameReleaseById as jest.Mock, {...mockRelease, ownerId: userId, gameTitle: mockGameTitle});
+            setupMock(itemService.createGameItem as jest.Mock, mockCopy);
+
+            // Mock metadata fetcher if metadata is selected
+            if (mockMetadataResult) {
+                const mockFetcher = {fetchMetadataFromProvider: jest.fn().mockResolvedValue(mockMetadataResult)};
+                (getMetadataFetcher as jest.Mock).mockReturnValue(mockFetcher);
+            }
 
             const result = await wizardController.submitWizard(entityType, body, userId);
 
             expect(result).toEqual(expected);
             expect(gameTitleService.createGameTitle).toHaveBeenCalled();
+            expect(gameReleaseService.createGameRelease).toHaveBeenCalled();
+            expect(itemService.createGameItem).toHaveBeenCalled();
         });
 
         test.each(submitErrorData)('$description', async ({entityType, body, userId, errorMessage}) => {

@@ -7,11 +7,15 @@
 import * as locationController from './locationController';
 import * as itemController from './itemController';
 import * as gameTitleController from './games/gameTitleController';
+import * as gameReleaseController from './games/gameReleaseController';
+import * as gameCopyController from './games/gameCopyController';
 import * as locationService from '../modules/database/services/LocationService';
 import * as platformService from '../modules/database/services/PlatformService';
+import * as externalAccountService from '../modules/database/services/ExternalAccountService';
+import {getMetadataFetcher, applyMetadataToTitle} from '../modules/games/sync/MetadataFetcher';
 import {requireAuthenticatedUser} from '../middleware/authMiddleware';
 import {ExpectedError} from '../modules/lib/errors';
-import {ItemType, ItemCondition, LocationKind, GameType} from '../types/InventoryEnums';
+import {ItemType, ItemCondition, LocationKind, GameType, GameCopyType} from '../types/InventoryEnums';
 
 /** Supported wizard entity types */
 export type WizardEntityType = 'location' | 'item' | 'game';
@@ -54,7 +58,8 @@ const wizardDefinitions: Record<WizardEntityType, {
         icon: 'bi-controller',
         steps: [
             {id: 'basics', title: 'Basics', icon: 'bi-pencil', optional: false},
-            {id: 'players', title: 'Players', icon: 'bi-people', optional: true},
+            {id: 'metadata', title: 'Metadata', icon: 'bi-cloud-download', optional: true},
+            {id: 'copy', title: 'Copy', icon: 'bi-disc', optional: false},
             {id: 'review', title: 'Review', icon: 'bi-check-circle', optional: false},
         ],
     },
@@ -133,6 +138,21 @@ export async function createInlineLocation(body: {name: string; kind?: string}, 
     };
 }
 
+/**
+ * Search game metadata by name (AJAX endpoint for game wizard)
+ */
+export async function searchGameMetadata(query: string, gameType?: string) {
+    if (!query || !query.trim()) {
+        return [];
+    }
+    const metadataFetcher = getMetadataFetcher();
+    // Create a minimal title-like object for the search
+    return await metadataFetcher.searchMetadataOptions(
+        {name: query.trim(), type: gameType as GameType} as any,
+        query.trim()
+    );
+}
+
 // ============ Private Helpers ============
 
 async function getPrefetchData(entityType: WizardEntityType, userId: number) {
@@ -157,9 +177,15 @@ async function getPrefetchData(entityType: WizardEntityType, userId: number) {
         }
         case 'game': {
             const platforms = await platformService.getAllPlatforms(userId);
+            const locations = await locationService.getAllLocations(userId);
+            const accounts = await externalAccountService.getAllExternalAccounts(userId);
             return {
                 platforms,
+                locations,
+                accounts,
                 gameTypes: Object.values(GameType),
+                copyTypes: Object.values(GameCopyType),
+                itemConditions: Object.values(ItemCondition),
             };
         }
     }
@@ -213,6 +239,7 @@ async function submitItemWizard(body: Record<string, string>, userId: number) {
 }
 
 async function submitGameWizard(body: Record<string, string>, userId: number) {
+    // Step 1: Create the game title
     const title = await gameTitleController.createGameTitle({
         name: body.name,
         type: body.type || undefined,
@@ -223,6 +250,51 @@ async function submitGameWizard(body: Record<string, string>, userId: number) {
         supportsLocalCouch: body.supportsLocalCouch === 'true' ? true : undefined,
         supportsLocalLAN: body.supportsLocalLAN === 'true' ? true : undefined,
         supportsPhysical: body.supportsPhysical === 'true' ? true : undefined,
+    }, userId);
+
+    // Step 2: Apply metadata if a provider result was selected
+    if (body.metadataProviderId && body.metadataExternalId) {
+        try {
+            const metadataFetcher = getMetadataFetcher();
+            const result = await metadataFetcher.fetchMetadataFromProvider(
+                body.metadataProviderId,
+                body.metadataExternalId
+            );
+            if (result.metadata) {
+                await applyMetadataToTitle(title.id, title, result.metadata);
+            }
+        } catch {
+            // Metadata fetch failure should not block game creation
+        }
+    }
+
+    // Step 3: Create the release
+    const platform = body.platform || 'PC';
+    const release = await gameReleaseController.createGameRelease({
+        gameTitleId: title.id,
+        platform,
+        edition: body.edition || undefined,
+    }, userId);
+
+    // Step 4: Create the copy
+    const copyType = body.copyType || GameCopyType.PHYSICAL_COPY;
+
+    // Handle inline location creation for physical copies
+    let locationId = body.locationId || undefined;
+    if (copyType === GameCopyType.PHYSICAL_COPY && body.newLocationName && body.newLocationName.trim()) {
+        const newLocation = await locationController.createLocation({
+            name: body.newLocationName.trim(),
+            kind: body.newLocationKind || undefined,
+        }, userId);
+        locationId = newLocation.id;
+    }
+
+    await gameCopyController.createGameCopy({
+        gameReleaseId: release.id,
+        copyType,
+        condition: copyType === GameCopyType.PHYSICAL_COPY ? (body.condition || undefined) : undefined,
+        locationId: copyType === GameCopyType.PHYSICAL_COPY ? locationId : undefined,
+        externalAccountId: copyType === GameCopyType.DIGITAL_LICENSE ? (body.externalAccountId || undefined) : undefined,
     }, userId);
 
     return {

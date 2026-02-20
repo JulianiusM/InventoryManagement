@@ -30,7 +30,7 @@ export const wizardFormData = [
         entityType: 'game',
         userId: TEST_USER_ID,
         expectedEntityType: 'game',
-        expectedStepCount: 3,
+        expectedStepCount: 4,
     },
 ];
 
@@ -94,16 +94,51 @@ export const submitItemData = [
 
 export const submitGameData = [
     {
-        description: 'creates game title via wizard',
+        description: 'creates game title with release and physical copy via wizard',
         entityType: 'game',
-        body: {name: 'Catan', type: 'board_game', overallMinPlayers: '2', overallMaxPlayers: '4'},
+        body: {name: 'Catan', type: 'board_game', platform: 'Physical', copyType: 'physical_copy', condition: 'new'},
         userId: TEST_USER_ID,
         mockGameTitle: {id: 'uuid-game-1', name: 'Catan'},
+        mockRelease: {id: 'uuid-release-1', gameTitleId: 'uuid-game-1', platform: 'Physical'},
+        mockCopy: {id: 'uuid-copy-1', gameReleaseId: 'uuid-release-1'},
         expected: {
             entityType: 'game',
             entityId: 'uuid-game-1',
             entityName: 'Catan',
             editUrl: '/games/titles/uuid-game-1',
+            listUrl: '/games',
+        },
+    },
+    {
+        description: 'creates game title with release and digital copy via wizard',
+        entityType: 'game',
+        body: {name: 'Portal 2', type: 'video_game', platform: 'PC', copyType: 'digital_license'},
+        userId: TEST_USER_ID,
+        mockGameTitle: {id: 'uuid-game-2', name: 'Portal 2'},
+        mockRelease: {id: 'uuid-release-2', gameTitleId: 'uuid-game-2', platform: 'PC'},
+        mockCopy: {id: 'uuid-copy-2', gameReleaseId: 'uuid-release-2'},
+        expected: {
+            entityType: 'game',
+            entityId: 'uuid-game-2',
+            entityName: 'Portal 2',
+            editUrl: '/games/titles/uuid-game-2',
+            listUrl: '/games',
+        },
+    },
+    {
+        description: 'creates game with metadata selection via wizard',
+        entityType: 'game',
+        body: {name: 'Hades', type: 'video_game', platform: 'PC', copyType: 'digital_license', metadataProviderId: 'igdb', metadataExternalId: '12345'},
+        userId: TEST_USER_ID,
+        mockGameTitle: {id: 'uuid-game-3', name: 'Hades'},
+        mockRelease: {id: 'uuid-release-3', gameTitleId: 'uuid-game-3', platform: 'PC'},
+        mockCopy: {id: 'uuid-copy-3', gameReleaseId: 'uuid-release-3'},
+        mockMetadataResult: {metadata: {name: 'Hades', description: 'A roguelike'}, providerName: 'IGDB'},
+        expected: {
+            entityType: 'game',
+            entityId: 'uuid-game-3',
+            entityName: 'Hades',
+            editUrl: '/games/titles/uuid-game-3',
             listUrl: '/games',
         },
     },
