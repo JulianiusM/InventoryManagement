@@ -406,4 +406,18 @@ export const updateGameTitleData = [
         body: {supportsOnline: 'false', supportsLocalCouch: 'false', supportsLocalLAN: 'false', supportsPhysical: 'false'},
         expectedUpdates: {supportsOnline: false, supportsLocalCouch: false, supportsLocalLAN: false, supportsPhysical: false},
     },
+    {
+        description: 'handles array values from extended URL encoding when checkbox is checked',
+        titleId: 'uuid-title-3',
+        existingTitle: {id: 'uuid-title-3', name: 'Test Game 3', ownerId: TEST_USER_ID, supportsOnline: false, supportsPhysical: false},
+        body: {supportsOnline: ['false', 'true'], supportsPhysical: 'false'},
+        expectedUpdates: {supportsOnline: true, supportsPhysical: false},
+    },
+    {
+        description: 'handles mixed array and string values for all mode fields',
+        titleId: 'uuid-title-4',
+        existingTitle: {id: 'uuid-title-4', name: 'Test Game 4', ownerId: TEST_USER_ID, supportsOnline: true, supportsLocalCouch: true, supportsLocalLAN: false, supportsPhysical: false},
+        body: {supportsOnline: ['false', 'true'], supportsLocalCouch: 'false', supportsLocalLAN: ['false', 'true'], supportsPhysical: 'false'},
+        expectedUpdates: {supportsOnline: true, supportsLocalCouch: false, supportsLocalLAN: true, supportsPhysical: false},
+    },
 ];
