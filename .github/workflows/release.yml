@@ -133,7 +133,7 @@ jobs:
 
           # Copy build output
           cp -R dist release/dist
-          cp -R docs docs
+          cp -R docs release/docs
 
           # Create a production-safe package.json for the release artifact:
           # - remove devDependencies
