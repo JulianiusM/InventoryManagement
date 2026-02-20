@@ -48,34 +48,51 @@ const MODE_PLAYER_COLUMNS: Record<GameMode, {min: string; max: string}> = {
 };
 
 /**
- * Build a Brackets condition that checks if a mode-specific player count
- * supports the given player count, falling back to overall counts.
+ * Get the database-specific random ordering expression.
+ * MariaDB and MySQL both use RAND(); could be extended for other DB types.
  */
-function modePlayerCountBracket(mode: GameMode): Brackets {
-    const flag = MODE_SUPPORT_COLUMN[mode];
-    const {min, max} = MODE_PLAYER_COLUMNS[mode];
-    return new Brackets((qb) => {
-        qb.where(`title.${flag} = 1`)
-          .andWhere(new Brackets((inner) => {
-              inner.where(new Brackets((specific) => {
-                  specific.where(`title.${min} IS NOT NULL`)
-                      .andWhere(`title.${max} IS NOT NULL`)
-                      .andWhere(`title.${min} <= :count`)
-                      .andWhere(`title.${max} >= :count`);
-              })).orWhere(new Brackets((fallback) => {
-                  fallback.where(`title.${min} IS NULL`)
-                      .andWhere(`title.${max} IS NULL`)
-                      .andWhere('title.overallMinPlayers IS NOT NULL')
-                      .andWhere('title.overallMaxPlayers IS NOT NULL')
-                      .andWhere('title.overallMinPlayers <= :count')
-                      .andWhere('title.overallMaxPlayers >= :count');
-              }));
-          }));
-    });
+function getRandomOrderExpression(): string {
+    const dbType = AppDataSource.options.type;
+    switch (dbType) {
+        case 'postgres':
+            return 'RANDOM()';
+        default:
+            // MariaDB, MySQL
+            return 'RAND()';
+    }
 }
 
 /**
- * Create a base query builder for matching game titles.
+ * Build a WHERE condition string for a single game mode.
+ *
+ * When `withPlayerCount` is false, just checks the mode support flag.
+ * When `withPlayerCount` is true, additionally checks the mode-specific
+ * player count (falling back to overall counts when mode-specific are null).
+ *
+ * Uses parameterised `:count` (set on the query builder elsewhere).
+ * Column names come from our own constant lookup tables — no user input.
+ */
+function modeCondition(mode: GameMode, withPlayerCount: boolean): string {
+    const flag = MODE_SUPPORT_COLUMN[mode];
+    if (!withPlayerCount) {
+        return `title.${flag} = 1`;
+    }
+    const {min, max} = MODE_PLAYER_COLUMNS[mode];
+    return (
+        `(title.${flag} = 1 AND (` +
+            `(title.${min} IS NOT NULL AND title.${max} IS NOT NULL ` +
+                `AND title.${min} <= :count AND title.${max} >= :count)` +
+            ` OR ` +
+            `(title.${min} IS NULL AND title.${max} IS NULL ` +
+                `AND title.overallMinPlayers IS NOT NULL AND title.overallMaxPlayers IS NOT NULL ` +
+                `AND title.overallMinPlayers <= :count AND title.overallMaxPlayers >= :count)` +
+        `))`
+    );
+}
+
+/**
+ * Create a base query builder with owner, game-type, and player-count filters
+ * that are independent of the mode selection.
  */
 function createBaseQuery(criteria: SuggestionCriteria): SelectQueryBuilder<GameTitle> {
     const query = AppDataSource.getRepository(GameTitle)
@@ -88,53 +105,57 @@ function createBaseQuery(criteria: SuggestionCriteria): SelectQueryBuilder<GameT
         query.andWhere('title.type IN (:...gameTypes)', {gameTypes: criteria.gameTypes});
     }
 
-    // Apply player count filter (overall, not mode-specific)
+    // Set :count parameter if a player count is specified (used by mode conditions)
     if (criteria.playerCount !== undefined && criteria.playerCount > 0) {
         query.setParameter('count', criteria.playerCount);
-
-        if (!criteria.selectedModes || criteria.selectedModes.length === 0) {
-            // No mode selected - use overall player count
-            if (criteria.playerCount === 1) {
-                query.andWhere(new Brackets((overall) => {
-                    overall.where(new Brackets((known) => {
-                        known.where('title.overallMinPlayers IS NOT NULL')
-                            .andWhere('title.overallMaxPlayers IS NOT NULL')
-                            .andWhere('title.overallMinPlayers <= :count')
-                            .andWhere('title.overallMaxPlayers >= :count');
-                    })).orWhere(new Brackets((singleplayer) => {
-                        singleplayer.where('title.overallMinPlayers IS NULL')
-                            .andWhere('title.overallMaxPlayers IS NULL')
-                            .andWhere('title.supportsOnline = 0')
-                            .andWhere('title.supportsLocalCouch = 0')
-                            .andWhere('title.supportsLocalLAN = 0')
-                            .andWhere('title.supportsPhysical = 0');
-                    }));
-                }));
-            } else {
-                query.andWhere('title.overallMinPlayers IS NOT NULL')
-                    .andWhere('title.overallMaxPlayers IS NOT NULL')
-                    .andWhere('title.overallMinPlayers <= :count')
-                    .andWhere('title.overallMaxPlayers >= :count');
-            }
-        }
     }
 
     return query;
 }
 
 /**
- * Apply mode filter and optional player count check for a specific mode.
+ * Apply mode and player-count filters to the query.
+ *
+ * Logic:
+ *  - No modes selected + no player count  → no extra filter
+ *  - No modes selected + player count     → overall player count filter
+ *  - Modes selected  + no player count    → mode support OR filter
+ *  - Modes selected  + player count       → combined (support AND count) OR per mode
  */
-function applyModeFilter(
+function applyModeAndCountFilters(
     query: SelectQueryBuilder<GameTitle>,
-    mode: GameMode,
-    playerCount: number | undefined,
+    criteria: SuggestionCriteria,
+    singleMode?: GameMode,
 ): void {
-    const flag = MODE_SUPPORT_COLUMN[mode];
-    query.andWhere(`title.${flag} = 1`);
+    const hasPlayerCount = criteria.playerCount !== undefined && criteria.playerCount > 0;
+    const modes = singleMode ? [singleMode] : (criteria.selectedModes ?? []);
 
-    if (playerCount !== undefined && playerCount > 0) {
-        query.andWhere(modePlayerCountBracket(mode));
+    if (modes.length > 0) {
+        // One Brackets with OR across modes; each branch combines support + count
+        query.andWhere(new Brackets((modeOr) => {
+            for (const m of modes) {
+                modeOr.orWhere(modeCondition(m, hasPlayerCount));
+            }
+        }));
+    } else if (hasPlayerCount) {
+        // No modes selected — filter by overall player count
+        if (criteria.playerCount === 1) {
+            query.andWhere(new Brackets((overall) => {
+                overall.where(
+                    '(title.overallMinPlayers IS NOT NULL AND title.overallMaxPlayers IS NOT NULL ' +
+                    'AND title.overallMinPlayers <= :count AND title.overallMaxPlayers >= :count)'
+                ).orWhere(
+                    '(title.overallMinPlayers IS NULL AND title.overallMaxPlayers IS NULL ' +
+                    'AND title.supportsOnline = 0 AND title.supportsLocalCouch = 0 ' +
+                    'AND title.supportsLocalLAN = 0 AND title.supportsPhysical = 0)'
+                );
+            }));
+        } else {
+            query.andWhere('title.overallMinPlayers IS NOT NULL')
+                .andWhere('title.overallMaxPlayers IS NOT NULL')
+                .andWhere('title.overallMinPlayers <= :count')
+                .andWhere('title.overallMaxPlayers >= :count');
+        }
     }
 }
 
@@ -182,30 +203,10 @@ async function getTitlesForMode(
     mode?: GameMode,
 ): Promise<GameTitle[]> {
     const query = createBaseQuery(criteria);
-
-    if (mode) {
-        // Single mode query
-        applyModeFilter(query, mode, criteria.playerCount);
-    } else if (criteria.selectedModes && criteria.selectedModes.length > 0) {
-        // OR across all selected modes
-        query.andWhere(new Brackets((modeOr) => {
-            for (const m of criteria.selectedModes!) {
-                modeOr.orWhere(`title.${MODE_SUPPORT_COLUMN[m]} = 1`);
-            }
-        }));
-
-        // Mode-specific player count check
-        if (criteria.playerCount !== undefined && criteria.playerCount > 0) {
-            query.andWhere(new Brackets((modeCountOr) => {
-                for (const m of criteria.selectedModes!) {
-                    modeCountOr.orWhere(modePlayerCountBracket(m));
-                }
-            }));
-        }
-    }
+    applyModeAndCountFilters(query, criteria, mode);
 
     // Randomize at the database level for reliable randomness
-    query.orderBy('RAND()');
+    query.orderBy(getRandomOrderExpression());
 
     const titles = await query.getMany();
     return applyPlatformFilters(titles, criteria);
