@@ -10,34 +10,31 @@
 export function setCurrentNavLocation(): void {
     const path = window.location.pathname;
 
-    // Remove any existing active classes from all navigation elements
-    //document.querySelectorAll('.nav-link, .dropdown-item').forEach(link => link.classList.remove('active'));
+    // Map path prefixes to nav link selectors
+    const navMappings: [string, string][] = [
+        ['/items', 'a.nav-link[href="/items"]'],
+        ['/locations', 'a.nav-link[href="/locations"]'],
+        ['/games', 'a.nav-link[href="/games"]'],
+        ['/loans', 'a.nav-link[href="/loans"]'],
+        ['/scan', 'a.dropdown-item[href="/scan"]'],
+        ['/wizard', 'a.dropdown-item[href="/wizard"]'],
+        ['/help', 'a.dropdown-item[href="/help"]'],
+        ['/users/dashboard', 'a.dropdown-item[href="/users/dashboard"]'],
+        ['/users/manage-dashboard', 'a.dropdown-item[href="/users/manage-dashboard"]'],
+        ['/users/login', 'a.nav-link[href="/users/login"]'],
+        ['/users/register', 'a.nav-link[href="/users/register"]'],
+        ['/survey', 'a.nav-link[href*="/survey"]'],
+        ['/packing', 'a.nav-link[href*="/packing"]'],
+        ['/activity', 'a.nav-link[href*="/activity"]'],
+        ['/drivers', 'a.nav-link[href*="/drivers"]'],
+    ];
 
-    // Set corresponding nav items active based on current path
-    if (path.includes("/survey")) {
-        const link = document.querySelector('a.nav-link[href*="/survey"]');
-        if (link) link.classList.add('active');
-    } else if (path.includes("/packing")) {
-        const link = document.querySelector('a.nav-link[href*="/packing"]');
-        if (link) link.classList.add('active');
-    } else if (path.includes("/activity")) {
-        const link = document.querySelector('a.nav-link[href*="/activity"]');
-        if (link) link.classList.add('active');
-    } else if (path.includes("/drivers")) {
-        const link = document.querySelector('a.nav-link[href*="/drivers"]');
-        if (link) link.classList.add('active');
-    } else if (path.includes("/users/dashboard")) {
-        const link = document.querySelector('a.dropdown-item[href="/users/dashboard"]');
-        if (link) link.classList.add('active');
-    } else if (path.includes("/users/manage-dashboard")) {
-        const link = document.querySelector('a.dropdown-item[href="/users/manage-dashboard"]');
-        if (link) link.classList.add('active');
-    } else if (path.includes("/users/login")) {
-        const link = document.querySelector('a.nav-link[href="/users/login"]');
-        if (link) link.classList.add('active');
-    } else if (path.includes("/users/register")) {
-        const link = document.querySelector('a.nav-link[href="/users/register"]');
-        if (link) link.classList.add('active');
+    for (const [prefix, selector] of navMappings) {
+        if (path === prefix || path.startsWith(prefix + '/')) {
+            const link = document.querySelector(selector);
+            if (link) link.classList.add('active');
+            return;
+        }
     }
 }
 
