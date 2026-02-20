@@ -13,6 +13,7 @@ import * as locationService from '../modules/database/services/LocationService';
 import * as platformService from '../modules/database/services/PlatformService';
 import * as externalAccountService from '../modules/database/services/ExternalAccountService';
 import {getMetadataFetcher, applyMetadataToTitle} from '../modules/games/sync/MetadataFetcher';
+import {GameTitle} from '../modules/database/entities/gameTitle/GameTitle';
 import {requireAuthenticatedUser} from '../middleware/authMiddleware';
 import {ExpectedError} from '../modules/lib/errors';
 import {ItemType, ItemCondition, LocationKind, GameType, GameCopyType} from '../types/InventoryEnums';
@@ -146,11 +147,9 @@ export async function searchGameMetadata(query: string, gameType?: string) {
         return [];
     }
     const metadataFetcher = getMetadataFetcher();
-    // Create a minimal title-like object for the search
-    return await metadataFetcher.searchMetadataOptions(
-        {name: query.trim(), type: gameType as GameType} as any,
-        query.trim()
-    );
+    // searchMetadataOptions uses only title.name and title.type from the GameTitle
+    const titleForSearch = {name: query.trim(), type: gameType as GameType} as GameTitle;
+    return await metadataFetcher.searchMetadataOptions(titleForSearch, query.trim());
 }
 
 // ============ Private Helpers ============
