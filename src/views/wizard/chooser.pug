@@ -1,0 +1,47 @@
+extends ../layout
+
+block meta
+    title Quick Add | Inventory Management
+
+block content
+    - const entityTypes = (data && data.entityTypes) ? data.entityTypes : []
+
+    .d-flex.justify-content-between.align-items-center.mb-4
+        h1.h3.mb-0.text-white
+            i.bi.bi-plus-circle.me-2
+            | Quick Add
+
+    .row.g-4.justify-content-center
+        each et in entityTypes
+            .col-md-4.col-sm-6
+                a.card.text-bg-dark.border-secondary.text-decoration-none.h-100.wizard-card(href=`/wizard/${et.type}`)
+                    .card-body.text-center.py-5
+                        i.bi(class=et.icon + " display-3 mb-3 text-primary")
+                        h4.text-white= et.title
+                        p.text-white-50.mb-0
+                            if et.type === 'location'
+                                | Add a room, shelf, box, or other storage location
+                            else if et.type === 'item'
+                                | Add a book, tool, electronics, or other item
+                            else if et.type === 'game'
+                                | Add a video game, board game, or card game
+
+    .text-center.mt-4
+        p.text-white-50
+            | Or use the detailed forms:&nbsp;
+            a.text-white(href="/locations") Locations
+            | &nbsp;·&nbsp;
+            a.text-white(href="/items") Items
+            | &nbsp;·&nbsp;
+            a.text-white(href="/games") Games
+
+block scripts
+    style.
+        .wizard-card:hover {
+            border-color: #0d6efd !important;
+            transform: translateY(-2px);
+            transition: all 0.2s ease;
+        }
+        .wizard-card {
+            transition: all 0.2s ease;
+        }

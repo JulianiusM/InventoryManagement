@@ -1,0 +1,492 @@
+extends ../layout
+
+block meta
+    title #{data.definition.title} | Quick Add | Inventory Management
+
+block content
+    - const entityType = data.entityType
+    - const definition = data.definition
+    - const steps = definition.steps
+    - const locations = data.locations || []
+    - const itemTypes = data.itemTypes || []
+    - const itemConditions = data.itemConditions || []
+    - const locationKinds = data.locationKinds || []
+    - const platforms = data.platforms || []
+    - const gameTypes = data.gameTypes || []
+
+    //- Breadcrumb
+    nav(aria-label="breadcrumb")
+        ol.breadcrumb
+            li.breadcrumb-item
+                a.text-white(href="/wizard") Quick Add
+            li.breadcrumb-item.active.text-white-50= definition.title
+
+    .d-flex.justify-content-between.align-items-center.mb-3
+        h1.h3.mb-0.text-white
+            i.bi(class=definition.icon + " me-2")
+            = definition.title
+
+    //- Step progress indicator
+    .card.text-bg-dark.border-secondary.mb-4
+        .card-body.py-2
+            .d-flex.justify-content-between.align-items-center#wizardProgress
+                each step, idx in steps
+                    .text-center.flex-fill.wizard-step-indicator(data-step=step.id)
+                        .d-flex.align-items-center.justify-content-center.mb-1
+                            span.badge.rounded-pill.me-1(class=(idx === 0 ? 'bg-primary' : 'bg-secondary') data-badge="true")= idx + 1
+                            span.small(class=(idx === 0 ? 'text-white' : 'text-white-50') data-label="true")= step.title
+                            if step.optional
+                                span.badge.bg-dark.text-white-50.ms-1.small (opt.)
+
+    //- Wizard form with all steps
+    form#wizardForm(method="post" action=`/wizard/${entityType}`)
+        //- ============ LOCATION WIZARD ============
+        if entityType === 'location'
+            //- Step: Basics
+            .wizard-step(data-step="basics")
+                .card.text-bg-dark.border-secondary.mb-3
+                    .card-header.border-secondary
+                        i.bi.bi-pencil.me-2
+                        | Basic Information
+                    .card-body
+                        .row.g-3
+                            .col-md-6
+                                label.form-label(for="name")
+                                    i.bi.bi-tag.me-1
+                                    | Name *
+                                input#name.form-control.text-bg-dark.border-secondary(type="text" name="name" required placeholder="e.g. Living Room, Garage Shelf A")
+                            .col-md-6
+                                label.form-label(for="kind")
+                                    i.bi.bi-grid.me-1
+                                    | Type
+                                select#kind.form-select.text-bg-dark.border-secondary(name="kind")
+                                    each k in locationKinds
+                                        option(value=k selected=(k === 'other'))= k.charAt(0).toUpperCase() + k.slice(1)
+
+            //- Step: Details (optional)
+            .wizard-step.d-none(data-step="details")
+                .card.text-bg-dark.border-secondary.mb-3
+                    .card-header.border-secondary
+                        i.bi.bi-list-ul.me-2
+                        | Additional Details
+                        span.badge.bg-dark.text-white-50.ms-2 Optional
+                    .card-body
+                        .row.g-3
+                            .col-md-6
+                                label.form-label(for="parentId")
+                                    i.bi.bi-diagram-3.me-1
+                                    | Parent Location
+                                select#parentId.form-select.text-bg-dark.border-secondary(name="parentId")
+                                    option(value="") None (top-level)
+                                    each loc in locations
+                                        option(value=loc.id)= loc.name
+                            .col-md-6
+                                label.form-label(for="qrCode")
+                                    i.bi.bi-qr-code.me-1
+                                    | QR Code
+                                input#qrCode.form-control.text-bg-dark.border-secondary(type="text" name="qrCode" placeholder="Optional QR code identifier")
+
+            //- Step: Review
+            .wizard-step.d-none(data-step="review")
+                .card.text-bg-dark.border-secondary.mb-3
+                    .card-header.border-secondary
+                        i.bi.bi-check-circle.me-2
+                        | Review
+                    .card-body
+                        p.text-white-50 Please review your location details before creating:
+                        table.table.table-dark.mb-0
+                            tbody#reviewContent
+
+        //- ============ ITEM WIZARD ============
+        if entityType === 'item'
+            //- Step: Basics
+            .wizard-step(data-step="basics")
+                .card.text-bg-dark.border-secondary.mb-3
+                    .card-header.border-secondary
+                        i.bi.bi-pencil.me-2
+                        | Basic Information
+                    .card-body
+                        .row.g-3
+                            .col-md-6
+                                label.form-label(for="name")
+                                    i.bi.bi-tag.me-1
+                                    | Name *
+                                input#name.form-control.text-bg-dark.border-secondary(type="text" name="name" required placeholder="e.g. Kitchen Mixer, Power Drill")
+                            .col-md-6
+                                label.form-label(for="type")
+                                    i.bi.bi-grid.me-1
+                                    | Type
+                                select#type.form-select.text-bg-dark.border-secondary(name="type")
+                                    each t in itemTypes
+                                        option(value=t selected=(t === 'other'))= t.charAt(0).toUpperCase() + t.slice(1).replace('_', ' ')
+                            .col-md-6
+                                label.form-label(for="condition")
+                                    i.bi.bi-heart.me-1
+                                    | Condition
+                                select#condition.form-select.text-bg-dark.border-secondary(name="condition")
+                                    option(value="") Not specified
+                                    each c in itemConditions
+                                        option(value=c)= c.charAt(0).toUpperCase() + c.slice(1).replace('_', ' ')
+                            .col-md-6
+                                label.form-label(for="description")
+                                    i.bi.bi-text-left.me-1
+                                    | Description
+                                textarea#description.form-control.text-bg-dark.border-secondary(name="description" rows="2" placeholder="Optional notes")
+
+            //- Step: Location
+            .wizard-step.d-none(data-step="location")
+                .card.text-bg-dark.border-secondary.mb-3
+                    .card-header.border-secondary
+                        i.bi.bi-geo-alt.me-2
+                        | Where is this item?
+                        span.badge.bg-dark.text-white-50.ms-2 Optional
+                    .card-body
+                        .row.g-3
+                            .col-12
+                                .form-check.mb-3
+                                    input#locationExisting.form-check-input(type="radio" name="locationChoice" value="existing" checked)
+                                    label.form-check-label(for="locationExisting") Select existing location
+                                .form-check.mb-3
+                                    input#locationNew.form-check-input(type="radio" name="locationChoice" value="new")
+                                    label.form-check-label(for="locationNew") Create new location
+                                .form-check
+                                    input#locationNone.form-check-input(type="radio" name="locationChoice" value="none")
+                                    label.form-check-label(for="locationNone") No location (unassigned)
+
+                            //- Existing location selector
+                            #existingLocationSection.col-md-6
+                                label.form-label(for="locationId")
+                                    i.bi.bi-geo-alt-fill.me-1
+                                    | Location
+                                select#locationId.form-select.text-bg-dark.border-secondary(name="locationId")
+                                    option(value="") Choose a location...
+                                    each loc in locations
+                                        option(value=loc.id)= loc.name
+
+                            //- New location fields
+                            #newLocationSection.col-12.d-none
+                                .row.g-3
+                                    .col-md-6
+                                        label.form-label(for="newLocationName")
+                                            i.bi.bi-plus-circle.me-1
+                                            | New Location Name *
+                                        input#newLocationName.form-control.text-bg-dark.border-secondary(type="text" name="newLocationName" placeholder="e.g. Kitchen Cabinet")
+                                    .col-md-6
+                                        label.form-label(for="newLocationKind")
+                                            i.bi.bi-grid.me-1
+                                            | Location Type
+                                        select#newLocationKind.form-select.text-bg-dark.border-secondary(name="newLocationKind")
+                                            each k in locationKinds
+                                                option(value=k selected=(k === 'other'))= k.charAt(0).toUpperCase() + k.slice(1)
+
+            //- Step: Extras (optional)
+            .wizard-step.d-none(data-step="extras")
+                .card.text-bg-dark.border-secondary.mb-3
+                    .card-header.border-secondary
+                        i.bi.bi-tags.me-2
+                        | Extra Details
+                        span.badge.bg-dark.text-white-50.ms-2 Optional
+                    .card-body
+                        .row.g-3
+                            .col-md-6
+                                label.form-label(for="serialNumber")
+                                    i.bi.bi-hash.me-1
+                                    | Serial Number
+                                input#serialNumber.form-control.text-bg-dark.border-secondary(type="text" name="serialNumber" placeholder="Optional")
+                            .col-md-6
+                                label.form-label(for="tags")
+                                    i.bi.bi-tags.me-1
+                                    | Tags
+                                input#tags.form-control.text-bg-dark.border-secondary(type="text" name="tags" placeholder="Comma-separated tags")
+
+            //- Step: Review
+            .wizard-step.d-none(data-step="review")
+                .card.text-bg-dark.border-secondary.mb-3
+                    .card-header.border-secondary
+                        i.bi.bi-check-circle.me-2
+                        | Review
+                    .card-body
+                        p.text-white-50 Please review your item details before creating:
+                        table.table.table-dark.mb-0
+                            tbody#reviewContent
+
+        //- ============ GAME WIZARD ============
+        if entityType === 'game'
+            //- Step: Basics
+            .wizard-step(data-step="basics")
+                .card.text-bg-dark.border-secondary.mb-3
+                    .card-header.border-secondary
+                        i.bi.bi-pencil.me-2
+                        | Basic Information
+                    .card-body
+                        .row.g-3
+                            .col-md-6
+                                label.form-label(for="name")
+                                    i.bi.bi-tag.me-1
+                                    | Title *
+                                input#name.form-control.text-bg-dark.border-secondary(type="text" name="name" required placeholder="e.g. The Settlers of Catan")
+                            .col-md-6
+                                label.form-label(for="type")
+                                    i.bi.bi-grid.me-1
+                                    | Game Type
+                                select#type.form-select.text-bg-dark.border-secondary(name="type")
+                                    each t in gameTypes
+                                        option(value=t selected=(t === 'video_game'))= t.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())
+                            .col-12
+                                label.form-label(for="description")
+                                    i.bi.bi-text-left.me-1
+                                    | Description
+                                textarea#description.form-control.text-bg-dark.border-secondary(name="description" rows="3" placeholder="Optional game description")
+
+            //- Step: Players (optional)
+            .wizard-step.d-none(data-step="players")
+                .card.text-bg-dark.border-secondary.mb-3
+                    .card-header.border-secondary
+                        i.bi.bi-people.me-2
+                        | Player Information
+                        span.badge.bg-dark.text-white-50.ms-2 Optional
+                    .card-body
+                        .row.g-3
+                            .col-md-6
+                                label.form-label(for="overallMinPlayers")
+                                    i.bi.bi-person.me-1
+                                    | Min Players
+                                input#overallMinPlayers.form-control.text-bg-dark.border-secondary(type="number" name="overallMinPlayers" min="1" placeholder="1")
+                            .col-md-6
+                                label.form-label(for="overallMaxPlayers")
+                                    i.bi.bi-people.me-1
+                                    | Max Players
+                                input#overallMaxPlayers.form-control.text-bg-dark.border-secondary(type="number" name="overallMaxPlayers" min="1" placeholder="1")
+                            .col-12
+                                label.form-label.mb-2 Game Modes
+                                .row.g-2
+                                    .col-md-3
+                                        .form-check
+                                            input#supportsOnline.form-check-input(type="checkbox" name="supportsOnline" value="true")
+                                            label.form-check-label(for="supportsOnline")
+                                                i.bi.bi-globe.me-1
+                                                | Online
+                                    .col-md-3
+                                        .form-check
+                                            input#supportsLocalCouch.form-check-input(type="checkbox" name="supportsLocalCouch" value="true")
+                                            label.form-check-label(for="supportsLocalCouch")
+                                                i.bi.bi-tv.me-1
+                                                | Couch Co-op
+                                    .col-md-3
+                                        .form-check
+                                            input#supportsLocalLAN.form-check-input(type="checkbox" name="supportsLocalLAN" value="true")
+                                            label.form-check-label(for="supportsLocalLAN")
+                                                i.bi.bi-ethernet.me-1
+                                                | LAN
+                                    .col-md-3
+                                        .form-check
+                                            input#supportsPhysical.form-check-input(type="checkbox" name="supportsPhysical" value="true")
+                                            label.form-check-label(for="supportsPhysical")
+                                                i.bi.bi-dice-3.me-1
+                                                | Physical
+
+            //- Step: Review
+            .wizard-step.d-none(data-step="review")
+                .card.text-bg-dark.border-secondary.mb-3
+                    .card-header.border-secondary
+                        i.bi.bi-check-circle.me-2
+                        | Review
+                    .card-body
+                        p.text-white-50 Please review your game details before creating:
+                        table.table.table-dark.mb-0
+                            tbody#reviewContent
+
+        //- Navigation buttons
+        .d-flex.justify-content-between.mt-3
+            div
+                a.btn.btn-outline-secondary(href="/wizard")
+                    i.bi.bi-x-lg.me-1
+                    | Cancel
+                button#btnBack.btn.btn-secondary.ms-2.d-none(type="button")
+                    i.bi.bi-arrow-left.me-1
+                    | Back
+            div
+                button#btnSkip.btn.btn-outline-light.me-2.d-none(type="button")
+                    | Skip
+                    i.bi.bi-arrow-right.ms-1
+                button#btnNext.btn.btn-primary(type="button")
+                    | Next
+                    i.bi.bi-arrow-right.ms-1
+                button#btnSubmit.btn.btn-success.d-none(type="submit")
+                    i.bi.bi-check-lg.me-1
+                    | Create
+
+block scripts
+    script.
+        (function() {
+            var steps = !{JSON.stringify(steps.map(function(s) { return { id: s.id, optional: s.optional }; }))};
+            var currentStep = 0;
+            var form = document.getElementById('wizardForm');
+            var btnNext = document.getElementById('btnNext');
+            var btnBack = document.getElementById('btnBack');
+            var btnSkip = document.getElementById('btnSkip');
+            var btnSubmit = document.getElementById('btnSubmit');
+            var allStepEls = document.querySelectorAll('.wizard-step');
+            var indicators = document.querySelectorAll('.wizard-step-indicator');
+
+            function showStep(idx) {
+                currentStep = idx;
+                allStepEls.forEach(function(el, i) {
+                    el.classList.toggle('d-none', i !== idx);
+                });
+                // Update progress indicators
+                indicators.forEach(function(ind, i) {
+                    var badge = ind.querySelector('[data-badge]');
+                    var label = ind.querySelector('[data-label]');
+                    if (i < idx) {
+                        badge.className = 'badge rounded-pill me-1 bg-success';
+                        label.className = 'small text-white';
+                    } else if (i === idx) {
+                        badge.className = 'badge rounded-pill me-1 bg-primary';
+                        label.className = 'small text-white';
+                    } else {
+                        badge.className = 'badge rounded-pill me-1 bg-secondary';
+                        label.className = 'small text-white-50';
+                    }
+                });
+                // Show/hide buttons
+                btnBack.classList.toggle('d-none', idx === 0);
+                var isLast = idx === steps.length - 1;
+                btnNext.classList.toggle('d-none', isLast);
+                btnSkip.classList.toggle('d-none', isLast || !steps[idx].optional);
+                btnSubmit.classList.toggle('d-none', !isLast);
+                // Build review content on last step
+                if (isLast) buildReview();
+            }
+
+            function validateCurrentStep() {
+                var stepEl = allStepEls[currentStep];
+                var required = stepEl.querySelectorAll('[required]');
+                for (var i = 0; i < required.length; i++) {
+                    if (!required[i].value || !required[i].value.trim()) {
+                        required[i].focus();
+                        required[i].classList.add('is-invalid');
+                        return false;
+                    }
+                    required[i].classList.remove('is-invalid');
+                }
+                return true;
+            }
+
+            function buildReview() {
+                var tbody = document.getElementById('reviewContent');
+                if (!tbody) return;
+                tbody.innerHTML = '';
+                var inputs = form.querySelectorAll('input:not([type=radio]):not([type=checkbox]):not([type=hidden]), select, textarea');
+                inputs.forEach(function(input) {
+                    var val = input.value;
+                    if (!val || !val.trim()) return;
+                    // Skip hidden inline fields if not applicable
+                    if (input.name === 'newLocationName' || input.name === 'newLocationKind') {
+                        var radio = form.querySelector('input[name="locationChoice"]:checked');
+                        if (!radio || radio.value !== 'new') return;
+                    }
+                    if (input.name === 'locationId') {
+                        var radio = form.querySelector('input[name="locationChoice"]:checked');
+                        if (!radio || radio.value !== 'existing') return;
+                    }
+                    if (input.name === 'locationChoice') return;
+                    var label = form.querySelector('label[for="' + input.id + '"]');
+                    var labelText = label ? label.textContent.replace('*', '').trim() : input.name;
+                    // For selects, show text not value
+                    if (input.tagName === 'SELECT' && input.selectedIndex >= 0) {
+                        val = input.options[input.selectedIndex].text;
+                    }
+                    var tr = document.createElement('tr');
+                    tr.innerHTML = '<td class="text-white-50">' + labelText + '</td><td class="text-white">' + escapeHtml(val) + '</td>';
+                    tbody.appendChild(tr);
+                });
+                // Add checked checkboxes
+                var checks = form.querySelectorAll('input[type=checkbox]:checked');
+                checks.forEach(function(cb) {
+                    var label = form.querySelector('label[for="' + cb.id + '"]');
+                    var labelText = label ? label.textContent.trim() : cb.name;
+                    var tr = document.createElement('tr');
+                    tr.innerHTML = '<td class="text-white-50">' + escapeHtml(labelText) + '</td><td class="text-white">Yes</td>';
+                    tbody.appendChild(tr);
+                });
+                if (!tbody.children.length) {
+                    var tr = document.createElement('tr');
+                    tr.innerHTML = '<td class="text-white-50" colspan="2">No data entered yet.</td>';
+                    tbody.appendChild(tr);
+                }
+            }
+
+            function escapeHtml(text) {
+                var div = document.createElement('div');
+                div.appendChild(document.createTextNode(text));
+                return div.innerHTML;
+            }
+
+            btnNext.addEventListener('click', function() {
+                if (!validateCurrentStep()) return;
+                if (currentStep < steps.length - 1) showStep(currentStep + 1);
+            });
+
+            btnBack.addEventListener('click', function() {
+                if (currentStep > 0) showStep(currentStep - 1);
+            });
+
+            btnSkip.addEventListener('click', function() {
+                if (currentStep < steps.length - 1) showStep(currentStep + 1);
+            });
+
+            // Location choice toggle for item wizard
+            var radios = document.querySelectorAll('input[name="locationChoice"]');
+            radios.forEach(function(r) {
+                r.addEventListener('change', function() {
+                    var existSec = document.getElementById('existingLocationSection');
+                    var newSec = document.getElementById('newLocationSection');
+                    if (existSec) existSec.classList.toggle('d-none', r.value !== 'existing');
+                    if (newSec) newSec.classList.toggle('d-none', r.value !== 'new');
+                });
+            });
+
+            // Draft persistence via localStorage
+            var draftKey = 'wizard_draft_' + '#{entityType}';
+            function saveDraft() {
+                var data = {};
+                var inputs = form.querySelectorAll('input, select, textarea');
+                inputs.forEach(function(el) {
+                    if (el.type === 'checkbox') data[el.name] = el.checked;
+                    else if (el.type === 'radio') { if (el.checked) data[el.name] = el.value; }
+                    else data[el.name] = el.value;
+                });
+                data._step = currentStep;
+                try { localStorage.setItem(draftKey, JSON.stringify(data)); } catch(e) {}
+            }
+            function loadDraft() {
+                try {
+                    var raw = localStorage.getItem(draftKey);
+                    if (!raw) return;
+                    var data = JSON.parse(raw);
+                    var inputs = form.querySelectorAll('input, select, textarea');
+                    inputs.forEach(function(el) {
+                        if (el.name in data) {
+                            if (el.type === 'checkbox') el.checked = !!data[el.name];
+                            else if (el.type === 'radio') el.checked = (el.value === data[el.name]);
+                            else el.value = data[el.name];
+                        }
+                    });
+                    // Trigger location choice change
+                    var checked = form.querySelector('input[name="locationChoice"]:checked');
+                    if (checked) checked.dispatchEvent(new Event('change'));
+                    if (typeof data._step === 'number' && data._step > 0 && data._step < steps.length) {
+                        showStep(data._step);
+                    }
+                } catch(e) {}
+            }
+            form.addEventListener('input', saveDraft);
+            form.addEventListener('change', saveDraft);
+            form.addEventListener('submit', function() {
+                try { localStorage.removeItem(draftKey); } catch(e) {}
+            });
+
+            loadDraft();
+            showStep(currentStep);
+        })();
