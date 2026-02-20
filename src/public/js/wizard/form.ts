@@ -163,7 +163,7 @@ function initWizard(steps: StepDef[], entityType: string, isGame: boolean): void
             if ((input.name === 'barcode' || input.name === 'barcodeSymbology') && !isPhysicalCopy) return;
 
             const label = form.querySelector<HTMLLabelElement>(`label[for="${input.id}"]`);
-            let labelText = label ? label.textContent!.replace('*', '').trim() : input.name;
+            let labelText = label ? label.textContent!.replace(/\*/g, '').trim() : input.name;
 
             if (input.tagName === 'SELECT') {
                 const sel = input as HTMLSelectElement;
