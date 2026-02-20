@@ -137,7 +137,7 @@ jobs:
 
           # Create a production-safe package.json for the release artifact:
           # - remove devDependencies
-          # - remove install-time scripts that commonly pull dev tooling / break installs
+          # - keep only production-ready scripts (compiled JS only, no ts-node)
           node << 'EOF'
           const fs = require('fs');
 
@@ -146,26 +146,20 @@ jobs:
           // Remove dev dependencies from the release artifact
           delete pkg.devDependencies;
 
-          // Remove scripts that run during "npm install" and often depend on dev tooling
+          // Keep only scripts that work without dev tooling (ts-node, etc.)
+          const productionScripts = ['run', 'migrate', 'migrate:revert', 'migrate:show'];
           if (pkg.scripts && typeof pkg.scripts === 'object') {
-            const scriptsToRemove = [
-              'preinstall',
-              'install',
-              'postinstall',
-              'prepare',
-              'prepublish',
-              'prepublishOnly',
-              'postpublish'
-            ];
-            for (const k of scriptsToRemove) delete pkg.scripts[k];
-
-            if (Object.keys(pkg.scripts).length === 0) delete pkg.scripts;
+            const kept = {};
+            for (const k of productionScripts) {
+              if (pkg.scripts[k]) kept[k] = pkg.scripts[k];
+            }
+            pkg.scripts = Object.keys(kept).length > 0 ? kept : undefined;
           }
 
           // Write sanitized package.json into release bundle
           fs.writeFileSync('release/package.json', JSON.stringify(pkg, null, 2) + '\n');
 
-          console.log('Wrote release/package.json (devDependencies removed; install scripts stripped).');
+          console.log('Wrote release/package.json (devDependencies removed; production scripts only).');
           EOF
 
           # Safety: make "npm install" omit dev deps by default in this bundle
