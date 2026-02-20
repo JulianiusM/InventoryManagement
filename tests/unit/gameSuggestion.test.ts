@@ -182,7 +182,49 @@ describe('GameSuggestionController', () => {
                     includePlatforms: undefined,
                     excludePlatforms: undefined,
                     selectedModes: undefined,
+                    modeWeights: undefined,
                     gameTypes: undefined,
+                })
+            );
+        });
+
+        it('should parse mode weights from form data', async () => {
+            (gameSuggestionService.getRandomGameSuggestion as jest.Mock).mockResolvedValue(mockGameTitle);
+
+            const formData: SuggestionFormData = {
+                selectedModes: ['couch', 'physical'],
+                modeWeight_couch: '75',
+                modeWeight_physical: '25',
+            };
+
+            await getGameSuggestion(formData, TEST_USER_ID);
+
+            expect(gameSuggestionService.getRandomGameSuggestion).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    selectedModes: ['couch', 'physical'],
+                    modeWeights: [
+                        {mode: 'couch', weight: 75},
+                        {mode: 'physical', weight: 25},
+                    ],
+                })
+            );
+        });
+
+        it('should ignore invalid mode weights', async () => {
+            (gameSuggestionService.getRandomGameSuggestion as jest.Mock).mockResolvedValue(mockGameTitle);
+
+            const formData: SuggestionFormData = {
+                selectedModes: ['online'],
+                modeWeight_online: 'invalid',
+                modeWeight_couch: '0',
+            };
+
+            await getGameSuggestion(formData, TEST_USER_ID);
+
+            expect(gameSuggestionService.getRandomGameSuggestion).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    selectedModes: ['online'],
+                    modeWeights: undefined,
                 })
             );
         });

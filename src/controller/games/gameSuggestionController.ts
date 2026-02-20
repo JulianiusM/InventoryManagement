@@ -4,6 +4,7 @@
  */
 
 import * as gameSuggestionService from '../../modules/database/services/GameSuggestionService';
+import type {GameMode, ModeWeight} from '../../modules/database/services/GameSuggestionService';
 import * as platformService from '../../modules/database/services/PlatformService';
 import {requireAuthenticatedUser} from '../../middleware/authMiddleware';
 import {GameType} from '../../types/InventoryEnums';
@@ -14,6 +15,26 @@ export interface SuggestionFormData {
     excludePlatforms?: string | string[];
     selectedModes?: string | string[];
     gameTypes?: string | string[];
+    // Weights per mode, e.g. modeWeight_online=50, modeWeight_couch=25
+    [key: string]: string | string[] | undefined;
+}
+
+const VALID_MODES: GameMode[] = ['online', 'couch', 'lan', 'physical'];
+
+const GAME_TYPES = [
+    {value: GameType.VIDEO_GAME, label: 'Video Game'},
+    {value: GameType.BOARD_GAME, label: 'Board Game'},
+    {value: GameType.CARD_GAME, label: 'Card Game'},
+    {value: GameType.TABLETOP_RPG, label: 'Tabletop RPG'},
+    {value: GameType.OTHER_PHYSICAL_GAME, label: 'Other Physical'},
+];
+
+/**
+ * Parse a form field that can be a string or array into a string array.
+ */
+function toStringArray(value: string | string[] | undefined): string[] {
+    if (!value) return [];
+    return Array.isArray(value) ? value : [value];
 }
 
 /**
@@ -22,20 +43,11 @@ export interface SuggestionFormData {
 export async function showSuggestionWizard(userId: number, initialCriteria?: Partial<SuggestionFormData>) {
     requireAuthenticatedUser(userId);
     
-    // Get all platforms for selection
     const platforms = await platformService.getAllPlatforms(userId);
-    
-    const gameTypes = [
-        {value: GameType.VIDEO_GAME, label: 'Video Game'},
-        {value: GameType.BOARD_GAME, label: 'Board Game'},
-        {value: GameType.CARD_GAME, label: 'Card Game'},
-        {value: GameType.TABLETOP_RPG, label: 'Tabletop RPG'},
-        {value: GameType.OTHER_PHYSICAL_GAME, label: 'Other Physical'},
-    ];
     
     return {
         platforms,
-        gameTypes,
+        gameTypes: GAME_TYPES,
         criteria: initialCriteria || {},
     };
 }
@@ -49,26 +61,26 @@ export async function getGameSuggestion(formData: SuggestionFormData, userId: nu
     // Parse player count
     const playerCount = formData.playerCount ? parseInt(formData.playerCount, 10) : undefined;
     
-    // Parse platforms (can be string or array from form)
-    const includePlatforms = formData.includePlatforms 
-        ? (Array.isArray(formData.includePlatforms) ? formData.includePlatforms : [formData.includePlatforms])
-        : [];
-    
-    const excludePlatforms = formData.excludePlatforms
-        ? (Array.isArray(formData.excludePlatforms) ? formData.excludePlatforms : [formData.excludePlatforms])
-        : [];
+    // Parse platforms
+    const includePlatforms = toStringArray(formData.includePlatforms);
+    const excludePlatforms = toStringArray(formData.excludePlatforms);
     
     // Parse game types
-    const gameTypes = formData.gameTypes
-        ? (Array.isArray(formData.gameTypes) ? formData.gameTypes : [formData.gameTypes])
-        : [];
+    const gameTypes = toStringArray(formData.gameTypes);
     
-    // Parse selected modes (can be string or array from form)
-    const selectedModes = formData.selectedModes
-        ? (Array.isArray(formData.selectedModes) ? formData.selectedModes : [formData.selectedModes])
-            .filter((m): m is 'online' | 'couch' | 'lan' | 'physical' => 
-                ['online', 'couch', 'lan', 'physical'].includes(m))
-        : undefined;
+    // Parse selected modes
+    const selectedModes = toStringArray(formData.selectedModes)
+        .filter((m): m is GameMode => VALID_MODES.includes(m as GameMode));
+    
+    // Parse mode weights from form fields  (modeWeight_online, modeWeight_couch, etc.)
+    const modeWeights: ModeWeight[] = [];
+    for (const mode of VALID_MODES) {
+        const raw = formData[`modeWeight_${mode}`];
+        const val = typeof raw === 'string' ? parseInt(raw, 10) : undefined;
+        if (val !== undefined && !isNaN(val) && val > 0) {
+            modeWeights.push({mode, weight: val});
+        }
+    }
     
     // Build criteria
     const criteria = {
@@ -76,7 +88,8 @@ export async function getGameSuggestion(formData: SuggestionFormData, userId: nu
         playerCount: playerCount && !isNaN(playerCount) ? playerCount : undefined,
         includePlatforms: includePlatforms.length > 0 ? includePlatforms : undefined,
         excludePlatforms: excludePlatforms.length > 0 ? excludePlatforms : undefined,
-        selectedModes: selectedModes && selectedModes.length > 0 ? selectedModes : undefined,
+        selectedModes: selectedModes.length > 0 ? selectedModes : undefined,
+        modeWeights: modeWeights.length > 0 ? modeWeights : undefined,
         gameTypes: gameTypes.length > 0 ? gameTypes : undefined,
     };
     
@@ -90,12 +103,6 @@ export async function getGameSuggestion(formData: SuggestionFormData, userId: nu
         suggestion,
         criteria: formData,
         platforms,
-        gameTypes: [
-            {value: GameType.VIDEO_GAME, label: 'Video Game'},
-            {value: GameType.BOARD_GAME, label: 'Board Game'},
-            {value: GameType.CARD_GAME, label: 'Card Game'},
-            {value: GameType.TABLETOP_RPG, label: 'Tabletop RPG'},
-            {value: GameType.OTHER_PHYSICAL_GAME, label: 'Other Physical'},
-        ],
+        gameTypes: GAME_TYPES,
     };
 }

@@ -117,6 +117,11 @@ block content
                                     input(type="hidden" name="playerCount" value=criteria.playerCount)
                                 each mode in selectedModesArray
                                     input(type="hidden" name="selectedModes" value=mode)
+                                //- Preserve mode weights
+                                - const modeWeightKeys = ['online','couch','lan','physical']
+                                each m in modeWeightKeys
+                                    if criteria['modeWeight_' + m]
+                                        input(type="hidden" name=`modeWeight_${m}` value=criteria['modeWeight_' + m])
                                 if criteria.includePlatforms
                                     - const includePlatformsArray = Array.isArray(criteria.includePlatforms) ? criteria.includePlatforms : [criteria.includePlatforms]
                                     each platform in includePlatformsArray

@@ -7,6 +7,13 @@ import {AppDataSource} from '../dataSource';
 import {GameTitle} from '../entities/gameTitle/GameTitle';
 import {Brackets, SelectQueryBuilder} from 'typeorm';
 
+export type GameMode = 'online' | 'couch' | 'lan' | 'physical';
+
+export interface ModeWeight {
+    mode: GameMode;
+    weight: number; // 0-100, percentage
+}
+
 export interface SuggestionCriteria {
     playerCount?: number;
     includePlatforms?: string[];
@@ -14,32 +21,50 @@ export interface SuggestionCriteria {
     
     // Mode selection - OR logic: game must support at least one selected mode
     // Empty/undefined = no mode filter (any game)
-    selectedModes?: ('online' | 'couch' | 'lan' | 'physical')[];
+    selectedModes?: GameMode[];
+    
+    // Optional: weight distribution per mode (must sum to 100)
+    // If not provided, uniform distribution across selected modes
+    modeWeights?: ModeWeight[];
     
     gameTypes?: string[];
     ownerId: number;
 }
 
+/** Map a GameMode to its entity column name for the supports flag */
+const MODE_SUPPORT_COLUMN: Record<GameMode, string> = {
+    online: 'supportsOnline',
+    couch: 'supportsLocalCouch',
+    lan: 'supportsLocalLAN',
+    physical: 'supportsPhysical',
+};
+
+/** Map a GameMode to its entity column names for min/max player counts */
+const MODE_PLAYER_COLUMNS: Record<GameMode, {min: string; max: string}> = {
+    online: {min: 'onlineMinPlayers', max: 'onlineMaxPlayers'},
+    couch: {min: 'couchMinPlayers', max: 'couchMaxPlayers'},
+    lan: {min: 'lanMinPlayers', max: 'lanMaxPlayers'},
+    physical: {min: 'physicalMinPlayers', max: 'physicalMaxPlayers'},
+};
+
 /**
  * Build a Brackets condition that checks if a mode-specific player count
  * supports the given player count, falling back to overall counts.
  */
-function modePlayerCountBracket(
-    modeFlag: string,
-    modeMin: string,
-    modeMax: string,
-): Brackets {
+function modePlayerCountBracket(mode: GameMode): Brackets {
+    const flag = MODE_SUPPORT_COLUMN[mode];
+    const {min, max} = MODE_PLAYER_COLUMNS[mode];
     return new Brackets((qb) => {
-        qb.where(`title.${modeFlag} = :trueVal`, {trueVal: true})
+        qb.where(`title.${flag} = 1`)
           .andWhere(new Brackets((inner) => {
               inner.where(new Brackets((specific) => {
-                  specific.where(`title.${modeMin} IS NOT NULL`)
-                      .andWhere(`title.${modeMax} IS NOT NULL`)
-                      .andWhere(`title.${modeMin} <= :count`)
-                      .andWhere(`title.${modeMax} >= :count`);
+                  specific.where(`title.${min} IS NOT NULL`)
+                      .andWhere(`title.${max} IS NOT NULL`)
+                      .andWhere(`title.${min} <= :count`)
+                      .andWhere(`title.${max} >= :count`);
               })).orWhere(new Brackets((fallback) => {
-                  fallback.where(`title.${modeMin} IS NULL`)
-                      .andWhere(`title.${modeMax} IS NULL`)
+                  fallback.where(`title.${min} IS NULL`)
+                      .andWhere(`title.${max} IS NULL`)
                       .andWhere('title.overallMinPlayers IS NOT NULL')
                       .andWhere('title.overallMaxPlayers IS NOT NULL')
                       .andWhere('title.overallMinPlayers <= :count')
@@ -50,63 +75,26 @@ function modePlayerCountBracket(
 }
 
 /**
- * Apply criteria filters to a query builder
- * Helper function to avoid duplication between single and multiple suggestions
+ * Create a base query builder for matching game titles.
  */
-function applyFiltersToQuery(
-    query: SelectQueryBuilder<GameTitle>,
-    criteria: SuggestionCriteria
-): void {
-    // Filter by game modes (OR logic: game must support at least one selected mode)
-    if (criteria.selectedModes && criteria.selectedModes.length > 0) {
-        query.andWhere(new Brackets((modeOr) => {
-            if (criteria.selectedModes!.includes('online')) {
-                modeOr.orWhere('title.supportsOnline = :trueVal', {trueVal: true});
-            }
-            if (criteria.selectedModes!.includes('couch')) {
-                modeOr.orWhere('title.supportsLocalCouch = :trueVal', {trueVal: true});
-            }
-            if (criteria.selectedModes!.includes('lan')) {
-                modeOr.orWhere('title.supportsLocalLAN = :trueVal', {trueVal: true});
-            }
-            if (criteria.selectedModes!.includes('physical')) {
-                modeOr.orWhere('title.supportsPhysical = :trueVal', {trueVal: true});
-            }
-        }));
+function createBaseQuery(criteria: SuggestionCriteria): SelectQueryBuilder<GameTitle> {
+    const query = AppDataSource.getRepository(GameTitle)
+        .createQueryBuilder('title')
+        .leftJoinAndSelect('title.releases', 'release')
+        .where('title.owner_id = :ownerId', {ownerId: criteria.ownerId});
+
+    // Filter by game types
+    if (criteria.gameTypes && criteria.gameTypes.length > 0) {
+        query.andWhere('title.type IN (:...gameTypes)', {gameTypes: criteria.gameTypes});
     }
-    
-    // Filter by player count
+
+    // Apply player count filter (overall, not mode-specific)
     if (criteria.playerCount !== undefined && criteria.playerCount > 0) {
-        const count = criteria.playerCount;
-        query.setParameter('count', count);
-        
-        if (criteria.selectedModes && criteria.selectedModes.length > 0) {
-            // When modes selected: at least one selected mode must satisfy the player count
-            query.andWhere(new Brackets((modeCountOr) => {
-                if (criteria.selectedModes!.includes('online')) {
-                    modeCountOr.orWhere(
-                        modePlayerCountBracket('supportsOnline', 'onlineMinPlayers', 'onlineMaxPlayers')
-                    );
-                }
-                if (criteria.selectedModes!.includes('couch')) {
-                    modeCountOr.orWhere(
-                        modePlayerCountBracket('supportsLocalCouch', 'couchMinPlayers', 'couchMaxPlayers')
-                    );
-                }
-                if (criteria.selectedModes!.includes('lan')) {
-                    modeCountOr.orWhere(
-                        modePlayerCountBracket('supportsLocalLAN', 'lanMinPlayers', 'lanMaxPlayers')
-                    );
-                }
-                if (criteria.selectedModes!.includes('physical')) {
-                    modeCountOr.orWhere(
-                        modePlayerCountBracket('supportsPhysical', 'physicalMinPlayers', 'physicalMaxPlayers')
-                    );
-                }
-            }));
-        } else {
+        query.setParameter('count', criteria.playerCount);
+
+        if (!criteria.selectedModes || criteria.selectedModes.length === 0) {
             // No mode selected - use overall player count
-            if (count === 1) {
+            if (criteria.playerCount === 1) {
                 query.andWhere(new Brackets((overall) => {
                     overall.where(new Brackets((known) => {
                         known.where('title.overallMinPlayers IS NOT NULL')
@@ -116,10 +104,10 @@ function applyFiltersToQuery(
                     })).orWhere(new Brackets((singleplayer) => {
                         singleplayer.where('title.overallMinPlayers IS NULL')
                             .andWhere('title.overallMaxPlayers IS NULL')
-                            .andWhere('title.supportsOnline = :falseVal', {falseVal: false})
-                            .andWhere('title.supportsLocalCouch = :falseVal')
-                            .andWhere('title.supportsLocalLAN = :falseVal')
-                            .andWhere('title.supportsPhysical = :falseVal');
+                            .andWhere('title.supportsOnline = 0')
+                            .andWhere('title.supportsLocalCouch = 0')
+                            .andWhere('title.supportsLocalLAN = 0')
+                            .andWhere('title.supportsPhysical = 0');
                     }));
                 }));
             } else {
@@ -130,10 +118,23 @@ function applyFiltersToQuery(
             }
         }
     }
-    
-    // Filter by game types
-    if (criteria.gameTypes && criteria.gameTypes.length > 0) {
-        query.andWhere('title.type IN (:...gameTypes)', {gameTypes: criteria.gameTypes});
+
+    return query;
+}
+
+/**
+ * Apply mode filter and optional player count check for a specific mode.
+ */
+function applyModeFilter(
+    query: SelectQueryBuilder<GameTitle>,
+    mode: GameMode,
+    playerCount: number | undefined,
+): void {
+    const flag = MODE_SUPPORT_COLUMN[mode];
+    query.andWhere(`title.${flag} = 1`);
+
+    if (playerCount !== undefined && playerCount > 0) {
+        query.andWhere(modePlayerCountBracket(mode));
     }
 }
 
@@ -166,33 +167,124 @@ function applyPlatformFilters(
 }
 
 /**
- * Get all matching game titles based on criteria
+ * Pick a random element from an array.  Returns undefined for empty arrays.
  */
-async function getMatchingTitles(criteria: SuggestionCriteria): Promise<GameTitle[]> {
-    const query = AppDataSource.getRepository(GameTitle)
-        .createQueryBuilder('title')
-        .leftJoinAndSelect('title.releases', 'release')
-        .where('title.owner_id = :ownerId', {ownerId: criteria.ownerId});
-    
-    applyFiltersToQuery(query, criteria);
-    
+function pickRandom<T>(arr: T[]): T | undefined {
+    if (arr.length === 0) return undefined;
+    return arr[Math.floor(Math.random() * arr.length)];
+}
+
+/**
+ * Get all matching game titles for a single mode (or all modes with OR logic).
+ */
+async function getTitlesForMode(
+    criteria: SuggestionCriteria,
+    mode?: GameMode,
+): Promise<GameTitle[]> {
+    const query = createBaseQuery(criteria);
+
+    if (mode) {
+        // Single mode query
+        applyModeFilter(query, mode, criteria.playerCount);
+    } else if (criteria.selectedModes && criteria.selectedModes.length > 0) {
+        // OR across all selected modes
+        query.andWhere(new Brackets((modeOr) => {
+            for (const m of criteria.selectedModes!) {
+                modeOr.orWhere(`title.${MODE_SUPPORT_COLUMN[m]} = 1`);
+            }
+        }));
+
+        // Mode-specific player count check
+        if (criteria.playerCount !== undefined && criteria.playerCount > 0) {
+            query.andWhere(new Brackets((modeCountOr) => {
+                for (const m of criteria.selectedModes!) {
+                    modeCountOr.orWhere(modePlayerCountBracket(m));
+                }
+            }));
+        }
+    }
+
+    // Randomize at the database level for reliable randomness
+    query.orderBy('RAND()');
+
     const titles = await query.getMany();
     return applyPlatformFilters(titles, criteria);
 }
 
 /**
- * Get a random game suggestion based on criteria
- * Returns null if no games match the criteria
+ * Normalize weights so they sum to 100, distributing evenly if none provided.
+ */
+function normalizeWeights(
+    selectedModes: GameMode[],
+    modeWeights?: ModeWeight[],
+): ModeWeight[] {
+    if (!modeWeights || modeWeights.length === 0) {
+        // Uniform distribution — last mode absorbs any rounding remainder
+        const w = Math.floor(100 / selectedModes.length);
+        return selectedModes.map((mode, i) => ({
+            mode,
+            weight: i === selectedModes.length - 1 ? 100 - w * (selectedModes.length - 1) : w,
+        }));
+    }
+
+    // Only keep weights for modes that are actually selected
+    const filtered = modeWeights.filter(mw => selectedModes.includes(mw.mode));
+    const total = filtered.reduce((s, mw) => s + mw.weight, 0);
+
+    if (total <= 0) {
+        return normalizeWeights(selectedModes);
+    }
+
+    // Rescale to sum to 100
+    return filtered.map(mw => ({
+        mode: mw.mode,
+        weight: Math.round((mw.weight / total) * 100),
+    }));
+}
+
+/**
+ * Weighted random mode selection based on mode weights.
+ * Uses cumulative distribution; final entry is the fallback if
+ * rounding causes weights to sum to slightly less than 100.
+ */
+function pickWeightedMode(weights: ModeWeight[]): GameMode {
+    const roll = Math.random() * 100;
+    let cumulative = 0;
+    for (const mw of weights) {
+        cumulative += mw.weight;
+        if (roll < cumulative) return mw.mode;
+    }
+    return weights[weights.length - 1].mode;
+}
+
+/**
+ * Get a random game suggestion based on criteria.
+ *
+ * When `modeWeights` is provided (and modes are selected), the service first
+ * picks a mode according to the weighted distribution, then queries games for
+ * that specific mode.  If the chosen mode yields no results, it falls back to
+ * OR-across-all-modes to avoid returning null unnecessarily.
+ *
+ * Returns null if no games match the criteria at all.
  */
 export async function getRandomGameSuggestion(criteria: SuggestionCriteria): Promise<GameTitle | null> {
-    const titles = await getMatchingTitles(criteria);
-    
-    if (titles.length === 0) {
-        return null;
+    const modes = criteria.selectedModes;
+
+    // Weighted path: pick a mode, query for it, fall back to OR if empty
+    if (modes && modes.length > 0 && criteria.modeWeights && criteria.modeWeights.length > 0) {
+        const weights = normalizeWeights(modes, criteria.modeWeights);
+        const chosenMode = pickWeightedMode(weights);
+
+        const titles = await getTitlesForMode(criteria, chosenMode);
+        if (titles.length > 0) {
+            return pickRandom(titles) ?? null;
+        }
+        // Fallback: try OR across all modes
     }
-    
-    const randomIndex = Math.floor(Math.random() * titles.length);
-    return titles[randomIndex];
+
+    // Non-weighted (or fallback): OR across all selected modes
+    const titles = await getTitlesForMode(criteria);
+    return pickRandom(titles) ?? null;
 }
 
 /**
@@ -202,13 +294,9 @@ export async function getRandomGameSuggestions(
     criteria: SuggestionCriteria, 
     count: number = 3
 ): Promise<GameTitle[]> {
-    const titles = await getMatchingTitles(criteria);
-    
-    // Shuffle array using Fisher-Yates algorithm and return requested count
-    for (let i = titles.length - 1; i > 0; i--) {
-        const j = Math.floor(Math.random() * (i + 1));
-        [titles[i], titles[j]] = [titles[j], titles[i]];
-    }
+    const titles = await getTitlesForMode(criteria);
+
+    // Already randomized by RAND() at the DB level
     return titles.slice(0, Math.min(count, titles.length));
 }
 

@@ -113,6 +113,38 @@ block content
                                         | Advanced Options
                                 #advancedOptionsCollapse.accordion-collapse.collapse
                                     .accordion-body
+                                        //- Mode Weight Distribution
+                                        .mb-4#modeWeightsSection(style="display:none;")
+                                            label.form-label.text-white
+                                                i.bi.bi-pie-chart.me-1
+                                                | Mode Distribution
+                                            p.text-white-50.small.mb-2 Adjust how often each selected mode is picked. Leave equal for uniform distribution.
+                                            .row.g-3
+                                                .col-md-6.col-lg-3.mode-weight-group(data-mode="online" style="display:none;")
+                                                    label.form-label.small.text-primary
+                                                        i.bi.bi-globe.me-1
+                                                        | Online
+                                                        span.ms-1.badge.text-bg-primary.weight-display 25%
+                                                    input.form-range.mode-weight-slider(type="range" name="modeWeight_online" min="0" max="100" value=(criteria.modeWeight_online || "25") data-mode="online")
+                                                .col-md-6.col-lg-3.mode-weight-group(data-mode="couch" style="display:none;")
+                                                    label.form-label.small.text-success
+                                                        i.bi.bi-display.me-1
+                                                        | Couch Co-op
+                                                        span.ms-1.badge.text-bg-success.weight-display 25%
+                                                    input.form-range.mode-weight-slider(type="range" name="modeWeight_couch" min="0" max="100" value=(criteria.modeWeight_couch || "25") data-mode="couch")
+                                                .col-md-6.col-lg-3.mode-weight-group(data-mode="lan" style="display:none;")
+                                                    label.form-label.small.text-info
+                                                        i.bi.bi-hdd-network.me-1
+                                                        | LAN
+                                                        span.ms-1.badge.text-bg-info.weight-display 25%
+                                                    input.form-range.mode-weight-slider(type="range" name="modeWeight_lan" min="0" max="100" value=(criteria.modeWeight_lan || "25") data-mode="lan")
+                                                .col-md-6.col-lg-3.mode-weight-group(data-mode="physical" style="display:none;")
+                                                    label.form-label.small.text-warning
+                                                        i.bi.bi-dice-5.me-1
+                                                        | Physical
+                                                        span.ms-1.badge.text-bg-warning.text-dark.weight-display 25%
+                                                    input.form-range.mode-weight-slider(type="range" name="modeWeight_physical" min="0" max="100" value=(criteria.modeWeight_physical || "25") data-mode="physical")
+
                                         //- Platform Filters
                                         .mb-3
                                             label.form-label.text-white
@@ -244,4 +276,40 @@ block scripts
                     }
                 });
             }
+
+            // --- Mode weight distribution ---
+            function updateWeightVisibility() {
+                const checked = Array.from(document.querySelectorAll('input[name="selectedModes"]:checked'))
+                    .map(el => el.value);
+                const section = document.getElementById('modeWeightsSection');
+                // Show weight section only when 2+ modes selected
+                section.style.display = checked.length >= 2 ? '' : 'none';
+                // Show/hide individual sliders
+                document.querySelectorAll('.mode-weight-group').forEach(grp => {
+                    grp.style.display = checked.includes(grp.dataset.mode) ? '' : 'none';
+                });
+                updateWeightDisplays();
+            }
+
+            function updateWeightDisplays() {
+                const sliders = Array.from(document.querySelectorAll('.mode-weight-slider'))
+                    .filter(s => s.closest('.mode-weight-group').style.display !== 'none');
+                const total = sliders.reduce((s, el) => s + Number(el.value), 0) || 1;
+                sliders.forEach(slider => {
+                    const pct = Math.round((Number(slider.value) / total) * 100);
+                    const badge = slider.closest('.mode-weight-group').querySelector('.weight-display');
+                    if (badge) badge.textContent = pct + '%';
+                });
+            }
+
+            // Bind mode checkboxes to weight visibility
+            document.querySelectorAll('input[name="selectedModes"]').forEach(cb => {
+                cb.addEventListener('change', updateWeightVisibility);
+            });
+            // Bind slider input
+            document.querySelectorAll('.mode-weight-slider').forEach(slider => {
+                slider.addEventListener('input', updateWeightDisplays);
+            });
+            // Initialize
+            updateWeightVisibility();
         });
