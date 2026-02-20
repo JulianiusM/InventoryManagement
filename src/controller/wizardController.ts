@@ -60,6 +60,7 @@ const wizardDefinitions: Record<WizardEntityType, {
         steps: [
             {id: 'basics', title: 'Basics', icon: 'bi-pencil', optional: false},
             {id: 'metadata', title: 'Metadata', icon: 'bi-cloud-download', optional: true},
+            {id: 'details', title: 'Details', icon: 'bi-list-ul', optional: true},
             {id: 'copy', title: 'Copy', icon: 'bi-disc', optional: false},
             {id: 'review', title: 'Review', icon: 'bi-check-circle', optional: false},
         ],
@@ -150,6 +151,19 @@ export async function searchGameMetadata(query: string, gameType?: string) {
     // searchMetadataOptions uses only title.name and title.type from the GameTitle
     const titleForSearch = {name: query.trim(), type: gameType as GameType} as GameTitle;
     return await metadataFetcher.searchMetadataOptions(titleForSearch, query.trim());
+}
+
+/**
+ * Fetch full metadata for a specific provider result (AJAX endpoint for game wizard)
+ * Returns GameMetadata to prefill the manual details step
+ */
+export async function fetchGameMetadata(providerId: string, externalId: string) {
+    if (!providerId || !externalId) {
+        return null;
+    }
+    const metadataFetcher = getMetadataFetcher();
+    const result = await metadataFetcher.fetchMetadataFromProvider(providerId, externalId);
+    return result.metadata || null;
 }
 
 // ============ Private Helpers ============
@@ -288,13 +302,27 @@ async function submitGameWizard(body: Record<string, string>, userId: number) {
         locationId = newLocation.id;
     }
 
-    await gameCopyController.createGameCopy({
+    const copy = await gameCopyController.createGameCopy({
         gameReleaseId: release.id,
         copyType,
         condition: copyType === GameCopyType.PHYSICAL_COPY ? (body.condition || undefined) : undefined,
         locationId: copyType === GameCopyType.PHYSICAL_COPY ? locationId : undefined,
         externalAccountId: copyType === GameCopyType.DIGITAL_LICENSE ? (body.externalAccountId || undefined) : undefined,
     }, userId);
+
+    // Step 5: Map barcode if provided (physical copies only)
+    if (copyType === GameCopyType.PHYSICAL_COPY && body.barcode && body.barcode.trim()) {
+        try {
+            await gameCopyController.mapBarcodeToGameCopy(
+                copy.id,
+                body.barcode.trim(),
+                body.barcodeSymbology || 'UNKNOWN',
+                userId
+            );
+        } catch {
+            // Barcode mapping failure should not block game creation
+        }
+    }
 
     return {
         entityType: 'game' as const,

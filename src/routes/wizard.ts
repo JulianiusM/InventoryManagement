@@ -33,6 +33,14 @@ router.get('/api/search-metadata', asyncHandler(async (req: Request, res: Respon
     res.json(results);
 }));
 
+// Fetch full game metadata for prefilling (AJAX endpoint)
+router.get('/api/fetch-metadata', asyncHandler(async (req: Request, res: Response) => {
+    const providerId = req.query.provider as string || '';
+    const externalId = req.query.externalId as string || '';
+    const result = await wizardController.fetchGameMetadata(providerId, externalId);
+    res.json(result);
+}));
+
 // Wizard form – show step-based form for specific entity type
 router.get('/:entityType', asyncHandler(async (req: Request, res: Response) => {
     const userId = req.session.user!.id;

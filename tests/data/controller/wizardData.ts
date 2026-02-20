@@ -30,7 +30,7 @@ export const wizardFormData = [
         entityType: 'game',
         userId: TEST_USER_ID,
         expectedEntityType: 'game',
-        expectedStepCount: 4,
+        expectedStepCount: 5,
     },
 ];
 
@@ -139,6 +139,23 @@ export const submitGameData = [
             entityId: 'uuid-game-3',
             entityName: 'Hades',
             editUrl: '/games/titles/uuid-game-3',
+            listUrl: '/games',
+        },
+    },
+    {
+        description: 'creates physical game copy with barcode via wizard',
+        entityType: 'game',
+        body: {name: 'Ticket to Ride', type: 'board_game', platform: 'Physical', copyType: 'physical_copy', barcode: '0123456789012', barcodeSymbology: 'EAN13'},
+        userId: TEST_USER_ID,
+        mockGameTitle: {id: 'uuid-game-4', name: 'Ticket to Ride'},
+        mockRelease: {id: 'uuid-release-4', gameTitleId: 'uuid-game-4', platform: 'Physical'},
+        mockCopy: {id: 'uuid-copy-4', gameReleaseId: 'uuid-release-4'},
+        hasBarcode: true,
+        expected: {
+            entityType: 'game',
+            entityId: 'uuid-game-4',
+            entityName: 'Ticket to Ride',
+            editUrl: '/games/titles/uuid-game-4',
             listUrl: '/games',
         },
     },

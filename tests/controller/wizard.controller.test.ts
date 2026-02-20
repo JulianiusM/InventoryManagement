@@ -35,6 +35,7 @@ import * as platformService from '../../src/modules/database/services/PlatformSe
 import * as externalAccountService from '../../src/modules/database/services/ExternalAccountService';
 import * as gameTitleService from '../../src/modules/database/services/GameTitleService';
 import * as gameReleaseService from '../../src/modules/database/services/GameReleaseService';
+import * as barcodeService from '../../src/modules/database/services/BarcodeService';
 import {getMetadataFetcher} from '../../src/modules/games/sync/MetadataFetcher';
 import * as wizardController from '../../src/controller/wizardController';
 
@@ -105,7 +106,7 @@ describe('wizardController', () => {
             }
         });
 
-        test.each(submitGameData)('$description', async ({entityType, body, userId, mockGameTitle, mockRelease, mockCopy, mockMetadataResult, expected}) => {
+        test.each(submitGameData)('$description', async ({entityType, body, userId, mockGameTitle, mockRelease, mockCopy, mockMetadataResult, hasBarcode, expected}) => {
             // Mock title creation
             setupMock(gameTitleService.createGameTitle as jest.Mock, mockGameTitle);
             // Mock release creation
@@ -114,6 +115,13 @@ describe('wizardController', () => {
             // Mock copy creation
             setupMock(gameReleaseService.getGameReleaseById as jest.Mock, {...mockRelease, ownerId: userId, gameTitle: mockGameTitle});
             setupMock(itemService.createGameItem as jest.Mock, mockCopy);
+
+            // Mock barcode service for barcode mapping
+            if (hasBarcode) {
+                setupMock(itemService.getItemById as jest.Mock, {...mockCopy, gameCopyType: 'physical_copy', ownerId: userId});
+                setupMock(barcodeService.getBarcodeByCode as jest.Mock, null);
+                setupMock(barcodeService.mapBarcodeToItem as jest.Mock, {});
+            }
 
             // Mock metadata fetcher if metadata is selected
             if (mockMetadataResult) {
@@ -127,6 +135,10 @@ describe('wizardController', () => {
             expect(gameTitleService.createGameTitle).toHaveBeenCalled();
             expect(gameReleaseService.createGameRelease).toHaveBeenCalled();
             expect(itemService.createGameItem).toHaveBeenCalled();
+
+            if (hasBarcode) {
+                expect(barcodeService.mapBarcodeToItem).toHaveBeenCalled();
+            }
         });
 
         test.each(submitErrorData)('$description', async ({entityType, body, userId, errorMessage}) => {

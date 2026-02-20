@@ -238,11 +238,6 @@ block content
                                 select#type.form-select.text-bg-dark.border-secondary(name="type")
                                     each t in gameTypes
                                         option(value=t selected=(t === 'video_game'))= t.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())
-                            .col-12
-                                label.form-label(for="description")
-                                    i.bi.bi-text-left.me-1
-                                    | Description
-                                textarea#description.form-control.text-bg-dark.border-secondary(name="description" rows="3" placeholder="Optional game description")
 
             //- Step: Metadata (optional - search and select metadata)
             .wizard-step.d-none(data-step="metadata")
@@ -271,6 +266,59 @@ block content
                                 button.btn.btn-sm.btn-outline-light.ms-auto#btnClearMetadata(type="button")
                                     i.bi.bi-x-lg.me-1
                                     | Clear
+
+            //- Step: Details (optional - manual metadata entry with prefill)
+            .wizard-step.d-none(data-step="details")
+                .card.text-bg-dark.border-secondary.mb-3
+                    .card-header.border-secondary
+                        i.bi.bi-list-ul.me-2
+                        | Game Details
+                        span.badge.bg-dark.text-white-50.ms-2 Optional
+                    .card-body
+                        p.text-white-50 Edit game details manually. If you selected metadata above, these fields will be pre-filled.
+                        .row.g-3
+                            .col-12
+                                label.form-label(for="description")
+                                    i.bi.bi-text-left.me-1
+                                    | Description
+                                textarea#description.form-control.text-bg-dark.border-secondary(name="description" rows="3" placeholder="Game description")
+                            .col-md-6
+                                label.form-label(for="overallMinPlayers")
+                                    i.bi.bi-person.me-1
+                                    | Min Players
+                                input#overallMinPlayers.form-control.text-bg-dark.border-secondary(type="number" name="overallMinPlayers" min="1" placeholder="1")
+                            .col-md-6
+                                label.form-label(for="overallMaxPlayers")
+                                    i.bi.bi-people.me-1
+                                    | Max Players
+                                input#overallMaxPlayers.form-control.text-bg-dark.border-secondary(type="number" name="overallMaxPlayers" min="1" placeholder="1")
+                            .col-12
+                                label.form-label.mb-2 Game Modes
+                                .row.g-2
+                                    .col-md-3
+                                        .form-check
+                                            input#supportsOnline.form-check-input(type="checkbox" name="supportsOnline" value="true")
+                                            label.form-check-label(for="supportsOnline")
+                                                i.bi.bi-globe.me-1
+                                                | Online
+                                    .col-md-3
+                                        .form-check
+                                            input#supportsLocalCouch.form-check-input(type="checkbox" name="supportsLocalCouch" value="true")
+                                            label.form-check-label(for="supportsLocalCouch")
+                                                i.bi.bi-tv.me-1
+                                                | Couch Co-op
+                                    .col-md-3
+                                        .form-check
+                                            input#supportsLocalLAN.form-check-input(type="checkbox" name="supportsLocalLAN" value="true")
+                                            label.form-check-label(for="supportsLocalLAN")
+                                                i.bi.bi-ethernet.me-1
+                                                | LAN
+                                    .col-md-3
+                                        .form-check
+                                            input#supportsPhysical.form-check-input(type="checkbox" name="supportsPhysical" value="true")
+                                            label.form-check-label(for="supportsPhysical")
+                                                i.bi.bi-dice-3.me-1
+                                                | Physical
 
             //- Step: Copy (release + copy details)
             .wizard-step.d-none(data-step="copy")
@@ -325,6 +373,24 @@ block content
                                             option(value="") Unassigned
                                             each loc in locations
                                                 option(value=loc.id)= loc.name
+                                    .col-md-6
+                                        label.form-label(for="barcode")
+                                            i.bi.bi-upc-scan.me-1
+                                            | Barcode
+                                        input#barcode.form-control.text-bg-dark.border-secondary(type="text" name="barcode" placeholder="Scan or type barcode")
+                                    .col-md-6
+                                        label.form-label(for="barcodeSymbology")
+                                            i.bi.bi-hash.me-1
+                                            | Barcode Type
+                                        select#barcodeSymbology.form-select.text-bg-dark.border-secondary(name="barcodeSymbology")
+                                            option(value="UNKNOWN") Auto-detect
+                                            option(value="EAN13") EAN-13
+                                            option(value="EAN8") EAN-8
+                                            option(value="UPC_A") UPC-A
+                                            option(value="UPC_E") UPC-E
+                                            option(value="CODE128") Code 128
+                                            option(value="CODE39") Code 39
+                                            option(value="QR") QR Code
 
                             //- Digital copy fields
                             #digitalCopyFields.d-none
@@ -457,6 +523,9 @@ block scripts
                     if (input.name === 'externalAccountId' && isPhysicalCopy) return;
                     // Skip physical-only fields for digital copies
                     if ((input.name === 'condition') && !isPhysicalCopy) return;
+                    if ((input.name === 'barcode' || input.name === 'barcodeSymbology') && !isPhysicalCopy) return;
+                    // Skip dropdown search filter inputs
+                    if (input.getAttribute('data-search-for') !== null) return;
                     var label = form.querySelector('label[for="' + input.id + '"]');
                     var labelText = label ? label.textContent.replace('*', '').trim() : input.name;
                     // For selects, show text not value
@@ -653,6 +722,27 @@ block scripts
                     if (metaResults) metaResults.innerHTML = '';
                     if (metaSelected) metaSelected.classList.remove('d-none');
                     if (metaSelectedName) metaSelectedName.textContent = 'Selected: ' + name + ' (' + provider + ')';
+
+                    // Fetch full metadata to prefill details step
+                    fetch('/wizard/api/fetch-metadata?provider=' + encodeURIComponent(provider) + '&externalId=' + encodeURIComponent(externalId))
+                        .then(function(r) { return r.json(); })
+                        .then(function(meta) {
+                            if (!meta) return;
+                            var descEl = document.getElementById('description');
+                            if (descEl && meta.description && !descEl.value) descEl.value = meta.description;
+                            if (meta.playerInfo) {
+                                var pi = meta.playerInfo;
+                                var minEl = document.getElementById('overallMinPlayers');
+                                var maxEl = document.getElementById('overallMaxPlayers');
+                                if (minEl && pi.overallMinPlayers && !minEl.value) minEl.value = pi.overallMinPlayers;
+                                if (maxEl && pi.overallMaxPlayers && !maxEl.value) maxEl.value = pi.overallMaxPlayers;
+                                if (pi.supportsOnline) { var el = document.getElementById('supportsOnline'); if (el) el.checked = true; }
+                                if (pi.supportsLocalCouch) { var el = document.getElementById('supportsLocalCouch'); if (el) el.checked = true; }
+                                if (pi.supportsLocalLAN) { var el = document.getElementById('supportsLocalLAN'); if (el) el.checked = true; }
+                                if (pi.supportsPhysical) { var el = document.getElementById('supportsPhysical'); if (el) el.checked = true; }
+                            }
+                        })
+                        .catch(function() { /* metadata prefill failure is non-critical */ });
                 }
 
                 if (btnSearchMeta) {
@@ -668,9 +758,51 @@ block scripts
                         if (metaProviderInput) metaProviderInput.value = '';
                         if (metaExternalInput) metaExternalInput.value = '';
                         if (metaSelected) metaSelected.classList.add('d-none');
+                        // Clear prefilled details fields
+                        var descEl = document.getElementById('description');
+                        if (descEl) descEl.value = '';
+                        var minEl = document.getElementById('overallMinPlayers');
+                        if (minEl) minEl.value = '';
+                        var maxEl = document.getElementById('overallMaxPlayers');
+                        if (maxEl) maxEl.value = '';
+                        ['supportsOnline','supportsLocalCouch','supportsLocalLAN','supportsPhysical'].forEach(function(id) {
+                            var el = document.getElementById(id);
+                            if (el) el.checked = false;
+                        });
                     });
                 }
             }
+
+            // ============ Searchable dropdowns for all wizard selects ============
+            form.querySelectorAll('select.form-select').forEach(function(select) {
+                if (select.options.length < 6) return; // Only for dropdowns with 6+ options
+                var wrapper = document.createElement('div');
+                wrapper.className = 'position-relative';
+                select.parentNode.insertBefore(wrapper, select);
+                var searchInput = document.createElement('input');
+                searchInput.type = 'text';
+                searchInput.className = 'form-control form-control-sm text-bg-dark border-secondary mb-1';
+                searchInput.placeholder = 'Type to filter\u2026';
+                searchInput.setAttribute('data-search-for', select.id || '');
+                wrapper.appendChild(searchInput);
+                wrapper.appendChild(select);
+                var allOptions = [];
+                for (var i = 0; i < select.options.length; i++) {
+                    allOptions.push({value: select.options[i].value, text: select.options[i].text, selected: select.options[i].selected});
+                }
+                searchInput.addEventListener('input', function() {
+                    var q = searchInput.value.toLowerCase();
+                    var selectedVal = select.value;
+                    while (select.options.length) select.remove(0);
+                    allOptions.forEach(function(o) {
+                        if (!q || o.text.toLowerCase().indexOf(q) !== -1 || o.value.toLowerCase().indexOf(q) !== -1) {
+                            var opt = new Option(o.text, o.value);
+                            if (o.value === selectedVal) opt.selected = true;
+                            select.add(opt);
+                        }
+                    });
+                });
+            });
 
             loadDraft();
             showStep(currentStep);
