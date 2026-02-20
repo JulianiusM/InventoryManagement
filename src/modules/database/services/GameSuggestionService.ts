@@ -67,8 +67,14 @@ function getRandomOrderExpression(): string {
  *
  * When `withPlayerCount` is false, just checks the mode support flag.
  * When `withPlayerCount` is true, additionally checks the mode-specific
- * player count (falling back to overall counts when mode-specific counts
- * are incomplete — i.e. when either min or max is null).
+ * player count with smart fallback:
+ *   - Both mode min & max set → use mode counts only
+ *   - Only mode max set → use mode max for upper bound, overall min for lower
+ *   - Only mode min set → use mode min for lower bound, overall max for upper
+ *   - Both null → full fallback to overall counts
+ *
+ * This prevents over-matching (e.g. couch max=4 but overall max=8 would
+ * wrongly match a request for 6 players if we fell back entirely to overall).
  *
  * Uses parameterised `:count` (set on the query builder elsewhere).
  * Column names come from our own constant lookup tables — no user input.
@@ -81,10 +87,22 @@ function modeCondition(mode: GameMode, withPlayerCount: boolean): string {
     const {min, max} = MODE_PLAYER_COLUMNS[mode];
     return (
         `(title.${flag} = 1 AND (` +
+            // Case 1: both mode-specific counts available — use them
             `(title.${min} IS NOT NULL AND title.${max} IS NOT NULL ` +
                 `AND title.${min} <= :count AND title.${max} >= :count)` +
             ` OR ` +
-            `((title.${min} IS NULL OR title.${max} IS NULL) ` +
+            // Case 2: only mode max set — bound upper by mode, lower by overall
+            `(title.${min} IS NULL AND title.${max} IS NOT NULL ` +
+                `AND title.${max} >= :count ` +
+                `AND title.overallMinPlayers IS NOT NULL AND title.overallMinPlayers <= :count)` +
+            ` OR ` +
+            // Case 3: only mode min set — bound lower by mode, upper by overall
+            `(title.${min} IS NOT NULL AND title.${max} IS NULL ` +
+                `AND title.${min} <= :count ` +
+                `AND title.overallMaxPlayers IS NOT NULL AND title.overallMaxPlayers >= :count)` +
+            ` OR ` +
+            // Case 4: both null — full fallback to overall
+            `(title.${min} IS NULL AND title.${max} IS NULL ` +
                 `AND title.overallMinPlayers IS NOT NULL AND title.overallMaxPlayers IS NOT NULL ` +
                 `AND title.overallMinPlayers <= :count AND title.overallMaxPlayers >= :count)` +
         `))`
