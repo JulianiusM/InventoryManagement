@@ -133,6 +133,7 @@ jobs:
 
           # Copy build output
           cp -R dist release/dist
+          cp -R docs docs
 
           # Create a production-safe package.json for the release artifact:
           # - remove devDependencies
@@ -181,7 +182,7 @@ jobs:
         run: |
           set -e
           mkdir -p artifacts
-          tar -czf "artifacts/surveyor-v${RELEASE_VERSION}.tar.gz" -C release .
+          tar -czf "artifacts/inventory-v${RELEASE_VERSION}.tar.gz" -C release .
           ls -R artifacts
 
       - name: Create GitHub Release
@@ -193,4 +194,4 @@ jobs:
           name: v${{ inputs.version }}
           prerelease: ${{ contains(inputs.version, '-') }}
           files: |
-            artifacts/surveyor-v${{ inputs.version }}.tar.gz
+            artifacts/inventory-v${{ inputs.version }}.tar.gz
