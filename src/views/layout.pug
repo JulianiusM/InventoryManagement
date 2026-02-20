@@ -41,12 +41,6 @@ html(lang="en")
                     .collapse.navbar-collapse#navbarMain
                         // Left side: primary navigation
                         ul.navbar-nav.me-auto.mb-2.mb-lg-0
-                            // Home
-                            li.nav-item
-                                a.nav-link(href="/")
-                                    i.bi.bi-house-fill.me-1
-                                    | Home
-
                             // Items
                             li.nav-item
                                 a.nav-link(href="/items")
@@ -59,38 +53,49 @@ html(lang="en")
                                     i.bi.bi-geo-alt.me-1
                                     | Locations
 
+                            // Games
+                            li.nav-item
+                                a.nav-link(href="/games")
+                                    i.bi.bi-controller.me-1
+                                    | Games
+
                             // Lending
                             li.nav-item
                                 a.nav-link(href="/loans")
                                     i.bi.bi-arrow-left-right.me-1
                                     | Lending
 
-                            // Scan
-                            li.nav-item
-                                a.nav-link(href="/scan")
-                                    i.bi.bi-upc-scan.me-1
-                                    | Scan
-                            
-                            // Games
-                            li.nav-item
-                                a.nav-link(href="/games")
-                                    i.bi.bi-controller.me-1
-                                    | Games
-                            
-                            // Help link
-                            li.nav-item
-                                a.nav-link(href="/help")
-                                    i.bi.bi-question-circle.me-1
-                                    | Help
+                            // More dropdown for secondary pages
+                            li.nav-item.dropdown
+                                a.nav-link.dropdown-toggle(href="#" id="navMore" role="button" data-bs-toggle="dropdown" aria-expanded="false")
+                                    i.bi.bi-three-dots.me-1
+                                    | More
+                                ul.dropdown-menu.dropdown-menu-dark(aria-labelledby="navMore")
+                                    li
+                                        a.dropdown-item(href="/scan")
+                                            i.bi.bi-upc-scan.me-1
+                                            | Scan Barcode
+                                    li
+                                        a.dropdown-item(href="/wizard")
+                                            i.bi.bi-plus-circle.me-1
+                                            | Quick Add
+                                    li.dropdown-divider
+                                    li
+                                        a.dropdown-item(href="/help")
+                                            i.bi.bi-question-circle.me-1
+                                            | Help
 
-                        // Right side: user account
+                        // Right side: quick add + user account
                         ul.navbar-nav.ms-auto
+                            li.nav-item.me-2
+                                a.nav-link(href="/wizard" title="Quick Add")
+                                    i.bi.bi-plus-lg
                             if user
                                 li.nav-item.dropdown
                                     a.nav-link.dropdown-toggle(href="#" id="userMenu" role="button" data-bs-toggle="dropdown" aria-expanded="false")
                                         i.bi.bi-person-circle.me-1
                                         | #{user.username}
-                                    ul.dropdown-menu.dropdown-menu-end(aria-labelledby="userMenu")
+                                    ul.dropdown-menu.dropdown-menu-end.dropdown-menu-dark(aria-labelledby="userMenu")
                                         li
                                             a.dropdown-item(href="/users/dashboard")
                                                 i.bi.bi-speedometer2.me-1

@@ -209,10 +209,10 @@ export async function updateGameTitle(
     // Player profile updates
     if (body.overallMinPlayers !== undefined) updates.overallMinPlayers = Number(body.overallMinPlayers);
     if (body.overallMaxPlayers !== undefined) updates.overallMaxPlayers = Number(body.overallMaxPlayers);
-    if (body.supportsOnline !== undefined) updates.supportsOnline = Boolean(body.supportsOnline);
-    if (body.supportsLocalCouch !== undefined) updates.supportsLocalCouch = Boolean(body.supportsLocalCouch);
-    if (body.supportsLocalLAN !== undefined) updates.supportsLocalLAN = Boolean(body.supportsLocalLAN);
-    if (body.supportsPhysical !== undefined) updates.supportsPhysical = Boolean(body.supportsPhysical);
+    if (body.supportsOnline !== undefined) updates.supportsOnline = parseCheckboxBoolean(body.supportsOnline);
+    if (body.supportsLocalCouch !== undefined) updates.supportsLocalCouch = parseCheckboxBoolean(body.supportsLocalCouch);
+    if (body.supportsLocalLAN !== undefined) updates.supportsLocalLAN = parseCheckboxBoolean(body.supportsLocalLAN);
+    if (body.supportsPhysical !== undefined) updates.supportsPhysical = parseCheckboxBoolean(body.supportsPhysical);
     if (body.onlineMinPlayers !== undefined) updates.onlineMinPlayers = Number(body.onlineMinPlayers) || null;
     if (body.onlineMaxPlayers !== undefined) updates.onlineMaxPlayers = Number(body.onlineMaxPlayers) || null;
     if (body.couchMinPlayers !== undefined) updates.couchMinPlayers = Number(body.couchMinPlayers) || null;

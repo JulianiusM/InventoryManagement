@@ -1,0 +1,348 @@
+/**
+ * Wizard Controller
+ * Handles guided wizard workflows for creating locations, items, and game titles.
+ * Uses existing service-layer functions for actual entity creation.
+ */
+
+import * as locationController from './locationController';
+import * as itemController from './itemController';
+import * as gameTitleController from './games/gameTitleController';
+import * as gameReleaseController from './games/gameReleaseController';
+import * as gameCopyController from './games/gameCopyController';
+import * as locationService from '../modules/database/services/LocationService';
+import * as platformService from '../modules/database/services/PlatformService';
+import * as externalAccountService from '../modules/database/services/ExternalAccountService';
+import * as gameTitleService from '../modules/database/services/GameTitleService';
+import {getMetadataFetcher} from '../modules/games/sync/MetadataFetcher';
+import {GameTitle} from '../modules/database/entities/gameTitle/GameTitle';
+import {requireAuthenticatedUser} from '../middleware/authMiddleware';
+import {ExpectedError} from '../modules/lib/errors';
+import {ItemType, ItemCondition, LocationKind, GameType, GameCopyType} from '../types/InventoryEnums';
+
+/** Supported wizard entity types */
+export type WizardEntityType = 'location' | 'item' | 'game';
+
+/** Step definition for the wizard UI */
+export interface WizardStep {
+    id: string;
+    title: string;
+    icon: string;
+    optional: boolean;
+}
+
+/** Wizard definitions keyed by entity type */
+const wizardDefinitions: Record<WizardEntityType, {
+    title: string;
+    icon: string;
+    steps: WizardStep[];
+}> = {
+    location: {
+        title: 'Create Location',
+        icon: 'bi-geo-alt',
+        steps: [
+            {id: 'basics', title: 'Basics', icon: 'bi-pencil', optional: false},
+            {id: 'details', title: 'Details', icon: 'bi-list-ul', optional: true},
+            {id: 'review', title: 'Review', icon: 'bi-check-circle', optional: false},
+        ],
+    },
+    item: {
+        title: 'Create Item',
+        icon: 'bi-box-seam',
+        steps: [
+            {id: 'basics', title: 'Basics', icon: 'bi-pencil', optional: false},
+            {id: 'location', title: 'Location', icon: 'bi-geo-alt', optional: true},
+            {id: 'extras', title: 'Extras', icon: 'bi-tags', optional: true},
+            {id: 'review', title: 'Review', icon: 'bi-check-circle', optional: false},
+        ],
+    },
+    game: {
+        title: 'Create Game',
+        icon: 'bi-controller',
+        steps: [
+            {id: 'basics', title: 'Basics', icon: 'bi-pencil', optional: false},
+            {id: 'metadata', title: 'Metadata', icon: 'bi-cloud-download', optional: true},
+            {id: 'details', title: 'Details', icon: 'bi-list-ul', optional: true},
+            {id: 'copy', title: 'Copy', icon: 'bi-disc', optional: false},
+            {id: 'review', title: 'Review', icon: 'bi-check-circle', optional: false},
+        ],
+    },
+};
+
+const VALID_ENTITY_TYPES: WizardEntityType[] = ['location', 'item', 'game'];
+
+function isValidEntityType(type: string): type is WizardEntityType {
+    return VALID_ENTITY_TYPES.includes(type as WizardEntityType);
+}
+
+/**
+ * Show the wizard chooser (entity type selection)
+ */
+export async function showWizardChooser(userId: number) {
+    requireAuthenticatedUser(userId);
+    return {
+        entityTypes: VALID_ENTITY_TYPES.map(type => ({
+            type,
+            title: wizardDefinitions[type].title,
+            icon: wizardDefinitions[type].icon,
+        })),
+    };
+}
+
+/**
+ * Show the wizard form for a given entity type
+ */
+export async function showWizardForm(entityType: string, userId: number) {
+    requireAuthenticatedUser(userId);
+
+    if (!isValidEntityType(entityType)) {
+        throw new ExpectedError('Invalid entity type', 'error', 400);
+    }
+
+    const definition = wizardDefinitions[entityType];
+    const prefetchData = await getPrefetchData(entityType, userId);
+
+    return {
+        entityType,
+        definition,
+        ...prefetchData,
+    };
+}
+
+/**
+ * Handle wizard form submission - creates the entity
+ */
+export async function submitWizard(entityType: string, body: Record<string, string>, userId: number) {
+    requireAuthenticatedUser(userId);
+
+    if (!isValidEntityType(entityType)) {
+        throw new ExpectedError('Invalid entity type', 'error', 400);
+    }
+
+    switch (entityType) {
+        case 'location':
+            return await submitLocationWizard(body, userId);
+        case 'item':
+            return await submitItemWizard(body, userId);
+        case 'game':
+            return await submitGameWizard(body, userId);
+    }
+}
+
+/**
+ * Handle inline location creation from within an item/game wizard
+ */
+export async function createInlineLocation(body: {name: string; kind?: string}, userId: number) {
+    requireAuthenticatedUser(userId);
+
+    const location = await locationController.createLocation(body, userId);
+    return {
+        id: location.id,
+        name: location.name,
+    };
+}
+
+/**
+ * Search game metadata by name (AJAX endpoint for game wizard)
+ */
+export async function searchGameMetadata(query: string, gameType?: string) {
+    if (!query || !query.trim()) {
+        return [];
+    }
+    const metadataFetcher = getMetadataFetcher();
+    // searchMetadataOptions uses only title.name and title.type from the GameTitle
+    const titleForSearch = {name: query.trim(), type: gameType as GameType} as GameTitle;
+    return await metadataFetcher.searchMetadataOptions(titleForSearch, query.trim());
+}
+
+/**
+ * Fetch full metadata for a specific provider result (AJAX endpoint for game wizard)
+ * Returns GameMetadata to prefill the manual details step
+ */
+export async function fetchGameMetadata(providerId: string, externalId: string) {
+    if (!providerId || !externalId) {
+        return null;
+    }
+    const metadataFetcher = getMetadataFetcher();
+    const result = await metadataFetcher.fetchMetadataFromProvider(providerId, externalId);
+    return result.metadata || null;
+}
+
+// ============ Private Helpers ============
+
+async function getPrefetchData(entityType: WizardEntityType, userId: number) {
+    switch (entityType) {
+        case 'location': {
+            const locations = await locationService.getAllLocations(userId);
+            return {
+                locations,
+                locationKinds: Object.values(LocationKind),
+            };
+        }
+        case 'item': {
+            const locations = await locationService.getAllLocations(userId);
+            return {
+                locations,
+                itemTypes: Object.values(ItemType).filter(
+                    t => t !== ItemType.GAME && t !== ItemType.GAME_DIGITAL
+                ),
+                itemConditions: Object.values(ItemCondition),
+                locationKinds: Object.values(LocationKind),
+            };
+        }
+        case 'game': {
+            const platforms = await platformService.getAllPlatforms(userId);
+            const locations = await locationService.getAllLocations(userId);
+            const accounts = await externalAccountService.getAllExternalAccounts(userId);
+            return {
+                platforms,
+                locations,
+                accounts,
+                gameTypes: Object.values(GameType),
+                copyTypes: Object.values(GameCopyType),
+                itemConditions: Object.values(ItemCondition),
+            };
+        }
+    }
+}
+
+async function submitLocationWizard(body: Record<string, string>, userId: number) {
+    const location = await locationController.createLocation({
+        name: body.name,
+        kind: body.kind || undefined,
+        parentId: body.parentId || undefined,
+        qrCode: body.qrCode || undefined,
+    }, userId);
+
+    return {
+        entityType: 'location' as const,
+        entityId: location.id,
+        entityName: location.name,
+        editUrl: `/locations/${location.id}`,
+        listUrl: '/locations',
+    };
+}
+
+async function submitItemWizard(body: Record<string, string>, userId: number) {
+    // Handle inline location creation if requested
+    let locationId = body.locationId || undefined;
+    if (body.newLocationName && body.newLocationName.trim()) {
+        const newLocation = await locationController.createLocation({
+            name: body.newLocationName.trim(),
+            kind: body.newLocationKind || undefined,
+        }, userId);
+        locationId = newLocation.id;
+    }
+
+    const item = await itemController.createItem({
+        name: body.name,
+        type: body.type || undefined,
+        description: body.description || undefined,
+        condition: body.condition || undefined,
+        serialNumber: body.serialNumber || undefined,
+        tags: body.tags || undefined,
+        locationId,
+    }, userId);
+
+    return {
+        entityType: 'item' as const,
+        entityId: item.id,
+        entityName: item.name,
+        editUrl: `/items/${item.id}`,
+        listUrl: '/items',
+    };
+}
+
+async function submitGameWizard(body: Record<string, string>, userId: number) {
+    // Step 1: Create the game title
+    const title = await gameTitleController.createGameTitle({
+        name: body.name,
+        type: body.type || undefined,
+        description: body.description || undefined,
+        overallMinPlayers: Number(body.overallMinPlayers) || 1,
+        overallMaxPlayers: Number(body.overallMaxPlayers) || 1,
+        supportsOnline: body.supportsOnline === 'true',
+        supportsLocalCouch: body.supportsLocalCouch === 'true',
+        supportsLocalLAN: body.supportsLocalLAN === 'true',
+        supportsPhysical: body.supportsPhysical === 'true',
+        onlineMinPlayers: Number(body.onlineMinPlayers) || undefined,
+        onlineMaxPlayers: Number(body.onlineMaxPlayers) || undefined,
+        couchMinPlayers: Number(body.couchMinPlayers) || undefined,
+        couchMaxPlayers: Number(body.couchMaxPlayers) || undefined,
+        lanMinPlayers: Number(body.lanMinPlayers) || undefined,
+        lanMaxPlayers: Number(body.lanMaxPlayers) || undefined,
+        physicalMinPlayers: Number(body.physicalMinPlayers) || undefined,
+        physicalMaxPlayers: Number(body.physicalMaxPlayers) || undefined,
+    }, userId);
+
+    // Step 2: Apply cover image from metadata if a provider result was selected
+    // Note: description, modes, and player counts are already captured from the wizard
+    // form (which was prefilled from metadata). Only coverImageUrl needs to be fetched
+    // separately since it's not editable in the wizard form.
+    if (body.metadataProviderId && body.metadataExternalId) {
+        try {
+            const metadataFetcher = getMetadataFetcher();
+            const result = await metadataFetcher.fetchMetadataFromProvider(
+                body.metadataProviderId,
+                body.metadataExternalId
+            );
+            if (result.metadata?.coverImageUrl) {
+                await gameTitleService.updateGameTitle(title.id, {
+                    coverImageUrl: result.metadata.coverImageUrl,
+                });
+            }
+        } catch {
+            // Metadata fetch failure should not block game creation
+        }
+    }
+
+    // Step 3: Create the release
+    const platform = body.platform || 'PC';
+    const release = await gameReleaseController.createGameRelease({
+        gameTitleId: title.id,
+        platform,
+        edition: body.edition || undefined,
+    }, userId);
+
+    // Step 4: Create the copy
+    const copyType = body.copyType || GameCopyType.PHYSICAL_COPY;
+
+    // Handle inline location creation for physical copies
+    let locationId = body.locationId || undefined;
+    if (copyType === GameCopyType.PHYSICAL_COPY && body.newLocationName && body.newLocationName.trim()) {
+        const newLocation = await locationController.createLocation({
+            name: body.newLocationName.trim(),
+            kind: body.newLocationKind || undefined,
+        }, userId);
+        locationId = newLocation.id;
+    }
+
+    const copy = await gameCopyController.createGameCopy({
+        gameReleaseId: release.id,
+        copyType,
+        condition: copyType === GameCopyType.PHYSICAL_COPY ? (body.condition || undefined) : undefined,
+        locationId: copyType === GameCopyType.PHYSICAL_COPY ? locationId : undefined,
+        externalAccountId: copyType === GameCopyType.DIGITAL_LICENSE ? (body.externalAccountId || undefined) : undefined,
+    }, userId);
+
+    // Step 5: Map barcode if provided (physical copies only)
+    if (copyType === GameCopyType.PHYSICAL_COPY && body.barcode && body.barcode.trim()) {
+        try {
+            await gameCopyController.mapBarcodeToGameCopy(
+                copy.id,
+                body.barcode.trim(),
+                body.barcodeSymbology || 'UNKNOWN',
+                userId
+            );
+        } catch {
+            // Barcode mapping failure should not block game creation
+        }
+    }
+
+    return {
+        entityType: 'game' as const,
+        entityId: title.id,
+        entityName: title.name,
+        editUrl: `/games/titles/${title.id}`,
+        listUrl: '/games',
+    };
+}

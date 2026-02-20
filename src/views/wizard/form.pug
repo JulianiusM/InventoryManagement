@@ -1,0 +1,465 @@
+extends ../layout
+
+block meta
+    title #{data.definition.title} | Quick Add | Inventory Management
+
+block content
+    - const entityType = data.entityType
+    - const definition = data.definition
+    - const steps = definition.steps
+    - const locations = data.locations || []
+    - const itemTypes = data.itemTypes || []
+    - const itemConditions = data.itemConditions || []
+    - const locationKinds = data.locationKinds || []
+    - const platforms = data.platforms || []
+    - const gameTypes = data.gameTypes || []
+    - const copyTypes = data.copyTypes || []
+    - const accounts = data.accounts || []
+
+    //- Breadcrumb
+    nav(aria-label="breadcrumb")
+        ol.breadcrumb
+            li.breadcrumb-item
+                a.text-white(href="/wizard") Quick Add
+            li.breadcrumb-item.active.text-white-50= definition.title
+
+    .d-flex.justify-content-between.align-items-center.mb-3
+        h1.h3.mb-0.text-white
+            i.bi(class=definition.icon + " me-2")
+            = definition.title
+
+    //- Step progress indicator
+    .card.text-bg-dark.border-secondary.mb-4
+        .card-body.py-2
+            .d-flex.justify-content-between.align-items-center#wizardProgress
+                each step, idx in steps
+                    .text-center.flex-fill.wizard-step-indicator(data-step=step.id)
+                        .d-flex.align-items-center.justify-content-center.mb-1
+                            span.badge.rounded-pill.me-1(class=(idx === 0 ? 'bg-primary' : 'bg-secondary') data-badge="true")= idx + 1
+                            span.small(class=(idx === 0 ? 'text-white' : 'text-white-50') data-label="true")= step.title
+                            if step.optional
+                                span.badge.bg-dark.text-white-50.ms-1.small (opt.)
+
+    //- Wizard form with all steps
+    form#wizardForm(method="post" action=`/wizard/${entityType}` data-steps=JSON.stringify(steps.map(function(s) { return { id: s.id, optional: s.optional }; })) data-entity=entityType data-is-game=(entityType === 'game' ? 'true' : 'false'))
+        //- ============ LOCATION WIZARD ============
+        if entityType === 'location'
+            //- Step: Basics
+            .wizard-step(data-step="basics")
+                .card.text-bg-dark.border-secondary.mb-3
+                    .card-header.border-secondary
+                        i.bi.bi-pencil.me-2
+                        | Basic Information
+                    .card-body
+                        .row.g-3
+                            .col-md-6
+                                label.form-label(for="name")
+                                    i.bi.bi-tag.me-1
+                                    | Name *
+                                input#name.form-control.text-bg-dark.border-secondary(type="text" name="name" required placeholder="e.g. Living Room, Garage Shelf A")
+                            .col-md-6
+                                label.form-label(for="kind")
+                                    i.bi.bi-grid.me-1
+                                    | Type
+                                select#kind.form-select.text-bg-dark.border-secondary(name="kind")
+                                    each k in locationKinds
+                                        option(value=k selected=(k === 'other'))= k.charAt(0).toUpperCase() + k.slice(1)
+
+            //- Step: Details (optional)
+            .wizard-step.d-none(data-step="details")
+                .card.text-bg-dark.border-secondary.mb-3
+                    .card-header.border-secondary
+                        i.bi.bi-list-ul.me-2
+                        | Additional Details
+                        span.badge.bg-dark.text-white-50.ms-2 Optional
+                    .card-body
+                        .row.g-3
+                            .col-md-6
+                                label.form-label(for="parentId")
+                                    i.bi.bi-diagram-3.me-1
+                                    | Parent Location
+                                select#parentId.form-select.text-bg-dark.border-secondary(name="parentId")
+                                    option(value="") None (top-level)
+                                    each loc in locations
+                                        option(value=loc.id)= loc.name
+                            .col-md-6
+                                label.form-label(for="qrCode")
+                                    i.bi.bi-qr-code.me-1
+                                    | QR Code
+                                input#qrCode.form-control.text-bg-dark.border-secondary(type="text" name="qrCode" placeholder="Optional QR code identifier")
+
+            //- Step: Review
+            .wizard-step.d-none(data-step="review")
+                .card.text-bg-dark.border-secondary.mb-3
+                    .card-header.border-secondary
+                        i.bi.bi-check-circle.me-2
+                        | Review
+                    .card-body
+                        p.text-white-50 Please review your location details before creating:
+                        table.table.table-dark.mb-0
+                            tbody#reviewContent
+
+        //- ============ ITEM WIZARD ============
+        if entityType === 'item'
+            //- Step: Basics
+            .wizard-step(data-step="basics")
+                .card.text-bg-dark.border-secondary.mb-3
+                    .card-header.border-secondary
+                        i.bi.bi-pencil.me-2
+                        | Basic Information
+                    .card-body
+                        .row.g-3
+                            .col-md-6
+                                label.form-label(for="name")
+                                    i.bi.bi-tag.me-1
+                                    | Name *
+                                input#name.form-control.text-bg-dark.border-secondary(type="text" name="name" required placeholder="e.g. Kitchen Mixer, Power Drill")
+                            .col-md-6
+                                label.form-label(for="type")
+                                    i.bi.bi-grid.me-1
+                                    | Type
+                                select#type.form-select.text-bg-dark.border-secondary(name="type")
+                                    each t in itemTypes
+                                        option(value=t selected=(t === 'other'))= t.charAt(0).toUpperCase() + t.slice(1).replace('_', ' ')
+                            .col-md-6
+                                label.form-label(for="condition")
+                                    i.bi.bi-heart.me-1
+                                    | Condition
+                                select#condition.form-select.text-bg-dark.border-secondary(name="condition")
+                                    option(value="") Not specified
+                                    each c in itemConditions
+                                        option(value=c)= c.charAt(0).toUpperCase() + c.slice(1).replace('_', ' ')
+                            .col-md-6
+                                label.form-label(for="description")
+                                    i.bi.bi-text-left.me-1
+                                    | Description
+                                textarea#description.form-control.text-bg-dark.border-secondary(name="description" rows="2" placeholder="Optional notes")
+
+            //- Step: Location
+            .wizard-step.d-none(data-step="location")
+                .card.text-bg-dark.border-secondary.mb-3
+                    .card-header.border-secondary
+                        i.bi.bi-geo-alt.me-2
+                        | Where is this item?
+                        span.badge.bg-dark.text-white-50.ms-2 Optional
+                    .card-body
+                        .row.g-3
+                            .col-12
+                                .form-check.mb-3
+                                    input#locationExisting.form-check-input(type="radio" name="locationChoice" value="existing" checked)
+                                    label.form-check-label(for="locationExisting") Select existing location
+                                .form-check.mb-3
+                                    input#locationNew.form-check-input(type="radio" name="locationChoice" value="new")
+                                    label.form-check-label(for="locationNew") Create new location
+                                .form-check
+                                    input#locationNone.form-check-input(type="radio" name="locationChoice" value="none")
+                                    label.form-check-label(for="locationNone") No location (unassigned)
+
+                            //- Existing location selector
+                            #existingLocationSection.col-md-6
+                                label.form-label(for="locationId")
+                                    i.bi.bi-geo-alt-fill.me-1
+                                    | Location
+                                select#locationId.form-select.text-bg-dark.border-secondary(name="locationId")
+                                    option(value="") Choose a location...
+                                    each loc in locations
+                                        option(value=loc.id)= loc.name
+
+                            //- New location fields
+                            #newLocationSection.col-12.d-none
+                                .row.g-3
+                                    .col-md-6
+                                        label.form-label(for="newLocationName")
+                                            i.bi.bi-plus-circle.me-1
+                                            | New Location Name *
+                                        input#newLocationName.form-control.text-bg-dark.border-secondary(type="text" name="newLocationName" placeholder="e.g. Kitchen Cabinet")
+                                    .col-md-6
+                                        label.form-label(for="newLocationKind")
+                                            i.bi.bi-grid.me-1
+                                            | Location Type
+                                        select#newLocationKind.form-select.text-bg-dark.border-secondary(name="newLocationKind")
+                                            each k in locationKinds
+                                                option(value=k selected=(k === 'other'))= k.charAt(0).toUpperCase() + k.slice(1)
+
+            //- Step: Extras (optional)
+            .wizard-step.d-none(data-step="extras")
+                .card.text-bg-dark.border-secondary.mb-3
+                    .card-header.border-secondary
+                        i.bi.bi-tags.me-2
+                        | Extra Details
+                        span.badge.bg-dark.text-white-50.ms-2 Optional
+                    .card-body
+                        .row.g-3
+                            .col-md-6
+                                label.form-label(for="serialNumber")
+                                    i.bi.bi-hash.me-1
+                                    | Serial Number
+                                input#serialNumber.form-control.text-bg-dark.border-secondary(type="text" name="serialNumber" placeholder="Optional")
+                            .col-md-6
+                                label.form-label(for="tags")
+                                    i.bi.bi-tags.me-1
+                                    | Tags
+                                input#tags.form-control.text-bg-dark.border-secondary(type="text" name="tags" placeholder="Comma-separated tags")
+
+            //- Step: Review
+            .wizard-step.d-none(data-step="review")
+                .card.text-bg-dark.border-secondary.mb-3
+                    .card-header.border-secondary
+                        i.bi.bi-check-circle.me-2
+                        | Review
+                    .card-body
+                        p.text-white-50 Please review your item details before creating:
+                        table.table.table-dark.mb-0
+                            tbody#reviewContent
+
+        //- ============ GAME WIZARD ============
+        if entityType === 'game'
+            //- Hidden fields for metadata selection
+            input#metadataProviderId(type="hidden" name="metadataProviderId")
+            input#metadataExternalId(type="hidden" name="metadataExternalId")
+
+            //- Step: Basics
+            .wizard-step(data-step="basics")
+                .card.text-bg-dark.border-secondary.mb-3
+                    .card-header.border-secondary
+                        i.bi.bi-pencil.me-2
+                        | Basic Information
+                    .card-body
+                        .row.g-3
+                            .col-md-6
+                                label.form-label(for="name")
+                                    i.bi.bi-tag.me-1
+                                    | Title *
+                                input#name.form-control.text-bg-dark.border-secondary(type="text" name="name" required placeholder="e.g. The Settlers of Catan")
+                            .col-md-6
+                                label.form-label(for="type")
+                                    i.bi.bi-grid.me-1
+                                    | Game Type
+                                select#type.form-select.text-bg-dark.border-secondary(name="type")
+                                    each t in gameTypes
+                                        option(value=t selected=(t === 'video_game'))= t.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())
+
+            //- Step: Metadata (optional - search and select metadata)
+            .wizard-step.d-none(data-step="metadata")
+                .card.text-bg-dark.border-secondary.mb-3
+                    .card-header.border-secondary
+                        i.bi.bi-cloud-download.me-2
+                        | Search Metadata
+                        span.badge.bg-dark.text-white-50.ms-2 Optional
+                    .card-body
+                        p.text-white-50 Search online databases to auto-fill game details like description and cover image.
+                        .row.g-2.mb-3
+                            .col-md-9
+                                input#metadataSearchQuery.form-control.text-bg-dark.border-secondary(type="text" placeholder="Search for game...")
+                            .col-md-3
+                                button#btnSearchMetadata.btn.btn-primary.w-100(type="button")
+                                    i.bi.bi-search.me-1
+                                    | Search
+                        #metadataSearchSpinner.text-center.d-none.mb-3
+                            .spinner-border.spinner-border-sm.text-primary(role="status")
+                            span.text-white-50.ms-2 Searching...
+                        #metadataResults
+                        #metadataSelected.d-none
+                            .alert.alert-success.d-flex.align-items-center
+                                i.bi.bi-check-circle-fill.me-2
+                                span#metadataSelectedName
+                                button.btn.btn-sm.btn-outline-light.ms-auto#btnClearMetadata(type="button")
+                                    i.bi.bi-x-lg.me-1
+                                    | Clear
+
+            //- Step: Details (optional - manual metadata entry with prefill)
+            .wizard-step.d-none(data-step="details")
+                .card.text-bg-dark.border-secondary.mb-3
+                    .card-header.border-secondary
+                        i.bi.bi-list-ul.me-2
+                        | Game Details
+                        span.badge.bg-dark.text-white-50.ms-2 Optional
+                    .card-body
+                        p.text-white-50 Edit game details manually. If you selected metadata above, these fields will be pre-filled.
+                        .row.g-3
+                            .col-12
+                                label.form-label(for="description")
+                                    i.bi.bi-text-left.me-1
+                                    | Description
+                                textarea#description.form-control.text-bg-dark.border-secondary(name="description" rows="3" placeholder="Game description")
+                            .col-md-6
+                                label.form-label(for="overallMinPlayers")
+                                    i.bi.bi-person.me-1
+                                    | Min Players
+                                input#overallMinPlayers.form-control.text-bg-dark.border-secondary(type="number" name="overallMinPlayers" min="1" placeholder="1")
+                            .col-md-6
+                                label.form-label(for="overallMaxPlayers")
+                                    i.bi.bi-people.me-1
+                                    | Max Players
+                                input#overallMaxPlayers.form-control.text-bg-dark.border-secondary(type="number" name="overallMaxPlayers" min="1" placeholder="1")
+                            .col-12
+                                label.form-label.mb-2 Game Modes
+                                .row.g-2
+                                    .col-md-3
+                                        .form-check
+                                            input#supportsOnline.form-check-input(type="checkbox" name="supportsOnline" value="true")
+                                            label.form-check-label(for="supportsOnline")
+                                                i.bi.bi-globe.me-1
+                                                | Online
+                                    .col-md-3
+                                        .form-check
+                                            input#supportsLocalCouch.form-check-input(type="checkbox" name="supportsLocalCouch" value="true")
+                                            label.form-check-label(for="supportsLocalCouch")
+                                                i.bi.bi-tv.me-1
+                                                | Couch Co-op
+                                    .col-md-3
+                                        .form-check
+                                            input#supportsLocalLAN.form-check-input(type="checkbox" name="supportsLocalLAN" value="true")
+                                            label.form-check-label(for="supportsLocalLAN")
+                                                i.bi.bi-ethernet.me-1
+                                                | LAN
+                                    .col-md-3
+                                        .form-check
+                                            input#supportsPhysical.form-check-input(type="checkbox" name="supportsPhysical" value="true")
+                                            label.form-check-label(for="supportsPhysical")
+                                                i.bi.bi-dice-3.me-1
+                                                | Physical
+
+                            //- Mode-specific player counts
+                            .col-md-3
+                                label.form-label.small.text-primary Online Min
+                                input#onlineMinPlayers.form-control.form-control-sm.text-bg-dark.border-secondary(type="number" name="onlineMinPlayers" min="1")
+                            .col-md-3
+                                label.form-label.small.text-primary Online Max
+                                input#onlineMaxPlayers.form-control.form-control-sm.text-bg-dark.border-secondary(type="number" name="onlineMaxPlayers" min="1")
+                            .col-md-3
+                                label.form-label.small.text-success Couch Min
+                                input#couchMinPlayers.form-control.form-control-sm.text-bg-dark.border-secondary(type="number" name="couchMinPlayers" min="1")
+                            .col-md-3
+                                label.form-label.small.text-success Couch Max
+                                input#couchMaxPlayers.form-control.form-control-sm.text-bg-dark.border-secondary(type="number" name="couchMaxPlayers" min="1")
+                            .col-md-3
+                                label.form-label.small.text-info LAN Min
+                                input#lanMinPlayers.form-control.form-control-sm.text-bg-dark.border-secondary(type="number" name="lanMinPlayers" min="1")
+                            .col-md-3
+                                label.form-label.small.text-info LAN Max
+                                input#lanMaxPlayers.form-control.form-control-sm.text-bg-dark.border-secondary(type="number" name="lanMaxPlayers" min="1")
+                            .col-md-3
+                                label.form-label.small.text-warning Physical Min
+                                input#physicalMinPlayers.form-control.form-control-sm.text-bg-dark.border-secondary(type="number" name="physicalMinPlayers" min="1")
+                            .col-md-3
+                                label.form-label.small.text-warning Physical Max
+                                input#physicalMaxPlayers.form-control.form-control-sm.text-bg-dark.border-secondary(type="number" name="physicalMaxPlayers" min="1")
+
+            //- Step: Copy (release + copy details)
+            .wizard-step.d-none(data-step="copy")
+                .card.text-bg-dark.border-secondary.mb-3
+                    .card-header.border-secondary
+                        i.bi.bi-disc.me-2
+                        | Your Copy
+                    .card-body
+                        .row.g-3
+                            .col-md-6
+                                label.form-label(for="platform")
+                                    i.bi.bi-display.me-1
+                                    | Platform *
+                                select#platform.form-select.text-bg-dark.border-secondary(name="platform")
+                                    if platforms.length
+                                        each p in platforms
+                                            option(value=p.name selected=(p.name === 'PC'))= p.name
+                                    else
+                                        option(value="PC" selected) PC
+                                        option(value="PlayStation 5") PlayStation 5
+                                        option(value="Xbox Series X|S") Xbox Series X|S
+                                        option(value="Nintendo Switch") Nintendo Switch
+                            .col-md-6
+                                label.form-label(for="edition")
+                                    i.bi.bi-bookmark.me-1
+                                    | Edition
+                                input#edition.form-control.text-bg-dark.border-secondary(type="text" name="edition" placeholder="e.g. Deluxe, GOTY")
+                            .col-md-6
+                                label.form-label(for="copyType")
+                                    i.bi.bi-disc.me-1
+                                    | Copy Type *
+                                select#copyType.form-select.text-bg-dark.border-secondary(name="copyType")
+                                    option(value="physical_copy") Physical Copy
+                                    option(value="digital_license") Digital License
+
+                            //- Physical copy fields
+                            #physicalCopyFields
+                                .row.g-3.mt-0
+                                    .col-md-6
+                                        label.form-label(for="condition")
+                                            i.bi.bi-heart.me-1
+                                            | Condition
+                                        select#condition.form-select.text-bg-dark.border-secondary(name="condition")
+                                            option(value="") Not specified
+                                            each c in itemConditions
+                                                option(value=c)= c.charAt(0).toUpperCase() + c.slice(1).replace('_', ' ')
+                                    .col-md-6
+                                        label.form-label(for="locationId")
+                                            i.bi.bi-geo-alt.me-1
+                                            | Storage Location
+                                        select#locationId.form-select.text-bg-dark.border-secondary(name="locationId")
+                                            option(value="") Unassigned
+                                            each loc in locations
+                                                option(value=loc.id)= loc.name
+                                    .col-md-6
+                                        label.form-label(for="barcode")
+                                            i.bi.bi-upc-scan.me-1
+                                            | Barcode
+                                        input#barcode.form-control.text-bg-dark.border-secondary(type="text" name="barcode" placeholder="Scan or type barcode")
+                                    .col-md-6
+                                        label.form-label(for="barcodeSymbology")
+                                            i.bi.bi-hash.me-1
+                                            | Barcode Type
+                                        select#barcodeSymbology.form-select.text-bg-dark.border-secondary(name="barcodeSymbology")
+                                            option(value="UNKNOWN") Auto-detect
+                                            option(value="EAN13") EAN-13
+                                            option(value="EAN8") EAN-8
+                                            option(value="UPC_A") UPC-A
+                                            option(value="UPC_E") UPC-E
+                                            option(value="CODE128") Code 128
+                                            option(value="CODE39") Code 39
+                                            option(value="QR") QR Code
+
+                            //- Digital copy fields
+                            #digitalCopyFields.d-none
+                                .row.g-3.mt-0
+                                    .col-md-6
+                                        label.form-label(for="externalAccountId")
+                                            i.bi.bi-cloud.me-1
+                                            | Linked Account
+                                        select#externalAccountId.form-select.text-bg-dark.border-secondary(name="externalAccountId")
+                                            option(value="") None
+                                            each acc in accounts
+                                                option(value=acc.id)= acc.accountName + ' (' + acc.provider + ')'
+
+            //- Step: Review
+            .wizard-step.d-none(data-step="review")
+                .card.text-bg-dark.border-secondary.mb-3
+                    .card-header.border-secondary
+                        i.bi.bi-check-circle.me-2
+                        | Review
+                    .card-body
+                        p.text-white-50 Please review your game details before creating:
+                        table.table.table-dark.mb-0
+                            tbody#reviewContent
+
+        //- Navigation buttons
+        .d-flex.justify-content-between.mt-3
+            div
+                a.btn.btn-outline-secondary(href="/wizard")
+                    i.bi.bi-x-lg.me-1
+                    | Cancel
+                button#btnBack.btn.btn-secondary.ms-2.d-none(type="button")
+                    i.bi.bi-arrow-left.me-1
+                    | Back
+            div
+                button#btnSkip.btn.btn-outline-light.me-2.d-none(type="button")
+                    | Skip
+                    i.bi.bi-arrow-right.ms-1
+                button#btnNext.btn.btn-primary(type="button")
+                    | Next
+                    i.bi.bi-arrow-right.ms-1
+                button#btnSubmit.btn.btn-success.d-none(type="submit")
+                    i.bi.bi-check-lg.me-1
+                    | Create
+
+block scripts
+    script(type="module" src="/js/wizard/form.gen.js")

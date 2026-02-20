@@ -8,9 +8,12 @@ export {MIN_VALID_DESCRIPTION_LENGTH} from '../../modules/games/sync/MetadataFet
 
 /**
  * Helper to parse checkbox boolean from form submissions
- * HTML checkboxes submit 'true' string when checked, undefined when unchecked
+ * HTML checkboxes submit 'true' string when checked, undefined when unchecked.
+ * When a hidden input (value="false") precedes the checkbox (value="true"),
+ * express.urlencoded({extended: true}) produces an array like ["false", "true"].
  */
-export function parseCheckboxBoolean(value: boolean | string | undefined): boolean {
+export function parseCheckboxBoolean(value: boolean | string | string[] | undefined): boolean {
+    if (Array.isArray(value)) return value.includes('true');
     return value === true || value === 'true';
 }
 
