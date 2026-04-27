@@ -225,11 +225,13 @@ function initWizard(steps: StepDef[], entityType: string, isGame: boolean): void
         const target = e.target as HTMLElement | null;
         if (!target) return;
 
-        if (target instanceof HTMLTextAreaElement || target.id === 'metadataSearchQuery') {
+        const allowEnterDefault = target.hasAttribute('data-allow-enter');
+        if (target instanceof HTMLTextAreaElement || allowEnterDefault) {
             return;
         }
 
-        if (target.id === 'barcode' || target.id === 'barcodeSymbology') {
+        const ignoreEnter = target.hasAttribute('data-ignore-enter');
+        if (ignoreEnter) {
             e.preventDefault();
             e.stopPropagation();
             return;
@@ -246,6 +248,7 @@ function initWizard(steps: StepDef[], entityType: string, isGame: boolean): void
             return;
         }
 
+        // If Enter is pressed on the last focusable field, advance to the next step.
         if (!validateCurrentStep()) return;
         if (currentStep < steps.length - 1) {
             showStep(currentStep + 1);
@@ -425,8 +428,9 @@ function initGameMetadataSearch(): void {
                 const pi = meta.playerInfo;
                 const minEl = qs<HTMLInputElement>('#overallMinPlayers');
                 const maxEl = qs<HTMLInputElement>('#overallMaxPlayers');
-                if (minEl && pi.overallMinPlayers !== undefined && !minEl.value) minEl.value = String(pi.overallMinPlayers);
-                if (maxEl && pi.overallMaxPlayers !== undefined && !maxEl.value) maxEl.value = String(pi.overallMaxPlayers);
+                // Use explicit empty-string checks so prefilled 0 values are not treated as "empty".
+                if (minEl && pi.overallMinPlayers !== undefined && minEl.value === '') minEl.value = String(pi.overallMinPlayers);
+                if (maxEl && pi.overallMaxPlayers !== undefined && maxEl.value === '') maxEl.value = String(pi.overallMaxPlayers);
                 if (pi.supportsOnline !== undefined) { const el = qs<HTMLInputElement>('#supportsOnline'); if (el) el.checked = pi.supportsOnline; }
                 if (pi.supportsLocalCouch !== undefined) { const el = qs<HTMLInputElement>('#supportsLocalCouch'); if (el) el.checked = pi.supportsLocalCouch; }
                 if (pi.supportsLocalLAN !== undefined) { const el = qs<HTMLInputElement>('#supportsLocalLAN'); if (el) el.checked = pi.supportsLocalLAN; }
@@ -439,7 +443,8 @@ function initGameMetadataSearch(): void {
                 ];
                 for (const [id, val] of modeFields) {
                     const el = qs<HTMLInputElement>(`#${id}`);
-                    if (el && val !== undefined && !el.value) el.value = String(val);
+                    // Use explicit empty-string checks so prefilled 0 values are not treated as "empty".
+                    if (el && val !== undefined && el.value === '') el.value = String(val);
                 }
             }
         } catch { /* metadata prefill failure is non-critical */ }

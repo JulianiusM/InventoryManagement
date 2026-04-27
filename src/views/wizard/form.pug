@@ -250,7 +250,7 @@ block content
                         p.text-white-50 Search online databases to auto-fill game details like description and cover image.
                         .row.g-2.mb-3
                             .col-md-9
-                                input#metadataSearchQuery.form-control.text-bg-dark.border-secondary(type="text" placeholder="Search for game...")
+                                input#metadataSearchQuery.form-control.text-bg-dark.border-secondary(type="text" placeholder="Search for game..." data-allow-enter="true")
                             .col-md-3
                                 button#btnSearchMetadata.btn.btn-primary.w-100(type="button")
                                     i.bi.bi-search.me-1
@@ -403,12 +403,12 @@ block content
                                         label.form-label(for="barcode")
                                             i.bi.bi-upc-scan.me-1
                                             | Barcode
-                                        input#barcode.form-control.text-bg-dark.border-secondary(type="text" name="barcode" placeholder="Scan or type barcode")
+                                        input#barcode.form-control.text-bg-dark.border-secondary(type="text" name="barcode" placeholder="Scan or type barcode" data-ignore-enter="true")
                                     .col-md-6
                                         label.form-label(for="barcodeSymbology")
                                             i.bi.bi-hash.me-1
                                             | Barcode Type
-                                        select#barcodeSymbology.form-select.text-bg-dark.border-secondary(name="barcodeSymbology")
+                                        select#barcodeSymbology.form-select.text-bg-dark.border-secondary(name="barcodeSymbology" data-ignore-enter="true")
                                             option(value="UNKNOWN") Auto-detect
                                             option(value="EAN13") EAN-13
                                             option(value="EAN8") EAN-8

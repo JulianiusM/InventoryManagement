@@ -59,8 +59,8 @@ describe('wizard form keyboard and metadata behavior', () => {
                 <input id="metadataProviderId" type="hidden" name="metadataProviderId" />
                 <input id="metadataExternalId" type="hidden" name="metadataExternalId" />
                 <div class="wizard-step" data-step="copy">
-                    <input id="barcode" name="barcode" value="123456" />
-                    <select id="barcodeSymbology" name="barcodeSymbology"><option value="EAN13" selected>EAN13</option></select>
+                    <input id="barcode" name="barcode" value="123456" data-ignore-enter="true" />
+                    <select id="barcodeSymbology" name="barcodeSymbology" data-ignore-enter="true"><option value="EAN13" selected>EAN13</option></select>
                     <select id="copyType" name="copyType"><option value="physical_copy" selected>Physical</option></select>
                     <div id="physicalCopyFields"></div>
                     <div id="digitalCopyFields" class="d-none"></div>
@@ -121,7 +121,7 @@ describe('wizard form keyboard and metadata behavior', () => {
                 <input id="metadataProviderId" type="hidden" name="metadataProviderId" />
                 <input id="metadataExternalId" type="hidden" name="metadataExternalId" />
                 <div class="wizard-step" data-step="metadata">
-                    <input id="metadataSearchQuery" value="Overcooked" />
+                    <input id="metadataSearchQuery" value="Overcooked" data-allow-enter="true" />
                     <button id="btnSearchMetadata" type="button">Search</button>
                     <div id="metadataSearchSpinner" class="d-none"></div>
                     <div id="metadataResults"></div>
