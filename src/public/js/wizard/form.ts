@@ -199,6 +199,17 @@ function initWizard(steps: StepDef[], entityType: string, isGame: boolean): void
         }
     }
 
+    function getFocusableFieldsForStep(stepEl: HTMLElement): HTMLElement[] {
+        const candidates = stepEl.querySelectorAll<HTMLElement>('input, select, textarea, button');
+        return Array.from(candidates).filter(el => {
+            if (el.classList.contains('d-none')) return false;
+            if (el instanceof HTMLInputElement && el.type === 'hidden') return false;
+            if (el instanceof HTMLButtonElement && el.type === 'submit') return false;
+            if ((el as HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement | HTMLButtonElement).disabled) return false;
+            return true;
+        });
+    }
+
     /* -- button handlers ------------------------------------------- */
 
     btnNext.addEventListener('click', () => {
@@ -207,6 +218,39 @@ function initWizard(steps: StepDef[], entityType: string, isGame: boolean): void
     });
     btnBack.addEventListener('click', () => { if (currentStep > 0) showStep(currentStep - 1); });
     btnSkip.addEventListener('click', () => { if (currentStep < steps.length - 1) showStep(currentStep + 1); });
+
+    form.addEventListener('keydown', (e: KeyboardEvent) => {
+        if (e.key !== 'Enter') return;
+
+        const target = e.target as HTMLElement | null;
+        if (!target) return;
+
+        if (target instanceof HTMLTextAreaElement || target.id === 'metadataSearchQuery') {
+            return;
+        }
+
+        if (target.id === 'barcode' || target.id === 'barcodeSymbology') {
+            e.preventDefault();
+            e.stopPropagation();
+            return;
+        }
+
+        e.preventDefault();
+        e.stopPropagation();
+
+        const currentStepEl = allStepEls[currentStep];
+        const focusableFields = getFocusableFieldsForStep(currentStepEl);
+        const currentIndex = focusableFields.indexOf(target);
+        if (currentIndex >= 0 && currentIndex < focusableFields.length - 1) {
+            focusableFields[currentIndex + 1].focus();
+            return;
+        }
+
+        if (!validateCurrentStep()) return;
+        if (currentStep < steps.length - 1) {
+            showStep(currentStep + 1);
+        }
+    });
 
     /* -- item wizard: location choice toggle ----------------------- */
 
@@ -381,12 +425,12 @@ function initGameMetadataSearch(): void {
                 const pi = meta.playerInfo;
                 const minEl = qs<HTMLInputElement>('#overallMinPlayers');
                 const maxEl = qs<HTMLInputElement>('#overallMaxPlayers');
-                if (minEl && pi.overallMinPlayers && !minEl.value) minEl.value = String(pi.overallMinPlayers);
-                if (maxEl && pi.overallMaxPlayers && !maxEl.value) maxEl.value = String(pi.overallMaxPlayers);
-                if (pi.supportsOnline) { const el = qs<HTMLInputElement>('#supportsOnline'); if (el) el.checked = true; }
-                if (pi.supportsLocalCouch) { const el = qs<HTMLInputElement>('#supportsLocalCouch'); if (el) el.checked = true; }
-                if (pi.supportsLocalLAN) { const el = qs<HTMLInputElement>('#supportsLocalLAN'); if (el) el.checked = true; }
-                if (pi.supportsPhysical) { const el = qs<HTMLInputElement>('#supportsPhysical'); if (el) el.checked = true; }
+                if (minEl && pi.overallMinPlayers !== undefined && !minEl.value) minEl.value = String(pi.overallMinPlayers);
+                if (maxEl && pi.overallMaxPlayers !== undefined && !maxEl.value) maxEl.value = String(pi.overallMaxPlayers);
+                if (pi.supportsOnline !== undefined) { const el = qs<HTMLInputElement>('#supportsOnline'); if (el) el.checked = pi.supportsOnline; }
+                if (pi.supportsLocalCouch !== undefined) { const el = qs<HTMLInputElement>('#supportsLocalCouch'); if (el) el.checked = pi.supportsLocalCouch; }
+                if (pi.supportsLocalLAN !== undefined) { const el = qs<HTMLInputElement>('#supportsLocalLAN'); if (el) el.checked = pi.supportsLocalLAN; }
+                if (pi.supportsPhysical !== undefined) { const el = qs<HTMLInputElement>('#supportsPhysical'); if (el) el.checked = pi.supportsPhysical; }
                 const modeFields: [string, number | undefined][] = [
                     ['onlineMinPlayers', pi.onlineMinPlayers], ['onlineMaxPlayers', pi.onlineMaxPlayers],
                     ['couchMinPlayers', pi.couchMinPlayers], ['couchMaxPlayers', pi.couchMaxPlayers],
@@ -395,7 +439,7 @@ function initGameMetadataSearch(): void {
                 ];
                 for (const [id, val] of modeFields) {
                     const el = qs<HTMLInputElement>(`#${id}`);
-                    if (el && val && !el.value) el.value = String(val);
+                    if (el && val !== undefined && !el.value) el.value = String(val);
                 }
             }
         } catch { /* metadata prefill failure is non-critical */ }
